@@ -1,5 +1,5 @@
 /*! stillwind | MIT License | https://stillwind.dev */
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer properties;
 @layer theme {
   :root,
@@ -231,7 +231,7 @@
 }
 @layer components;
 @layer utilities {
-  .sw_5alcb {
+  .sw_cgj73 {
     width: 100%;
     @media (width >= 40rem) {
       max-width: 40rem;
@@ -249,26 +249,26 @@
       max-width: 96rem;
     }
   }
-  .sw_5alcb {
-    padding: calc(var(--spacing) * 4);
+  .sw_cgj73 {
+    padding: calc(var(--spacing)*4);
     border-radius: var(--radius-lg);
     container: sidebar/inline-size;
   }
-  @media (hover: hover) {
-    .sw_5yn5y:is(:where(.group\/menu):hover *) {
+  @media (hover) {
+    :is(:where(.group\/menu):hover .sw_3e63i) {
       color: var(--color-brand);
     }
   }
-  .sw_5yn5y:is(:where(.peer\/field):checked ~ *) {
+  :is(:where(.peer\/field):checked ~ .sw_3e63i) {
     text-decoration-line: underline;
   }
   @container (width<28rem) {
-    .sw_5yn5y {
+    .sw_3e63i {
       display: none;
     }
   }
   @container (width>=24rem) {
-    .sw_5yn5y {
+    .sw_3e63i {
       display: grid;
     }
   }

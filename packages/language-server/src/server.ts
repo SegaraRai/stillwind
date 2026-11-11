@@ -1,10 +1,11 @@
-import type {
-  AnalysisWorkspaceService,
-  DiscoverWorkspace,
-  OpenAnalysisWorkspaces,
-  OpenWorkspaces,
-  WorkspaceEditorResult,
-  WorkspaceResult,
+import {
+  documentationUrl,
+  type AnalysisWorkspaceService,
+  type DiscoverWorkspace,
+  type OpenAnalysisWorkspaces,
+  type OpenWorkspaces,
+  type WorkspaceEditorResult,
+  type WorkspaceResult,
 } from "@stillwind/analysis";
 import {
   CodeActionKind,
@@ -264,12 +265,14 @@ export function createLanguageServer(
       const source = `stillwind:${entry.config}:${entry.project + 1}`;
       for (const report of entry.result.reports) {
         const location = report.primary.location;
+        const href = documentationUrl(report.code);
         add(location.uri, {
           range: range(location),
           severity:
             report.severity === "error" ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning,
           source,
           code: report.code,
+          ...(href ? { codeDescription: { href } } : {}),
           message: [report.message, ...report.notes].join("\n"),
           relatedInformation: report.related.map((label) => ({
             location: {

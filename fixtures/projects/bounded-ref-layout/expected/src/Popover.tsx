@@ -6,13 +6,13 @@ const trigger = undefined;
 
 export function Popover() {
   return (
-    <section {...{className:"sw_menu_qgtyh"}}>
+    <section {...{className:"sw_menu_vn2tg"}}>
       <div
-        {...{className:"sw_xrl2a sw_container_gxe38"}}
+        {...{className:"sw_atc8j sw_container_gmrbn"}}
       >
-        <button {...{className:"sw_i6zgp sw_trigger_ya42g"}}>Open</button>
+        <button {...{className:"sw_gk0b7 sw_trigger_dca4r"}}>Open</button>
         <div
-          {...{className:"sw_o2uqu"}}
+          {...{className:"sw_jnhcp"}}
         />
       </div>
     </section>

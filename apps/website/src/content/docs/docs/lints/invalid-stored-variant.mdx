@@ -1,0 +1,45 @@
+---
+title: invalid-stored-variant
+description: Reports a style.when() argument that is not a sequence of variants, or a use that can refer to several stored variants.
+slug: docs/lints/invalid-stored-variant
+---
+
+This rule reports a [`style.when()`](/docs/macros/when) call whose argument is
+not one sequence of variants. It also reports a use of a stored variant that
+can refer to more than one `style.when()` call. The compiler expands stored
+variants at build time, so it must know the variants exactly.
+
+A use of an invalid stored variant adds no CSS.
+
+## Reported
+
+<DiagnosticExample code="invalid-stored-variant">
+
+```tsx
+declare const name: string;
+const selected = style.when(name);
+style({ [selected]: "font-bold" });
+```
+
+</DiagnosticExample>
+
+## Fixed
+
+```tsx
+const selected = style.when("aria-selected");
+style({ [selected]: "font-bold" });
+```
+
+## How to fix
+
+- Pass a string literal of variants, a ref condition, a container query, or a
+  template literal whose interpolations are ref conditions or stored variants.
+- Declare a stored variant before another `style.when()` call uses it.
+- To choose between stored variants at runtime, write a key for each one and
+  guard the values, such as `{ [a]: active && "p-4", [b]: !active && "p-4" }`.
+
+See [`style.when()`](/docs/macros/when#inputs).
+
+## Rule settings
+
+<LintRuleSummary name="invalid-stored-variant" />

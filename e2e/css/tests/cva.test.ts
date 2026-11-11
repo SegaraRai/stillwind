@@ -40,10 +40,8 @@ tone = 'purple';`,
     });
     expect(output.diagnostics).toEqual([]);
     expect(output.code).toBeTruthy();
-    const format = framework === "react" ? "class-name-object" : "class-string";
-    const runtime = new URL(`../../../packages/core/src/runtime/${format}.ts`, import.meta.url)
-      .href;
-    const code = output.code!.replaceAll(`"stillwind/runtime/${format}"`, JSON.stringify(runtime));
+    const runtime = new URL("../../../packages/core/src/runtime/index.ts", import.meta.url).href;
+    const code = output.code!.replaceAll('"stillwind/runtime"', JSON.stringify(runtime));
     const url = URL.createObjectURL(new Blob([code], { type: "text/javascript" }));
     let choose: (props?: { kind?: string | null }) => {
       class?: string;

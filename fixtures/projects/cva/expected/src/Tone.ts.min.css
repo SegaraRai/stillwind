@@ -1,12 +1,12 @@
-.sw_nr42u {
+.sw_k7zjz {
   color: var(--tone);
 }
-.sw_jtu0n {
+.sw_ur6v5 {
   --tw-font-weight: var(--font-weight-bold);
   font-weight: var(--font-weight-bold);
 }
-@media (hover: hover) {
-  .sw_jtu0n:hover {
+@media (hover) {
+  .sw_ur6v5:hover {
     text-decoration-line: underline;
   }
 }

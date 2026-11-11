@@ -3,7 +3,7 @@
 use napi_derive::napi;
 use serde::Serialize;
 
-use stillwind_semantic::{AssetKind, IdentityId};
+use stillwind_semantic::{AssetKind, DeclarationKey, IdentityId};
 use stillwind_source::ModuleId;
 
 /// Asset kinds as the host names them.
@@ -19,6 +19,8 @@ pub enum NativeAssetKind {
     Keyframes,
     /// A `style.viewTransition()` declaration.
     ViewTransition,
+    /// A `style.when()` declaration.
+    StoredVariant,
 }
 
 impl From<NativeAssetKind> for AssetKind {
@@ -28,6 +30,7 @@ impl From<NativeAssetKind> for AssetKind {
             NativeAssetKind::Ref => Self::Ref,
             NativeAssetKind::Keyframes => Self::Keyframes,
             NativeAssetKind::ViewTransition => Self::ViewTransition,
+            NativeAssetKind::StoredVariant => Self::StoredVariant,
         }
     }
 }
@@ -39,6 +42,7 @@ impl From<AssetKind> for NativeAssetKind {
             AssetKind::Ref => Self::Ref,
             AssetKind::Keyframes => Self::Keyframes,
             AssetKind::ViewTransition => Self::ViewTransition,
+            AssetKind::StoredVariant => Self::StoredVariant,
         }
     }
 }
@@ -52,11 +56,11 @@ pub struct NativeIdentity {
     pub kind: NativeAssetKind,
     /// Module identity of the declaring module.
     pub module_id: String,
-    /// Byte start of the declaration identity: binding-name span for named assets,
-    /// call span for styles.
-    pub start: u32,
-    /// Exclusive byte end of the declaration identity span.
-    pub end: u32,
+    /// Names of the enclosing declarations from the outermost to the innermost.
+    pub path: Vec<String>,
+    /// Zero-based position among earlier declarations of the module with the same
+    /// kind, path, and binding name.
+    pub ordinal: u32,
     /// Lexical binding name, or the empty string for anonymous calls.
     pub binding_name: String,
 }
@@ -66,8 +70,10 @@ impl From<NativeIdentity> for IdentityId {
         Self::new(
             value.kind.into(),
             ModuleId::from(value.module_id),
-            value.start,
-            value.end,
+            DeclarationKey::new(
+                value.path.into_iter().map(Into::into).collect(),
+                value.ordinal,
+            ),
             value.binding_name,
         )
     }
@@ -75,12 +81,12 @@ impl From<NativeIdentity> for IdentityId {
 
 impl From<IdentityId> for NativeIdentity {
     fn from(value: IdentityId) -> Self {
-        let (kind, module_id, start, end, binding_name) = value.into_parts();
+        let (kind, module_id, key, binding_name) = value.into_parts();
         Self {
             kind: kind.into(),
             module_id: (module_id.into_string()).into(),
-            start,
-            end,
+            path: key.path.iter().map(ToString::to_string).collect(),
+            ordinal: key.ordinal,
             binding_name: binding_name.to_string(),
         }
     }

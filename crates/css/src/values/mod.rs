@@ -17,6 +17,7 @@
 //! - [`validation`] checks individual values against CSS productions.
 //! - [`webref`] holds W3C Webref property data: formal value syntax and
 //!   shorthand-to-longhand relations.
+//! - [`writing_modes`] resolves Webref logical groups in selected writing modes.
 
 mod domain;
 mod policy;
@@ -24,6 +25,7 @@ mod properties;
 mod syntax;
 mod validation;
 mod webref;
+mod writing_modes;
 
 pub use domain::ValueDomain;
 pub use policy::{
@@ -33,4 +35,11 @@ pub use policy::{
 pub use properties::CssProperty;
 pub use syntax::value_is_well_formed;
 pub use validation::ValueType;
-pub use webref::{csswg_formal_syntax, properties_interfere, property_covers, repeated_longhands};
+pub use webref::{
+    csswg_formal_syntax, horizontal_logical_counterpart, properties_interfere, property_covers,
+    reads_written_value, repeated_longhands, writing_mode_group,
+};
+pub use writing_modes::{WritingMode, properties_interfere_in};
+
+#[cfg(feature = "minify")]
+pub(crate) use syntax::MATH_FUNCTIONS;

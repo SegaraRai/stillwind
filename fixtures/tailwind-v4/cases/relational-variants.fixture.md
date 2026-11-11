@@ -18,7 +18,7 @@ group group-hover:text-red-500 group-focus-within:block peer peer-checked:bg-red
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer properties;
 @layer theme {
   :root, :host {
@@ -35,15 +35,15 @@ group group-hover:text-red-500 group-focus-within:block peer peer-checked:bg-red
       opacity: 100%;
     }
   }
-  .group-focus-within\:block:is(:where(.group):focus-within *) {
+  :is(:where(.group):focus-within .group-focus-within\:block) {
     display: block;
   }
   @media (hover: hover) {
-    .group-hover\:text-red-500:is(:where(.group):hover *) {
+    :is(:where(.group):hover .group-hover\:text-red-500) {
       color: var(--color-red-500);
     }
   }
-  .peer-checked\:bg-red-500:is(:where(.peer):checked ~ *) {
+  :is(:where(.peer):checked ~ .peer-checked\:bg-red-500) {
     background-color: var(--color-red-500);
   }
   .first\:font-bold:first-child {
@@ -65,7 +65,7 @@ group group-hover:text-red-500 group-focus-within:block peer peer-checked:bg-red
   inherits: false;
 }
 @layer properties {
-  @supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
+  @supports ((-webkit-hyphens: none) and (not (margin-trim: block))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
     *, ::before, ::after, ::backdrop {
       --tw-font-weight: initial;
     }
@@ -91,7 +91,7 @@ not-focus:flex not-hover:flex not-[:hover]:flex not-[.foo_&]:flex not-in-data-op
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer utilities {
   @media (width >= 40rem) {
     .not-not-sm\:flex {
@@ -243,21 +243,21 @@ group group-[.is-open]:flex group-[:hover]:flex group-[.x]/menu:flex peer peer-[
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer utilities {
   .not-\[\.x\]\:flex:not(:is(.x)) {
     display: flex;
   }
-  .group-\[\.is-open\]\:flex:is(:where(.group):is(.is-open) *) {
+  :is(:where(.group):is(.is-open) .group-\[\.is-open\]\:flex) {
     display: flex;
   }
-  .group-\[\.x\]\/menu\:flex:is(:where(.group\/menu):is(.x) *) {
+  :is(:where(.group\/menu):is(.x) .group-\[\.x\]\/menu\:flex) {
     display: flex;
   }
-  .group-\[\:hover\]\:flex:is(:where(.group):is(:hover) *) {
+  :is(:where(.group):is(:hover) .group-\[\:hover\]\:flex) {
     display: flex;
   }
-  .peer-\[\.x\]\:flex:is(:where(.peer):is(.x) ~ *) {
+  :is(:where(.peer):is(.x) ~ .peer-\[\.x\]\:flex) {
     display: flex;
   }
   :where(:is(.x)) .in-\[\.x\]\:flex {

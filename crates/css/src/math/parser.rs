@@ -30,6 +30,8 @@ pub(super) struct MathParser<'a> {
     cursor: usize,
     /// Nesting levels entered by this parser and by the parsers that called it.
     depth: usize,
+    /// Whether a division folds when [`MathValue::divided_exactly`] finds its result.
+    divide_exactly: bool,
 }
 
 impl<'a> MathParser<'a> {
@@ -39,16 +41,25 @@ impl<'a> MathParser<'a> {
             input,
             cursor: 0,
             depth: 0,
+            divide_exactly: false,
         }
+    }
+
+    /// Makes the parser fold a division of a value by a unitless number when the
+    /// quotient is a terminating decimal, as in `98 / 100` to `.98`.
+    pub(super) fn dividing_exactly(mut self) -> Self {
+        self.divide_exactly = true;
+        self
     }
 
     /// Creates a parser for a nested `calc()` inside a parse that is already `depth`
     /// levels deep, so the nesting limit covers the value rather than one parser call.
-    fn nested(input: &'a str, depth: usize) -> Self {
+    fn nested(input: &'a str, depth: usize, divide_exactly: bool) -> Self {
         Self {
             input,
             cursor: 0,
             depth,
+            divide_exactly,
         }
     }
 
@@ -103,8 +114,10 @@ impl<'a> MathParser<'a> {
 
     /// Parses a product, folding each `*`/`/` step as it goes.
     ///
-    /// Division by the literal number one collapses to the left operand; every other
-    /// division stays a `Quotient` node so printing can parenthesize it.
+    /// Division by the literal number one collapses to the left operand. With
+    /// [`Self::dividing_exactly`], a division whose quotient is a terminating decimal
+    /// also folds. Every other division stays a `Quotient` node so printing can
+    /// parenthesize it.
     pub(super) fn parse_product(&mut self) -> Option<MathExpression> {
         let mut expression = self.parse_unary()?;
         loop {
@@ -122,6 +135,14 @@ impl<'a> MathParser<'a> {
             } else {
                 match (&expression, &right) {
                     (_, MathExpression::Value(MathValue::Number(1.0))) => expression,
+                    (
+                        MathExpression::Value(dividend),
+                        MathExpression::Value(MathValue::Number(divisor)),
+                    ) if self.divide_exactly
+                        && let Some(quotient) = dividend.divided_exactly(*divisor) =>
+                    {
+                        MathExpression::Value(quotient)
+                    }
                     _ => MathExpression::Quotient(Box::new(expression), Box::new(right)),
                 }
             };
@@ -188,7 +209,12 @@ impl<'a> MathParser<'a> {
                 if !self.enter() {
                     return None;
                 }
-                let nested = MathParser::nested(&self.input[open + 1..close], self.depth).parse();
+                let nested = MathParser::nested(
+                    &self.input[open + 1..close],
+                    self.depth,
+                    self.divide_exactly,
+                )
+                .parse();
                 self.leave();
                 let expression = nested?;
                 self.cursor = close + 1;

@@ -1,5 +1,5 @@
 /*! stillwind | MIT License | https://stillwind.dev */
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer properties, theme, base, components, utilities;
 @layer theme {
   /*
@@ -430,7 +430,7 @@ Keep both selectors so the same theme values are available in either scope.
   }
 }
 @layer utilities {
-  .sw_5alcb {
+  .sw_cgj73 {
     width: 100%;
     @media (width >= 40rem) {
       max-width: 40rem;
@@ -448,27 +448,27 @@ Keep both selectors so the same theme values are available in either scope.
       max-width: 96rem;
     }
   }
-  .sw_5alcb {
+  .sw_cgj73 {
     container-name: sidebar;
     container-type: inline-size;
     padding: calc(var(--spacing) * 4);
     border-radius: var(--radius-lg);
   }
   @media (hover: hover) {
-    .sw_5yn5y:is(:where(.group\/menu):hover *) {
+    :is(:where(.group\/menu):hover .sw_3e63i) {
       color: var(--color-brand);
     }
   }
-  .sw_5yn5y:is(:where(.peer\/field):checked ~ *) {
+  :is(:where(.peer\/field):checked ~ .sw_3e63i) {
     text-decoration-line: underline;
   }
   @container (width < 28rem) {
-    .sw_5yn5y {
+    .sw_3e63i {
       display: none;
     }
   }
   @container (width >= 24rem) {
-    .sw_5yn5y {
+    .sw_3e63i {
       display: grid;
     }
   }
@@ -480,7 +480,7 @@ reach descendants. Keep this declaration slot inside the selector rule.
 */
 
 @layer properties {
-  @supports (((-webkit-hyphens: none)) and (not (margin-trim: inline))) or
+  @supports (((-webkit-hyphens: none)) and (not (margin-trim: block))) or
     ((-moz-orient: inline) and (not (color: rgb(from red r g b)))) {
   }
 }

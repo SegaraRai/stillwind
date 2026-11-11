@@ -3,15 +3,14 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const cases = JSON.parse(readFileSync(0, "utf8"));
-const runtimes = new Map();
-for (const framework of new Set(cases.map((item) => item.format))) {
-  runtimes.set(framework, await import(`../../../packages/core/src/runtime/${framework}.ts`));
-}
+// Generated calls use the same export names in both runtimes.
+const runtimes = [
+  await import("../../../packages/core/src/runtime/development.ts"),
+  await import("../../../packages/core/src/runtime/index.ts"),
+];
 let count = 0;
-for (const mode of ["development", "production"]) {
-  process.env.NODE_ENV = mode;
+for (const runtime of runtimes) {
   for (const item of cases) {
-    const runtime = runtimes.get(item.format);
     for (const truth of [false, true]) {
       for (const valueKind of ["number", "boolean", "text", "url", "coercion", "getter"]) {
         const execute = (code) => {
@@ -98,7 +97,12 @@ for (const mode of ["development", "production"]) {
         assert.deepEqual(
           execute(item.optimized),
           execute(item.reference),
-          JSON.stringify({ ...item, mode, truth, valueKind }),
+          JSON.stringify({
+            ...item,
+            development: runtime === runtimes[0],
+            truth,
+            valueKind,
+          }),
         );
         count++;
       }

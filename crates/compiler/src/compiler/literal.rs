@@ -3,12 +3,14 @@
 //! [`LiteralContribution::resolve`] omits unresolved candidates and reports lint
 //! findings while applying semantic wrappers to resolved utilities.
 
+use std::fmt::Write as _;
+
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_design_system::{
-    DefinitionOrigin, MarkerUse, ThemeIndex, UtilityFailureReason, VariantApplication,
-    VariantContext, is_tailwind_relationship_candidate, marker_use, repeated_subject_selector,
-    resolve_variant, unsatisfiable_variants, utility_value_range,
+    DefinitionOrigin, MarkerUse, ThemeIndex, UtilityFailure, UtilityFailureReason,
+    VariantApplication, VariantContext, is_tailwind_relationship_candidate, marker_use,
+    repeated_subject_selector, resolve_variant, unsatisfiable_variants, utility_value_range,
 };
 use stillwind_diagnostics::{
     CompileDiagnostic, CompileError, LintDiagnostic, LintFinding, LintKind, LintSettings,
@@ -19,7 +21,7 @@ use stillwind_syntax::{Utility, Variant, parse_candidate};
 
 use super::conditionals::{UnsupportedCondition, check_candidate, check_declarations};
 use super::lexer::lex_utilities;
-use super::style_variants::StyleVariantPlan;
+use super::style_variants::{StyleVariantPlan, expand_candidate};
 use super::utilities::{
     CompiledUtility, clamped_value, invalid_property_value_finding, marker_use_finding,
     resolve_utility_targets, unresolved_lint_kind, unresolved_utility_finding, written_span,
@@ -99,91 +101,211 @@ impl LiteralContribution {
                 value.span.start.0 + u32::try_from(start).unwrap_or_default(),
                 value.span.start.0 + u32::try_from(decoded_offset).unwrap_or_default(),
             );
-            let raw = if plan.prefix.is_empty() {
+            let full = if plan.prefix.is_empty() {
                 utility.value.raw.clone()
             } else {
                 ToLeanStr::to_lean_str(&format_args!("{}{}", plan.prefix, utility.value.raw))
             };
-            if omit(
-                runtime_condition_lint(&raw, &utility.value.raw, theme, use_css_if),
-                utility.span,
-                lint_settings,
-                lint_findings,
-            ) {
-                continue;
-            }
-            contribution.markers.extend(added_marker(&raw, theme, plan));
-            lint_findings.extend(candidate_lints(
-                &raw,
-                utility.value.raw.len(),
-                utility.span,
-                theme,
-                plan,
-                lint_settings,
-            ));
-            match resolve_utility_targets(&raw, theme, VariantContext::Element) {
-                Ok(Ok(mut resolved)) => {
-                    if omit(
-                        definition_condition_lint(&utility.value.raw, &resolved, use_css_if),
+            // The plan's prefix has no alternatives, because the wrappers were expanded
+            // into one plan for each sequence, so every expansion starts with it.
+            let alternatives = match expand_candidate(&full, theme) {
+                Ok(alternatives) => alternatives,
+                Err(failure) => {
+                    report_unresolved(
+                        &full,
+                        utility.value.raw.len(),
+                        &failure,
                         utility.span,
+                        theme,
                         lint_settings,
                         lint_findings,
-                    ) {
-                        continue;
-                    }
-                    let canonical_candidate =
-                        format_args!("{}{}", plan.canonical, utility.value.raw).to_lean_string();
-                    contribution.canonical.push_str(&canonical_candidate);
-                    contribution.canonical.push('\0');
-                    lint_findings.extend(variant_selector_lints(
-                        &utility.value.raw,
-                        theme,
-                        lint_settings,
-                        utility.span,
-                        0,
-                    ));
-                    lint_findings.extend(resolved_candidate_lints(
-                        &raw,
-                        utility.value.raw.len(),
-                        &resolved,
-                        theme,
-                        lint_settings,
-                        utility.span,
-                    ));
-                    for resolved_utility in &mut resolved {
-                        resolved_utility.diagnostic_data.span = Some(source_span);
-                        resolved_utility.diagnostic_data.variant_spans =
-                            variant_spans(&utility.value.raw, source_span);
-                        plan.apply(resolved_utility, theme);
-                    }
-                    contribution.utilities.append(&mut resolved);
+                    );
+                    continue;
                 }
-                // `marker_use_finding` above reports a candidate that names a marker.
-                Ok(Err(failure)) => {
-                    if !matches!(failure.reason, UtilityFailureReason::Marker { .. })
-                        && lint_settings.enabled_for_detection(unresolved_lint_kind(&failure))
-                    {
-                        lint_findings.push(unresolved_utility_finding(
-                            &raw,
-                            utility.value.raw.len(),
-                            &failure,
-                            utility.span,
-                            theme,
-                        ));
-                    }
-                }
-                Err(error) => {
-                    diagnostics.push(CompileError::new(
-                        CompileDiagnostic::MalformedUtilityRequirement {
-                            utility: error.name,
-                            offset: error.source.offset,
-                        },
-                        utility.span,
-                    ));
-                }
+            };
+            let expanded = alternatives.len() != 1 || alternatives[0] != full;
+            // One failing alternative omits the utilities of the whole candidate, as one
+            // failing variant does, so they are collected before they are added. A
+            // marker candidate fails to resolve as a utility but still adds its marker.
+            let mut pending = LiteralContribution::default();
+            let mut failed = false;
+            let mut candidate = CandidateResolution {
+                plan,
+                theme,
+                lint_settings,
+                use_css_if,
+                span: utility.span,
+                diagnostics,
+                lint_findings,
+            };
+            for alternative in alternatives {
+                let raw = alternative.to_lean_str();
+                let written = raw[plan.prefix.len()..].to_lean_str();
+                let Some(mut resolved) = candidate.resolve(&raw, &written, &mut contribution)
+                else {
+                    failed = true;
+                    continue;
+                };
+                let spans = if expanded {
+                    vec![source_span; variant_count(&written)]
+                } else {
+                    variant_spans(&written, source_span)
+                };
+                pending.add_resolved(plan, &written, &mut resolved, source_span, &spans, theme);
+            }
+            if !failed {
+                contribution.canonical.push_str(&pending.canonical);
+                contribution.utilities.append(&mut pending.utilities);
             }
         }
         contribution
+    }
+}
+
+/// The settings and outputs for resolving the expanded candidates of one utility token.
+struct CandidateResolution<'a> {
+    plan: &'a StyleVariantPlan,
+    theme: &'a ThemeIndex,
+    lint_settings: &'a LintSettings,
+    use_css_if: bool,
+    /// The source span of the token, which findings use.
+    span: Span,
+    diagnostics: &'a mut Vec<CompileError>,
+    lint_findings: &'a mut Vec<LintFinding>,
+}
+
+impl CandidateResolution<'_> {
+    /// Resolves the expanded candidate `raw`, which is the plan's prefix followed by
+    /// `written`, and adds its marker class to `contribution`.
+    ///
+    /// Returns the resolved targets. Returns [`None`] when the candidate is omitted,
+    /// after it reports the reason as a finding or a diagnostic.
+    fn resolve(
+        &mut self,
+        raw: &LeanStr,
+        written: &LeanStr,
+        contribution: &mut LiteralContribution,
+    ) -> Option<Vec<CompiledUtility>> {
+        let (theme, span) = (self.theme, self.span);
+        if omit(
+            runtime_condition_lint(raw, written, theme, self.use_css_if),
+            span,
+            self.lint_settings,
+            self.lint_findings,
+        ) {
+            return None;
+        }
+        contribution
+            .markers
+            .extend(added_marker(raw, theme, self.plan));
+        self.lint_findings.extend(candidate_lints(
+            raw,
+            written.len(),
+            span,
+            theme,
+            self.plan,
+            self.lint_settings,
+        ));
+        match resolve_utility_targets(raw, theme, VariantContext::Element) {
+            Ok(Ok(resolved)) => {
+                if omit(
+                    definition_condition_lint(written, &resolved, self.use_css_if),
+                    span,
+                    self.lint_settings,
+                    self.lint_findings,
+                ) {
+                    return None;
+                }
+                self.lint_findings.extend(variant_selector_lints(
+                    written,
+                    theme,
+                    self.lint_settings,
+                    span,
+                    0,
+                ));
+                self.lint_findings.extend(resolved_candidate_lints(
+                    raw,
+                    written.len(),
+                    &resolved,
+                    theme,
+                    self.lint_settings,
+                    span,
+                ));
+                Some(resolved)
+            }
+            // `marker_use_finding` in `candidate_lints` reports a candidate that names a
+            // marker.
+            Ok(Err(failure)) => {
+                if !matches!(failure.reason, UtilityFailureReason::Marker { .. }) {
+                    report_unresolved(
+                        raw,
+                        written.len(),
+                        &failure,
+                        span,
+                        theme,
+                        self.lint_settings,
+                        self.lint_findings,
+                    );
+                }
+                None
+            }
+            Err(error) => {
+                self.diagnostics.push(CompileError::new(
+                    CompileDiagnostic::MalformedUtilityRequirement {
+                        utility: error.name,
+                        offset: error.source.offset,
+                    },
+                    span,
+                ));
+                None
+            }
+        }
+    }
+}
+
+impl LiteralContribution {
+    /// Adds the targets that the candidate `written` resolved to under `plan`. Each
+    /// target gets `source_span` and `variant_spans`, and `plan` is applied to it.
+    /// The candidate's canonical spelling is appended to the canonical input.
+    fn add_resolved(
+        &mut self,
+        plan: &StyleVariantPlan,
+        written: &str,
+        resolved: &mut Vec<CompiledUtility>,
+        source_span: Span,
+        variant_spans: &[Span],
+        theme: &ThemeIndex,
+    ) {
+        let _ = write!(self.canonical, "{}{written}\0", plan.canonical);
+        for utility in resolved.iter_mut() {
+            utility.diagnostic_data.span = Some(source_span);
+            utility.diagnostic_data.variant_spans = variant_spans.to_vec();
+            plan.apply(utility, theme);
+        }
+        self.utilities.append(resolved);
+    }
+}
+
+/// Reports the unresolved candidate `raw` when `lint_settings` enables the rule of
+/// `failure`. The parameters have the meanings that [`unresolved_utility_finding`]
+/// describes.
+fn report_unresolved(
+    raw: &str,
+    written_len: usize,
+    failure: &UtilityFailure,
+    span: Span,
+    theme: &ThemeIndex,
+    lint_settings: &LintSettings,
+    lint_findings: &mut Vec<LintFinding>,
+) {
+    if lint_settings.enabled_for_detection(unresolved_lint_kind(failure)) {
+        lint_findings.push(unresolved_utility_finding(
+            raw,
+            written_len,
+            failure,
+            span,
+            theme,
+        ));
     }
 }
 
@@ -415,6 +537,10 @@ pub(super) fn resolved_candidate_lints(
         }
     }
     findings
+}
+
+fn variant_count(raw: &str) -> usize {
+    parse_candidate(raw).map_or(0, |candidate| candidate.variants.len())
 }
 
 fn variant_spans(raw: &str, source_span: Span) -> Vec<Span> {

@@ -1,9 +1,9 @@
 # Standalone analysis
 
 Stillwind analysis reads source and semantic information without starting a bundler.
-`@stillwind/cli` wraps sorting, lint, inspection, design-system lookups, and stdio commands. `@stillwind/analysis` owns analysis
-services, and `@stillwind/language-server` owns LSP handlers and Node/browser transports.
-The LSP can run independently of the CLI.
+`@stillwind/cli` wraps sorting, lint, inspection, design-system lookups, and stdio commands.
+`@stillwind/analysis` owns analysis services, and `@stillwind/language-server` owns LSP
+handlers and Node/browser transports. The LSP can run independently of the CLI.
 
 Node configuration runs in an isolated worker. Configuration stdout goes to stderr,
 so it cannot corrupt CLI JSON or LSP messages. Analysis does not evaluate application modules.
@@ -59,7 +59,9 @@ export default defineConfig(async () => ({
 ```
 
 `files` and `exclude` select diagnostic targets. They do not restrict imports or
-global declarations read by the checker. Target enumeration always excludes
+global declarations read by the checker. Vite builds also load the selected source
+files into the checker before the first compilation, but they compile only the
+modules that the application imports. Target enumeration always excludes
 `node_modules` and `.git`. Matching projects run independently, including overlapping
 scopes. Results identify the configuration path and the project array index.
 
@@ -643,8 +645,11 @@ directives, canonical suggestions, and `redundant-variant`. `strict` reports all
 recommended checks as errors and also checks unused lint suppressions. `stylistic`
 enables `prefer-direct-styling`, `prefer-logical-properties`,
 `prefer-typed-relationships`, `prefer-sorted-utilities`, `prefer-typed-variables`, and
-`prefer-variant-directive` as warnings. The stylistic preset adds no recommended checks.
-Project-specific restrictions remain off in these presets.
+`prefer-variant-directive` as warnings. It also sets `writingModes` of
+`conflicting-utilities` to every writing mode without a severity, so the rule keeps the
+severity of an earlier preset, or reports at `warn` when no earlier preset enables it.
+The stylistic preset adds no other recommended checks. Project-specific restrictions
+remain off in these presets.
 
 A severity-only override preserves inherited rule options. An option object changes
 only supplied fields; undefined fields preserve previous values. Arrays replace the
@@ -672,13 +677,51 @@ utilities supplied directly to one `style()` call, including its arrays and
 variant wrappers. Comparisons require compatible source conditions and identical
 expanded CSS selector and at-rule contexts. Composed bases and ref providers use
 the existing composition rules. Identical declarations shared by separate utilities
-do not conflict. Duplicate findings compare candidate spellings.
+do not conflict. A declaration whose value is one `var(--x)` reference, with or
+without a fallback, does not conflict with a utility that sets `--x` and the same or a
+covering property to one value, because the result does not depend on their order.
+For example, `border-t` writes `border-top-style: var(--tw-border-style)`, and
+`border-dashed` writes `--tw-border-style: dashed` and `border-style: dashed`.
+`text-sm` writes `line-height: var(--tw-leading, ...)`, and `leading-relaxed` writes
+`--tw-leading` and `line-height` with the same value. Duplicate findings compare
+candidate spellings.
+
+A conflict finding has notes that explain the overlap from Webref property data.
+When every overlap is a shorthand and a property that it covers, and
+`allowShorthandOverrides` is `false`, a note names that option. A note names the
+Webref logical group of a physical and a logical property that overlap only in some
+writing modes, such as `padding-inline` and `padding-top`.
+
+`conflicting-utilities.writingModes` lists the CSS `writing-mode` values in which such a
+pair is checked: `horizontal-tb`, `vertical-rl`, and `vertical-lr`. It defaults to
+`["horizontal-tb"]`. `properties_interfere_in` maps each logical longhand to the
+physical longhand that it sets in each listed mode, in both the `ltr` and the `rtl`
+direction, and the pair conflicts when the two properties then share a longhand. With
+both directions, `sideways-rl` and `sideways-lr` map sides as `vertical-rl` and
+`vertical-lr` do. For example, `px-2 pt-2` conflicts only in vertical modes,
+`mx-auto ml-4` and `ps-2 pl-4` conflict in `horizontal-tb`, and `pbs-2 pb-2` conflicts
+in no mode. A pair that overlaps in every mode, such as `p-2 px-4`, is checked even with
+an empty list. Only these lint rules use the option; CSS ordering, canonical
+replacements, and utility sorting treat every pair of one logical group as competing.
+
+For such a pair, `DesignSystemQuery::explain_conflicts` extends that note with a named
+logical utility when the physical utility writes one declaration. The text is
+conditional ("to use logical properties, replace ...") because the rule does not prefer
+logical properties over physical ones. It maps the physical property to its logical
+counterpart in the `horizontal-tb` writing mode with the `ltr` direction, as CSS Logical
+Properties defines it, and keeps the counterpart only when Webref lists it in the same
+logical group. It then searches the canonical spelling of the arbitrary property with the
+same value and variants, such as `[padding-block-start:calc(var(--spacing) * 2)]`. The
+note names the result, such as `pbs-2`, only when it is not an arbitrary property. When
+the finding has no note for the group, the replacement becomes its own note. Hosts call
+this method after `check_style`, and the stylesheet lint calls it for `@apply`. The
+method adds nothing when `writingModes` leaves out `horizontal-tb`.
 
 `conflicting-utilities.allowShorthandOverrides` defaults to `false`, so `p-2 px-4`
 reports an overlap. Setting it to `true` allows a narrower declaration to override
 part of a shorthand. Two different values for the same property still conflict.
-Logical and physical longhands still conflict when their relationship depends on
-writing mode.
+Logical and physical longhands still conflict when they share a side in one of the
+configured writing modes.
 
 `invalid-marker-use` defaults to `warn`. Its `ignoredClasses` option lists exact
 decoded marker class names, such as `group` or `foo/bar`, whose findings are not

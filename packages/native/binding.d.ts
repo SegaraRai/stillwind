@@ -844,7 +844,7 @@ export interface NativeArbitrarySpacingOptions {
 }
 
 /** Asset kinds as the host names them. */
-export type NativeAssetKind = 'style' | 'ref' | 'keyframes' | 'viewTransition'
+export type NativeAssetKind = 'style' | 'ref' | 'keyframes' | 'viewTransition' | 'storedVariant'
 
 /** User-facing metadata of a produced asset. */
 export interface NativeAssetMetadata {
@@ -970,8 +970,16 @@ export interface NativeClassContext {
   module: string
   /** The caller's class namespace. */
   namespace: string
-  /** Byte offset of the call. */
-  call: number
+  /**
+   * Names of the declarations that enclose the `style()` call, from the outermost to
+   * the innermost.
+   */
+  path: Array<string>
+  /**
+   * Zero-based position among earlier `style()` calls of the module with the same
+   * path.
+   */
+  ordinal: number
   /** Branch discriminator and canonical spelling of the contribution. */
   branch: string
 }
@@ -1073,6 +1081,12 @@ export interface NativeConflictingUtilitiesOptions {
   severity?: string
   /** Allows narrower declarations to override part of a shorthand. */
   allowShorthandOverrides?: boolean
+  /**
+   * Writing modes in which logical and physical utilities are checked for overlap:
+   * `horizontal-tb`, `vertical-rl`, or `vertical-lr`. A supplied list replaces the
+   * previous one.
+   */
+  writingModes?: Array<string>
 }
 
 /** Converter that produced a projected input. */
@@ -1207,10 +1221,16 @@ export interface NativeCssResource {
 export interface NativeDeclarationContext {
   /** Module identity of the declaring module. */
   module: string
-  /** Byte offset of the first character of the declaration's name. */
-  start: number
-  /** Byte offset just past the declaration's name. */
-  end: number
+  /**
+   * Names of the declarations that enclose the declaration, from the outermost to
+   * the innermost.
+   */
+  path: Array<string>
+  /**
+   * Zero-based position among earlier declarations of the module with the same
+   * kind, path, and binding name.
+   */
+  ordinal: number
   /** Binding name the declaration is assigned to. */
   binding: string
   /** Authored label, when the declaration has one. */
@@ -1315,6 +1335,8 @@ export type NativeExportedValue =
   | { kind: 'keyframes'; /** Reachable keyframes identities. */
   value: NativeSymbolicValue }
   | { kind: 'viewTransitions'; /** Reachable transition identities. */
+  value: NativeSymbolicValue }
+  | { kind: 'storedVariants'; /** Reachable stored-variant identities. */
   value: NativeSymbolicValue }
 
 /** Imports reachable from one export of a module. */
@@ -1428,13 +1450,13 @@ export interface NativeIdentity {
   kind: NativeAssetKind
   /** Module identity of the declaring module. */
   moduleId: string
+  /** Names of the enclosing declarations from the outermost to the innermost. */
+  path: Array<string>
   /**
-   * Byte start of the declaration identity: binding-name span for named assets,
-   * call span for styles.
+   * Zero-based position among earlier declarations of the module with the same
+   * kind, path, and binding name.
    */
-  start: number
-  /** Exclusive byte end of the declaration identity span. */
-  end: number
+  ordinal: number
   /** Lexical binding name, or the empty string for anonymous calls. */
   bindingName: string
 }
@@ -1520,6 +1542,8 @@ export interface NativeLintOptions {
   invalidCssInput?: string
   /** Settings for `invalid-ref-input`. */
   invalidRefInput?: string
+  /** Settings for `invalid-stored-variant`. */
+  invalidStoredVariant?: string
   /** Settings for `invalid-animation-option`. */
   invalidAnimationOption?: string
   /** Settings for `invalid-style-composition`. */
@@ -1652,10 +1676,16 @@ export interface NativeLintOptions {
 export interface NativeLocatorContext {
   /** Module identity of the declaration that owns the name. */
   module: string
-  /** Byte offset of the first character of the declaration's name. */
-  start: number
-  /** Byte offset just past the declaration's name. */
-  end: number
+  /**
+   * Names of the declarations that enclose the owning declaration, from the
+   * outermost to the innermost.
+   */
+  path: Array<string>
+  /**
+   * Zero-based position of the owning declaration among earlier declarations of the
+   * module with the same kind, path, and binding name.
+   */
+  ordinal: number
   /** Binding name of the declaration that owns the name. */
   binding: string
   /** Projection the name is written for, when the writer has one. */
@@ -1754,7 +1784,10 @@ export interface NativeModuleSpecifier {
 
 /** Versioned cross-module summary of one module. */
 export interface NativeModuleSummary {
-  /** Correspondences of original and projected expressions and imports; empty for plain inputs. */
+  /**
+   * Correspondences of original and projected expressions and imports; empty for
+   * plain inputs.
+   */
   checkerSpans: Array<NativeCheckerSpan>
   /** Generated helper references protected from bindings in authored scopes. */
   checkerBindings: Array<NativeCheckerBinding>

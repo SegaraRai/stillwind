@@ -10,6 +10,24 @@ use super::compile;
 use super::support::CompilationFixture;
 
 #[test]
+fn pseudo_element_variants_keep_direct_declarations_and_omit_child_rules() {
+    let css = format!(
+        "{} @utility children {{ color:blue; & > * {{ color:red; }} }} @stillwind-slot utilities;",
+        include_str!("../../../../packages/core/css/builtin-variants/tw-structural.css")
+    );
+    for variant in ["selection", "marker", "backdrop"] {
+        let (_, result) = compile(
+            &format!("export const x = style('{variant}:children');"),
+            &css,
+        );
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        assert!(result.css.contains("color:blue;"), "{}", result.css);
+        assert!(!result.css.contains("color:red;"), "{}", result.css);
+        assert!(result.css.contains("::"), "{}", result.css);
+    }
+}
+
+#[test]
 fn unresolved_utilities_are_omitted_independently_of_reporting_and_class_identity() {
     let css = "@utility a { color:red; } @variant hover { &:hover { @slot; } }";
     for severity in [LintSeverity::Deny, LintSeverity::Warn, LintSeverity::Off] {
@@ -646,4 +664,29 @@ fn tailwind_important_settings_apply_to_class_utilities_only() {
         selector.css
     );
     assert!(selector.css.contains("@keyframes turn"), "{}", selector.css);
+}
+
+#[test]
+fn class_names_follow_the_call_key_instead_of_its_offset() {
+    let css = "@utility flex { display:flex; } @utility grid { display:grid; } @stillwind-slot utilities;";
+    let names = |code: &str| {
+        let (_, result) = compile(code, css);
+        assert_eq!(result.diagnostics, [] as [CompileError; 0]);
+        let mut names = result
+            .classes
+            .iter()
+            .map(|class| class.class_name.to_string())
+            .collect::<Vec<_>>();
+        names.sort();
+        (names, result.css)
+    };
+    let call = "export function Card(props: { wide: boolean }) { return style('flex', props.wide && 'grid'); }";
+    let original = names(call);
+    assert_eq!(original.0.len(), 2, "{:?}", original.0);
+    let shifted = names(&format!(
+        "// A longer comment before the call.\nconst unrelated = 1;\n{call}"
+    ));
+    assert_eq!(shifted, original);
+    let renamed = names(&call.replace("Card", "Panel"));
+    assert_ne!(renamed.0, original.0);
 }

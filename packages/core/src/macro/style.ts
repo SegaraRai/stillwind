@@ -13,8 +13,9 @@ import type { CheckedStyleInputs, StyleArgument } from "./input.ts";
 import type { StyleKeyframes, StyleKeyframesDefinition } from "./keyframes.ts";
 import type { StyleOutput, StyleResult } from "./output.ts";
 import type { StyleRefProjection } from "./projection.ts";
-import type { AnchorScope, StyleRef } from "./refs.ts";
+import type { AnchorScope, StyleRef, StyleVariantKey } from "./refs.ts";
 import type { StyleViewTransition, StyleViewTransitionDefinition } from "./view-transition.ts";
+import type { StyleStoredVariant } from "./when.ts";
 
 /**
  * Internal use only. The compiler inserts this identity argument in source used by the
@@ -177,6 +178,43 @@ export type StyleMacro<Props = object> = {
   ): StyleViewTransition<Id>;
 
   /**
+   * Stores variant sequences in a binding initializer for later use in `style()`.
+   *
+   * Use the result as a computed variant key, as a variant segment followed by `:` in
+   * a utility template, or in the argument of another `style.when()`. Each use means
+   * the same as writing the sequence directly at that position, so the sequence obeys
+   * the same rules as a variant key written in `style()`. A use must resolve to one
+   * declaration. The compiler replaces the call with `undefined`.
+   *
+   * With several arguments, the stored variant matches when any argument matches. A
+   * use means the same as writing the use once for each argument, in argument order.
+   *
+   * @param variants - Static variant sequences. Each one is a string literal such as
+   * `"hover:md"`, a ref variant call or tag with optional `.in()` calls, a container
+   * variant, another stored variant, or a template literal whose substitutions are
+   * complete variant segments. The final `:` is optional. Invalid sequences produce
+   * lint findings.
+   * @returns A stored variant that may be stored, exported, imported, and passed.
+   */
+  when(
+    ...variants: [string | StyleVariantKey, ...(string | StyleVariantKey)[]]
+  ): StyleStoredVariant;
+
+  /**
+   * Internal use only. The checker supplies identity for a stored variant declaration.
+   * Application code must use `when(...variants)` without the identity argument.
+   *
+   * @internal
+   */
+  when<const Id extends string>(
+    ...variants: [
+      string | StyleVariantKey,
+      ...(string | StyleVariantKey)[],
+      StillwindDeclarationIdentity<Id>,
+    ]
+  ): StyleStoredVariant<Id>;
+
+  /**
    * Adds anchor-scope without requiring a ref marker on the element.
    *
    * Use this call directly in a style input. The argument follows the same literal
@@ -283,6 +321,9 @@ export function createStyleMacro<Props>(): StyleMacro<Props> {
       },
       viewTransition(): never {
         throw new Error("Stillwind style.viewTransition() is a compile-time macro.");
+      },
+      when(): never {
+        throw new Error("Stillwind style.when() is a compile-time macro.");
       },
       cva(): never {
         throw new Error("Stillwind style.cva() is a compile-time macro.");

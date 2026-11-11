@@ -4,15 +4,16 @@
 //! own selector or as the unit's class selector, and each step rewrites it. The
 //! at-rules that a step contributes wrap the finished rule in a fixed order
 //! (`@supports`, `@media`, `@container`, then `@starting-style`), so output is
-//! deterministic and
-//! conditions combine by containment instead of being merged into one query. Resolved
-//! values are emitted without minification.
+//! deterministic and conditions combine by containment instead of being merged into
+//! one query. Scope-bearing paths retain authored nesting while their roots bind.
+//! Resolved values are emitted without minification.
 
 use lean_string::{LeanString, ToLeanString};
 
 use stillwind_css::{
-    append_element_condition, fold_host_conditions, instantiate_selector, selector_list_branches,
-    selector_uses_subject,
+    append_element_condition, fold_host_conditions, hoist_pseudo_element_conditions,
+    instantiate_selector, instantiate_variant_selector, normalize_scopes, selector_cannot_match,
+    selector_has_pseudo_element, selector_list_branches, selector_uses_subject,
 };
 use stillwind_design_system::{
     NestedUtilityAtRule, NestedUtilityRule, ThemeIndex, VariantApplication, VariantContext,
@@ -22,6 +23,7 @@ use stillwind_diagnostics::CompileDiagnostic;
 
 use super::super::conditionals::guard;
 use super::super::rule_boundaries::protect;
+use super::super::stylesheet::{fold_nested_host_rules, render_authored_variant_steps};
 use super::super::variants::{VariantStep, variant_paths};
 use super::declaration_order::prepend_missing_declarations;
 use super::resolve::CompiledUtility;
@@ -134,7 +136,9 @@ pub(in crate::compiler) fn render_utility_rule_path(
 /// In [`VariantContext::Document`], the rule starts from the element that
 /// [`document_rule_target`] finds instead of `class_selector`, and the step that
 /// selects it contributes only its declarations and conditions. A path without such a
-/// step renders nothing.
+/// step renders nothing. A path with a scope step renders through
+/// [`render_scoped_utility_steps`] instead.
+#[allow(clippy::too_many_lines)] // One exhaustive match over the variant steps.
 fn render_utility_steps(
     class_selector: &str,
     utility: &CompiledUtility,
@@ -143,6 +147,7 @@ fn render_utility_steps(
     applications: &[VariantStep<'_>],
     identifiers: &IdentifierContext,
 ) -> Result<LeanString, CompileDiagnostic> {
+    let authored_declaration = declaration;
     let mut declaration = declaration.to_lean_string();
     let Some((mut selector, target)) = rule_start(class_selector, utility, applications) else {
         return Ok(LeanString::new());
@@ -166,7 +171,7 @@ fn render_utility_steps(
             | VariantStep::BareSelector {
                 selector: template, ..
             } => {
-                selector = instantiate_selector(anchored(template), &selector);
+                selector = instantiate_variant_selector(anchored(template), &selector);
             }
             VariantStep::SelectorCondition(condition) => {
                 selector = append_element_condition(&selector, condition);
@@ -175,14 +180,14 @@ fn render_utility_steps(
                 selector: template,
                 declarations,
             } => {
-                selector = instantiate_selector(anchored(template), &selector);
+                selector = instantiate_variant_selector(anchored(template), &selector);
                 prepend_missing_declarations(&mut declaration, declarations);
             }
             VariantStep::SelectorMedia {
                 selector: template,
                 condition,
             } => {
-                selector = instantiate_selector(anchored(template), &selector);
+                selector = instantiate_variant_selector(anchored(template), &selector);
                 media.push(condition.to_lean_string());
             }
             VariantStep::SelectorMediaRule {
@@ -190,7 +195,7 @@ fn render_utility_steps(
                 declarations,
                 condition,
             } => {
-                selector = instantiate_selector(anchored(template), &selector);
+                selector = instantiate_variant_selector(anchored(template), &selector);
                 prepend_missing_declarations(&mut declaration, declarations);
                 media.push(condition.to_lean_string());
             }
@@ -206,28 +211,31 @@ fn render_utility_steps(
             VariantStep::StartingStyle => {
                 starting_style = true;
             }
+            VariantStep::Scope(_) => {
+                return render_scoped_utility_steps(
+                    class_selector,
+                    utility,
+                    authored_declaration,
+                    nested_rule,
+                    applications,
+                    identifiers,
+                );
+            }
         }
     }
     if let Some(template) = utility.selector.as_deref() {
-        selector = instantiate_selector(template, &selector);
+        selector = nested_utility_selector(template, &selector);
+        if selector.is_empty() {
+            return Ok(LeanString::new());
+        }
     }
     let selector = fold_host_conditions(&selector);
     let conditional = !conditions.is_empty();
-    // Every conditional guards the body the previous one produced, and the gate declarations a
-    // pass writes are part of that body, so the names only have to survive this rule's own steps.
-    let mut gates = Vec::new();
-    for condition in conditions {
-        let guarded = guard(&declaration, condition, identifiers, &gates)?;
-        declaration = (guarded.css).into();
-        gates.extend(guarded.gates);
-    }
-    let mut rule = format_args!("{selector}{{{declaration}}}").to_lean_string();
-    if let Some(nested) = nested_rule {
-        rule = wrap_condition(&rule, nested.at_rule, &nested.condition);
-        if let Some((at_rule, condition)) = &nested.parent {
-            rule = wrap_condition(&rule, *at_rule, condition);
-        }
-    }
+    declaration = guard_declaration(declaration, &conditions, identifiers)?;
+    let mut rule = wrap_nested_rule(
+        format_args!("{selector}{{{declaration}}}").to_lean_string(),
+        nested_rule,
+    );
     for condition in supports.into_iter().rev() {
         rule = format_args!("@supports {condition}{{{rule}}}").to_lean_string();
     }
@@ -244,6 +252,121 @@ fn render_utility_steps(
         rule = format_args!("@container {container}{{{rule}}}").to_lean_string();
     }
     Ok(if conditional { protect(&rule) } else { rule })
+}
+
+/// Renders scope-bearing paths with selector boundaries intact until scopes bind
+/// their roots. Returns a diagnostic when a conditional helper cannot be generated.
+fn render_scoped_utility_steps(
+    class_selector: &str,
+    utility: &CompiledUtility,
+    declaration: &str,
+    nested_rule: Option<&NestedUtilityRule>,
+    applications: &[VariantStep<'_>],
+    identifiers: &IdentifierContext,
+) -> Result<LeanString, CompileDiagnostic> {
+    let Some((selector, target)) = rule_start(class_selector, utility, applications) else {
+        return Ok(LeanString::new());
+    };
+    let steps = applications
+        .iter()
+        .enumerate()
+        .filter_map(|(index, step)| {
+            if target != Some(index) {
+                return Some(*step);
+            }
+            Some(match *step {
+                VariantStep::SelectorTemplate(_) | VariantStep::BareSelector { .. } => {
+                    return None;
+                }
+                VariantStep::SelectorRule { declarations, .. } => VariantStep::SelectorRule {
+                    selector: "&",
+                    declarations,
+                },
+                VariantStep::SelectorMedia { condition, .. } => VariantStep::SelectorMedia {
+                    selector: "&",
+                    condition,
+                },
+                VariantStep::SelectorMediaRule {
+                    declarations,
+                    condition,
+                    ..
+                } => VariantStep::SelectorMediaRule {
+                    selector: "&",
+                    declarations,
+                    condition,
+                },
+                _ => *step,
+            })
+        })
+        .collect::<Vec<_>>();
+    let body = wrap_nested_rule(
+        if let Some(template) = &utility.selector {
+            format_args!("{template}{{{declaration}}}").to_lean_string()
+        } else {
+            declaration.to_lean_string()
+        },
+        nested_rule,
+    );
+    let body = render_authored_variant_steps(&body, &steps, identifiers)?;
+    let mut nested = format_args!("{selector}{{{body}}}").to_lean_string();
+    fold_nested_host_rules(&mut nested);
+    if let Some(hoisted) = hoist_pseudo_element_conditions(&nested) {
+        nested = hoisted.into();
+    }
+    let mut rule = normalize_scopes(&nested).css.to_lean_string();
+    if let Some(container) = &utility.container {
+        rule = format_args!("@container {container}{{{rule}}}").to_lean_string();
+    }
+    Ok(rule)
+}
+
+/// Applies each runtime condition to the declaration body produced by the previous
+/// condition. Returns a diagnostic if a condition cannot be lowered.
+fn guard_declaration(
+    mut declaration: LeanString,
+    conditions: &[&str],
+    identifiers: &IdentifierContext,
+) -> Result<LeanString, CompileDiagnostic> {
+    // Each pass includes the gate declarations from earlier passes in its body, so gate
+    // names only have to survive this rule's own steps.
+    let mut gates = Vec::new();
+    for condition in conditions {
+        let guarded = guard(&declaration, condition, identifiers, &gates)?;
+        declaration = (guarded.css).into();
+        gates.extend(guarded.gates);
+    }
+    Ok(declaration)
+}
+
+/// Substitutes `parent` into `template` as CSS Nesting does and drops branches that
+/// cannot match after nesting.
+///
+/// Branches without pseudo-elements are substituted together as `:is(...)`, so
+/// `:not(&)` excludes every branch and `& + &` pairs any two branches. `:is()` cannot
+/// contain a pseudo-element, so each pseudo-element branch is substituted on its own.
+/// Substituting the whole list as text into `& > *` would apply the combinator only to
+/// the last branch.
+fn nested_utility_selector(template: &str, parent: &str) -> LeanString {
+    let branches = selector_list_branches(parent);
+    let (elements, pseudo_elements): (Vec<&str>, Vec<&str>) = branches
+        .into_iter()
+        .partition(|branch| !selector_has_pseudo_element(branch));
+    let grouped = match elements.as_slice() {
+        [] => None,
+        [branch] => Some((*branch).to_owned()),
+        _ => Some(format!(":is({})", elements.join(","))),
+    };
+    let mut output = Vec::new();
+    for parent in grouped.iter().map(String::as_str).chain(pseudo_elements) {
+        let nested = instantiate_selector(template, parent);
+        output.extend(
+            selector_list_branches(&nested)
+                .into_iter()
+                .filter(|branch| !selector_cannot_match(branch))
+                .map(str::to_owned),
+        );
+    }
+    output.join(",").into()
 }
 
 /// Returns the selector that a rule starts from and, in [`VariantContext::Document`],
@@ -287,6 +410,7 @@ fn document_rule_target<'a>(steps: &[VariantStep<'a>]) -> Option<(usize, &'a str
             VariantStep::Media(_)
             | VariantStep::Container(_)
             | VariantStep::Supports(_)
+            | VariantStep::Scope(_)
             | VariantStep::StartingStyle => return None,
         };
         Some((!selector_uses_subject(selector)).then_some((index, selector)))
@@ -310,6 +434,7 @@ fn nesting_parent(
                 VariantStep::Media(_)
                     | VariantStep::Container(_)
                     | VariantStep::Supports(_)
+                    | VariantStep::Scope(_)
                     | VariantStep::StartingStyle
             )
         });
@@ -317,6 +442,19 @@ fn nesting_parent(
         format_args!(":is({target})").to_lean_string()
     } else {
         target.to_lean_string()
+    }
+}
+
+/// Wraps `rule` in the at-rules of the utility's conditional rule, innermost first.
+/// Returns `rule` unchanged when `nested_rule` is `None`.
+fn wrap_nested_rule(rule: LeanString, nested_rule: Option<&NestedUtilityRule>) -> LeanString {
+    let Some(nested) = nested_rule else {
+        return rule;
+    };
+    let rule = wrap_condition(&rule, nested.at_rule, &nested.condition);
+    match &nested.parent {
+        Some((at_rule, condition)) => wrap_condition(&rule, *at_rule, condition),
+        None => rule,
     }
 }
 
@@ -333,6 +471,7 @@ fn wrap_condition(rule: &str, at_rule: NestedUtilityAtRule, condition: &str) -> 
 mod render_step_tests {
     use lean_string::ToLeanStr;
 
+    use stillwind_css::{CssMinifyOptions, minify_css};
     use stillwind_design_system::{UtilityOrder, VariantDeclaration};
 
     use super::super::resolve::CompiledUtilityDiagnosticData;
@@ -340,6 +479,59 @@ mod render_step_tests {
     use crate::identifiers::{
         DEFAULT_HASH_LENGTH, GeneratorSet, IdentifierContext, IdentifierMode,
     };
+
+    #[test]
+    fn nested_utility_selectors_group_element_branches_and_split_pseudo_elements() {
+        assert_eq!(
+            nested_utility_selector(":not(&)", ".a:hover, .a:focus"),
+            ":not(:is(.a:hover,.a:focus))"
+        );
+        assert_eq!(
+            nested_utility_selector("& > *", ".a *::selection, .a:before, .a"),
+            ".a > *"
+        );
+    }
+
+    #[test]
+    fn scope_paths_keep_the_utility_inside_absolute_roots_and_bind_explicit_subjects() {
+        for (prelude, expected) in [
+            (
+                "(.card) to (& .stop)",
+                "@scope(.card) to (:where(:scope) .stop){.sw_x:hover{color:red}}",
+            ),
+            (
+                "(.card &)",
+                "@scope(.card .sw_x:hover){:where(:scope){color:red}}",
+            ),
+            (
+                "(& .card)",
+                "@scope(.sw_x:hover .card){:where(:scope){color:red}}",
+            ),
+        ] {
+            let css = render_utility_rule_path(
+                ".sw_x",
+                &utility(None, "color:red;"),
+                "color:red;",
+                None,
+                &[
+                    VariantApplication::SelectorSuffix(":hover"),
+                    VariantApplication::Scope(prelude.into()),
+                ],
+                &identifiers(),
+            )
+            .unwrap();
+            let css = minify_css(
+                &css,
+                &CssMinifyOptions {
+                    include: vec!["Nesting".into()],
+                    ..Default::default()
+                },
+            )
+            .unwrap()
+            .css;
+            assert_eq!(css, expected, "{prelude}");
+        }
+    }
 
     fn identifiers() -> IdentifierContext {
         IdentifierContext::new(

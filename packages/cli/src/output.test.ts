@@ -83,6 +83,7 @@ test("text keeps source locations, related notes, and distinct project findings"
   expect(text).toContain("2 errors, 0 warnings in 1 file.");
   expect(text).toContain("Defined here");
   expect(text).toContain("Use an existing utility");
+  expect(text).toContain("  docs: https://stillwind.dev/docs/lints/unknown-utility\n");
   expect(stripVTControlCharacters(text)).toBe(text);
 });
 
@@ -109,7 +110,9 @@ test("explicit colors and source links do not alter JSON or GitHub formats", () 
   });
   expect(github).toContain("line=3,col=4,endLine=3,endColumn=8");
   expect(github).toContain("%2Cwith%25.tsx");
-  expect(github).toContain("Defined here%0Anote: Use an existing utility");
+  expect(github).toContain(
+    "Defined here%0Anote: Use an existing utility%0Adocs: https://stillwind.dev/docs/lints/unknown-utility",
+  );
   expect(stripVTControlCharacters(github)).toBe(github);
 });
 

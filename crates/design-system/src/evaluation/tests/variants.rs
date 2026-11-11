@@ -230,11 +230,11 @@ fn inner_arbitrary_selectors_without_subject_test_the_named_element() {
     for (candidate, expected) in [
         (
             "group-[.is-open]:flex",
-            template("&:is(:where(.group):is(.is-open) *)"),
+            template(":is(:where(.group):is(.is-open) &)"),
         ),
         (
             "peer-[:hover]/menu:flex",
-            template(r"&:is(:where(.peer\/menu):is(:hover) ~ *)"),
+            template(r":is(:where(.peer\/menu):is(:hover) ~ &)"),
         ),
         ("has-[.x]:flex", template("&:has(:is(.x))")),
         ("has-[>img]:flex", template("&:has(>img)")),
@@ -242,7 +242,7 @@ fn inner_arbitrary_selectors_without_subject_test_the_named_element() {
         ("in-[.x]:flex", template(":where(:is(.x)) &")),
         (
             "group-[&.is-open]:flex",
-            template("&:is(:where(.group).is-open *)"),
+            template(":is(:where(.group).is-open &)"),
         ),
     ] {
         assert_eq!(resolve(candidate), Some(expected), "{candidate}");

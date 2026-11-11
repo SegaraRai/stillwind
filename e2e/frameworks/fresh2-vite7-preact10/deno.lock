@@ -61,7 +61,7 @@
     "npm:rollup@^4.55.1": "4.65.0",
     "npm:svelte2tsx@0.7.62": "0.7.62_svelte@5.57.2_typescript@6.0.3",
     "npm:svelte@5.57.2": "5.57.2",
-    "npm:tailwindcss@4.3.3": "4.3.3",
+    "npm:tailwindcss@4.3.5": "4.3.5",
     "npm:tinyglobby@0.2.17": "0.2.17",
     "npm:typescript@6.0.3": "6.0.3",
     "npm:typescript@7.0.2": "7.0.2",
@@ -1649,8 +1649,8 @@
         "zimmerframe"
       ]
     },
-    "tailwindcss@4.3.3": {
-      "integrity": "sha512-gOhV3P7ufE62QDGg1zVaTgCR+EtPv92k2nIhVcVKcLmxT1sUBsQGhnZj175j+MqRt4zLF7ic+sCYjfhxMxj7YQ=="
+    "tailwindcss@4.3.5": {
+      "integrity": "sha512-FcQk9BuffmEHJP2G0XmB2SplU1aLTI7j07Kunk+U74Ny+XiWOtzXz9aujFZ/avntw1e2cOv/3PkgzflQ7gX2vQ=="
     },
     "tinyglobby@0.2.17": {
       "integrity": "sha512-wXR/dYpcqKmfWpEdZjiKJOwCNFndD0DMnrW/cYjVGttEkBfVgcLFHoNrlj47mjOVic9yyNu65alsgF4NQyTa2g==",

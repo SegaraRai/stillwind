@@ -323,9 +323,10 @@ for (const { version, core, exposure } of versions) {
             expect(module.composition).toHaveLength(1);
             const identity = module.composition[0].base;
             expect(identity.moduleId).toBe(prepared.moduleId);
-            expect(
-              Buffer.from(prepared.document.code).subarray(identity.start, identity.end).toString(),
-            ).toBe("style('flex')");
+            expect(identity).toMatchObject({
+              path: ["base"],
+              ordinal: 0,
+            });
             const chosen = typeFacts.find(
               (fact) =>
                 Buffer.from(prepared.document.code).subarray(fact.start, fact.end).toString() ===
@@ -382,13 +383,9 @@ for (const { version, core, exposure } of versions) {
       );
       const { module } = compile(prepared);
       expect(module.composition).toHaveLength(4);
-      expect(
-        new Set(
-          module.composition.map(({ base }) =>
-            Buffer.from(prepared.document.code).subarray(base.start, base.end).toString(),
-          ),
-        ),
-      ).toStrictEqual(new Set(["style('flex')", "style('grid')"]));
+      expect(new Set(module.composition.map(({ base }) => base.path.join("/")))).toStrictEqual(
+        new Set(["a", "b"]),
+      );
     });
 
     test("unwrapped refs, keyframes and transitions retain their asset kinds", async () => {

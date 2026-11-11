@@ -1,5 +1,5 @@
 /*! stillwind | MIT License | https://stillwind.dev */
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer theme {
   :root,
   :host {
@@ -228,23 +228,23 @@
   }
 }
 @layer utilities {
-  .sw_5z9t1 {
+  .sw_m4jpd {
     border-radius: 0.25rem;
     display: inline-flex;
   }
-  .sw_jy94h {
-    padding: calc(var(--spacing) * 4);
-    padding-inline: calc(var(--spacing) * 2);
+  .sw_2jols {
+    padding: calc(var(--spacing)*4);
+    padding-inline: calc(var(--spacing)*2);
   }
-  .sw_riolb {
-    padding: calc(var(--spacing) * 8);
-    padding-block: calc(var(--spacing) * 2);
+  .sw_0id4f {
+    padding: calc(var(--spacing)*8);
+    padding-block: calc(var(--spacing)*2);
   }
-  .sw_1agbk {
+  .sw_tgtx6 {
     opacity: 0.5;
   }
-  @media (hover: hover) {
-    .sw_9fmy7:hover {
+  @media (hover) {
+    .sw_aoat0:hover {
       --tw-shadow:
         0 4px 6px -1px var(--tw-shadow-color, #0000001a),
         0 2px 4px -2px var(--tw-shadow-color, #0000001a);
@@ -253,26 +253,26 @@
         var(--tw-ring-shadow), var(--tw-shadow);
     }
   }
-  .sw_nr42u {
+  .sw_k7zjz {
     color: var(--tone);
   }
-  .sw_jtu0n {
+  .sw_ur6v5 {
     --tw-font-weight: var(--font-weight-bold);
     font-weight: var(--font-weight-bold);
   }
-  @media (hover: hover) {
-    .sw_jtu0n:hover {
+  @media (hover) {
+    .sw_ur6v5:hover {
       text-decoration-line: underline;
     }
   }
-  .sw_ctxaq {
+  .sw_9mmdu {
     display: block;
   }
-  .sw_n5qi8 {
-    padding: calc(var(--spacing) * 4);
+  .sw_6rv3c {
+    padding: calc(var(--spacing)*4);
   }
-  @media (hover: hover) {
-    .sw_4oh6j:hover {
+  @media (hover) {
+    .sw_wma4y:hover {
       --tw-shadow:
         0 4px 6px -1px var(--tw-shadow-color, #0000001a),
         0 2px 4px -2px var(--tw-shadow-color, #0000001a);
@@ -283,7 +283,7 @@
   }
 }
 @layer properties {
-  @supports (((-webkit-hyphens: none)) and (not (margin-trim: inline))) or
+  @supports (((-webkit-hyphens: none)) and (not (margin-trim: block))) or
     ((-moz-orient: inline) and (not (color: rgb(from red r g b)))) {
     *,
     :before,

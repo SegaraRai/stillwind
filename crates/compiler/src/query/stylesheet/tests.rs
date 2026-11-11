@@ -217,7 +217,11 @@ fn hidden_names_keep_hover_and_semantic_argument_catalogs() {
     }
     assert_eq!(
         labels("@stillwind-intrinsic builtin-"),
-        ["builtin-if-variant", "builtin-not-variant"]
+        [
+            "builtin-if-variant",
+            "builtin-not-variant",
+            "builtin-or-variant"
+        ]
     );
     assert_eq!(
         labels("@stillwind-intrinsic builtin-if-variant "),

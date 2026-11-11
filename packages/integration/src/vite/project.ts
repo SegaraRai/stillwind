@@ -1,13 +1,19 @@
 import { watch } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { dirname, isAbsolute, resolve } from "node:path";
 
 import type { EncodedSourceMap } from "@jridgewell/gen-mapping";
 import type { InlineConfig } from "@stillwind/config";
 import { resolveIntegrationConfig } from "@stillwind/config/node";
-import { cleanModuleId, type CssSourceMapInput } from "@stillwind/host";
+import {
+  cleanModuleId,
+  resolveTypeFactsEnvironment,
+  type CssSourceMapInput,
+} from "@stillwind/host";
 import type { NativeCssMinifyOptions } from "@stillwind/native";
 import type { Environment, InferCustomEventPayload, ResolvedConfig, ViteDevServer } from "vite";
 
+import { SharedTypeFacts } from "../session.ts";
+import { buildSourceEntries, isSourceEntry } from "../source-entries.ts";
 import { cssForBrowser, publicCssSourceMap } from "./browser-css.ts";
 import type { BrowserSourceMapInput } from "./browser-source-map.ts";
 import type { BuildOutput } from "./build.ts";
@@ -16,6 +22,15 @@ import { inheritCssTarget, minifyTargets } from "./css-targets.ts";
 import type { CssContext } from "./design-system.ts";
 import { ViteEnvironment, type CssSnapshot } from "./environment.ts";
 import type { StylesheetPlan } from "./stylesheet.ts";
+
+/**
+ * Milliseconds without another compilation before a delayed development publication plans the
+ * stylesheet.
+ */
+const PUBLISH_DELAY = 20;
+
+/** Most milliseconds that a delayed development publication waits after its first request. */
+export const PUBLISH_MAX_DELAY = 200;
 
 /** Vite environment instance whose identity and top-level configuration own compiler state. */
 export type EnvironmentOwner = Pick<Environment, "name" | "getTopLevelConfig">;
@@ -40,6 +55,14 @@ export interface ProjectSettings {
   cssWatching: boolean;
   /** Native compilation mode: `development` for serving and `release` for production builds. */
   compilerMode: string;
+  /** Files named by the build inputs of all environments, without queries. */
+  entries: string[];
+  /**
+   * Present when no source file changes while a compiler session exists: {@link entries} and the
+   * source files that the selected project's `files` globs select. Undefined for development and
+   * watched builds.
+   */
+  fixedEntries?: string[];
   /** Absolute project root after configuration, including the optional compiler root override. */
   projectRoot: string;
   /** Active development server used for resource checks, file watching, and CSS hot messages. */
@@ -211,6 +234,24 @@ export interface ViteProject {
    */
   publish: (name: string | undefined, context: CssContext) => Promise<void>;
   /**
+   * Advances the environment revision now and publishes one snapshot after compilations stop
+   * arriving, or after at most `PUBLISH_MAX_DELAY` milliseconds. A planning failure of the delayed
+   * publication is reported as a server warning and keeps the last published styles. The delayed
+   * publication plans nothing when no browser is connected to the server.
+   *
+   * @param name - Environment name, or `undefined` for `client`. Production and unattached servers
+   * do nothing.
+   */
+  publishSoon: (name: string | undefined) => void;
+  /**
+   * Waits for the delayed publication of an environment.
+   *
+   * @param name - Environment name, or `undefined` for `client`.
+   * @returns A promise that settles after the pending delayed publication has run or the project
+   * has closed, or immediately when no delayed publication is pending.
+   */
+  publications: (name: string | undefined) => Promise<void>;
+  /**
    * Records a document stylesheet URL that the development server served for an environment.
    * Later publications that change the environment's CSS ask the browser to reload each recorded
    * stylesheet link.
@@ -257,6 +298,38 @@ export interface ViteProject {
 }
 
 /**
+ * Lists the source files that the build inputs name.
+ *
+ * @param config - Resolved build configuration.
+ * @returns Absolute script and component paths from the top-level and environment inputs, without
+ * queries and duplicates. Virtual and relative inputs are left out.
+ */
+function buildEntries(config: ResolvedConfig): string[] {
+  // Vite 8 deprecates `rollupOptions` as an alias of `rolldownOptions`, and Vite 7 has only
+  // `rollupOptions`.
+  const input = (build: Partial<ResolvedConfig["build"]> | undefined) =>
+    (build?.rolldownOptions ?? build?.rollupOptions)?.input;
+  const inputs = [
+    input(config.build),
+    ...Object.values(config.environments).map((environment) => input(environment.build)),
+  ];
+  return [
+    ...new Set(
+      inputs
+        .flatMap((input) =>
+          typeof input === "string"
+            ? [input]
+            : Array.isArray(input)
+              ? input
+              : Object.values(input ?? {}),
+        )
+        .map(cleanModuleId)
+        .filter((id) => isAbsolute(id) && isSourceEntry(id)),
+    ),
+  ];
+}
+
+/**
  * Creates project state shared by compiler, development, and build plugins.
  *
  * Call `configure` before environment initialization, then `attachServer` when serving. Close the
@@ -276,6 +349,7 @@ export function createViteProject(
     watching: false,
     cssWatching: false,
     compilerMode: "release",
+    entries: [],
     projectRoot: "",
     assetsDirectory: "assets",
     publicBase: "/",
@@ -297,7 +371,26 @@ export function createViteProject(
   const documentStylesheets = new Map<string, Set<string>>();
   /** CSS of the latest publication that refreshed document stylesheets, keyed by environment name. */
   const publishedDocumentCss = new Map<string, string>();
+  /** Delayed publications keyed by environment name, with the time of their first request. */
+  const delayedPublications = new Map<
+    string,
+    {
+      timer: ReturnType<typeof setTimeout>;
+      first: number;
+      /** Settles after the publication has run, whether planning succeeded or not. */
+      done: PromiseWithResolvers<void>;
+    }
+  >();
   let bindings = new WeakMap<EnvironmentOwner, ViteEnvironment>();
+  /**
+   * Type facts that the environments share while they resolve imports alike. Configuration
+   * replaces it because the TypeScript settings may change.
+   */
+  let sharedTypeFacts: SharedTypeFacts | undefined;
+  const shareTypeFacts = () =>
+    (sharedTypeFacts ??= new SharedTypeFacts(
+      resolveTypeFactsEnvironment(settings.projectRoot, config.tsconfig),
+    ));
   /**
    * Gets or creates the compiler state owned by one Vite environment.
    * @param owner - Owning Vite instance, or a name selecting the current state. Omission selects `client`.
@@ -308,17 +401,23 @@ export function createViteProject(
     const name = typeof owner === "string" ? owner : owner.name;
     let state = typeof owner === "string" ? environments.get(name) : bindings.get(owner);
     if (!state) {
-      state = new ViteEnvironment(name, settings, config, (ids) => {
-        if (name === "client") {
-          return;
-        }
-        const graph = settings.devServerRef?.environments[name]?.moduleGraph;
-        for (const id of ids) {
-          for (const module of graph?.getModulesByFile(cleanModuleId(id)) ?? []) {
-            graph!.invalidateModule(module);
+      state = new ViteEnvironment(
+        name,
+        settings,
+        config,
+        (ids) => {
+          if (name === "client") {
+            return;
           }
-        }
-      });
+          const graph = settings.devServerRef?.environments[name]?.moduleGraph;
+          for (const id of ids) {
+            for (const module of graph?.getModulesByFile(cleanModuleId(id)) ?? []) {
+              graph!.invalidateModule(module);
+            }
+          }
+        },
+        shareTypeFacts,
+      );
       environments.set(name, state);
       if (typeof owner !== "string") {
         bindings.set(owner, state);
@@ -343,6 +442,7 @@ export function createViteProject(
     for (const state of environments.values()) {
       state.closeTypeFacts();
     }
+    sharedTypeFacts?.close();
   };
 
   /**
@@ -364,6 +464,8 @@ export function createViteProject(
     for (const state of environments.values()) {
       state.close();
     }
+    sharedTypeFacts?.close();
+    sharedTypeFacts = undefined;
     environments.clear();
     bindings = new WeakMap();
     for (const key of Object.keys(config) as (keyof IntegrationConfig)[]) {
@@ -387,6 +489,11 @@ export function createViteProject(
     settings.cssTargets = settings.minifyCss ? minifyTargets(config.target) : undefined;
     settings.watching = viteConfig.command === "serve";
     settings.compilerMode = settings.watching ? "development" : "release";
+    settings.entries = buildEntries(viteConfig);
+    settings.fixedEntries =
+      settings.watching || viteConfig.build.watch
+        ? undefined
+        : await buildSourceEntries(settings.entries, resolved.scope);
   };
 
   /** Detaches the current server's change listeners and closes its configuration discovery watchers. */
@@ -449,11 +556,17 @@ export function createViteProject(
   /** Detaches server listeners, closes discovery watchers, and closes every retained compiler environment. */
   const close = () => {
     stopCssWatching();
+    for (const { timer, done } of delayedPublications.values()) {
+      clearTimeout(timer);
+      done.resolve();
+    }
+    delayedPublications.clear();
     documentStylesheets.clear();
     publishedDocumentCss.clear();
     for (const state of environments.values()) {
       state.close();
     }
+    sharedTypeFacts?.close();
   };
 
   /**
@@ -500,6 +613,58 @@ export function createViteProject(
             timestamp,
           })),
       });
+    });
+  };
+
+  const publishSoon = (name: string | undefined) => {
+    const server = settings.devServerRef;
+    if (!settings.watching || !server) {
+      return;
+    }
+    const environmentName = name ?? "client";
+    environment(name).advance();
+    const now = performance.now();
+    const pending = delayedPublications.get(environmentName);
+    if (pending) {
+      clearTimeout(pending.timer);
+    }
+    const first = pending?.first ?? now;
+    const done = pending?.done ?? Promise.withResolvers<void>();
+    const run = async () => {
+      delayedPublications.delete(environmentName);
+      const target = server.environments[environmentName];
+      try {
+        // Snapshots reach documents only through connected browsers, and a browser that connects
+        // later loads a current snapshot with the runtime module. Without this check, a cold start
+        // that compiles for a long time without a browser plans the document every
+        // `PUBLISH_MAX_DELAY` milliseconds, and each plan delays the next compilation.
+        if (!target || server.ws.clients.size === 0) {
+          return;
+        }
+        // The compilation that requested this publication has finished, so its plugin context no
+        // longer receives watch files. The server watcher and resolver remain valid.
+        await publish(name, {
+          resolve: (specifier, importer, options) =>
+            target.pluginContainer.resolveId(specifier, importer, options),
+          addWatchFile: (id: string) => {
+            server.watcher.add(id);
+          },
+          warn: (message: string) => {
+            server.config.logger.warn(message);
+          },
+        });
+      } catch (error) {
+        server.config.logger.warn(
+          `Stillwind update failed; retaining published styles: ${String(error)}`,
+        );
+      } finally {
+        done.resolve();
+      }
+    };
+    delayedPublications.set(environmentName, {
+      timer: setTimeout(run, Math.max(0, Math.min(PUBLISH_DELAY, first + PUBLISH_MAX_DELAY - now))),
+      first,
+      done,
     });
   };
 
@@ -550,6 +715,9 @@ export function createViteProject(
     snapshot: (name: string | undefined, context: CssContext) =>
       environment(name).snapshot(context),
     publish,
+    publishSoon,
+    publications: (name: string | undefined) =>
+      delayedPublications.get(name ?? "client")?.done.promise ?? Promise.resolve(),
     observeDocumentStylesheet: (name: string, url: string) => {
       let urls = documentStylesheets.get(name);
       if (!urls) {

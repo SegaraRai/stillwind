@@ -14,8 +14,8 @@ use stillwind_diagnostics::{
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind, SourceAnalyzer, StyleInput};
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
 use stillwind_semantic::{
-    AssetKind, CheckedValue, ExportedValue, IdentityId, IntegrationDiagnostic, SymbolicValue,
-    TypeFact, TypeFacts,
+    AssetKind, CheckedValue, DeclarationKey, ExportedValue, IdentityId, IntegrationDiagnostic,
+    SymbolicValue, TypeFact, TypeFacts,
 };
 use stillwind_source::{FileId, Fingerprint, ModuleId, SourceFile};
 
@@ -140,8 +140,7 @@ fn ref_variant_receivers_lower_each_conditional_branch() {
         let identity = IdentityId::new(
             AssetKind::Ref,
             definition.module_id.clone(),
-            definition.binding.span.start.0,
-            definition.binding.span.end.0,
+            DeclarationKey::top(definition.binding.span.start.0),
             definition.binding.value.clone(),
         );
         let value = ExportedValue::Refs(SymbolicValue::exact(identity));
@@ -214,8 +213,7 @@ fn raw_ref_factories_work_as_scopes_when_the_checker_proves_their_identities() {
         let identity = IdentityId::new(
             AssetKind::Ref,
             definition.module_id.clone(),
-            definition.binding.span.start.0,
-            definition.binding.span.end.0,
+            DeclarationKey::top(definition.binding.span.start.0),
             definition.binding.value.clone(),
         );
         let facts = source

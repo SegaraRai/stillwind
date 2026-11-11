@@ -1,6 +1,6 @@
 {
   "name": "@stillwind/vscode-extension",
-  "version": "0.6.0",
+  "version": "0.8.0",
   "description": "Stillwind language support for VS Code and browser editors",
   "keywords": [
     "stillwind",
@@ -19,12 +19,15 @@
   "files": [
     "dist/api",
     "dist/extension",
+    "index.d.ts",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE",
     "TAILWINDCSS-MIT-LICENSE",
     "WEBREF-MIT-LICENSE"
   ],
   "type": "module",
+  "types": "./index.d.ts",
   "exports": {
     "./manifest": {
       "types": "./dist/api/manifest.d.ts",
@@ -51,7 +54,7 @@
     "@types/node": "catalog:",
     "@types/vscode": "latest",
     "@vscode/vsce": "^4.1.0",
-    "ovsx": "^1.3.0",
+    "ovsx": "^1.4.0",
     "playwright": "catalog:",
     "rolldown": "catalog:",
     "typescript": "catalog:",

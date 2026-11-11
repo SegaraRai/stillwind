@@ -8,7 +8,7 @@
 
 use std::collections::BTreeSet;
 
-use cssparser::{Parser, Token};
+use cssparser::{ParseError, Parser, Token};
 use lean_string::{LeanStr, ToLeanString};
 
 use stillwind_css::{
@@ -327,25 +327,12 @@ impl CallEmitter<'_> {
         choice: Option<(usize, usize)>,
     ) {
         let mut declarations = Vec::new();
-        if let Some(plan) = contribution
+        let plans = contribution
             .view_transitions
-            .first()
-            .and_then(|transition| transition.plan.as_ref())
-        {
-            let probe = rule_contribution(plan, "view-transition-class:initial;".into(), None);
-            for utility in &probe.utilities {
-                if let Ok(css) = render_utility_rule(
-                    "&",
-                    utility,
-                    self.theme,
-                    &utility.declaration,
-                    None,
-                    self.identifiers,
-                ) {
-                    collect_declarations(&css, "", &[], false, None, &mut declarations);
-                }
-            }
-        } else {
+            .iter()
+            .filter_map(|transition| transition.plan.as_ref())
+            .collect::<Vec<_>>();
+        if plans.is_empty() {
             declarations.push(SupplyKind::Declaration {
                 property: "view-transition-class".into(),
                 value: DeclarationValue::Css("initial".into()),
@@ -358,6 +345,20 @@ impl CallEmitter<'_> {
                 provider: false,
                 gate: None,
             });
+        } else {
+            let probe = rule_contribution(plans, "view-transition-class:initial;", None);
+            for utility in &probe.utilities {
+                if let Ok(css) = render_utility_rule(
+                    "&",
+                    utility,
+                    self.theme,
+                    &utility.declaration,
+                    None,
+                    self.identifiers,
+                ) {
+                    collect_declarations(&css, "", &[], false, None, &mut declarations);
+                }
+            }
         }
         let mut supplies = Vec::new();
         for declaration in declarations {
@@ -516,11 +517,10 @@ fn subject(selector: &str) -> RuleSubject {
                     token,
                     Token::Function(_) | Token::SquareBracketBlock | Token::ParenthesisBlock
                 ) {
-                    let _: Result<(), cssparser::ParseError<()>> =
-                        parser.parse_nested_block(|inner| {
-                            while inner.next_including_whitespace_and_comments().is_ok() {}
-                            Ok(())
-                        });
+                    let _: Result<(), ParseError<()>> = parser.parse_nested_block(|inner| {
+                        while inner.next_including_whitespace_and_comments().is_ok() {}
+                        Ok(())
+                    });
                 }
             }
         }
@@ -537,7 +537,7 @@ fn subject(selector: &str) -> RuleSubject {
 
 #[cfg(test)]
 mod tests {
-    use stillwind_semantic::AssetKind;
+    use stillwind_semantic::{AssetKind, DeclarationKey};
     use stillwind_source::ModuleId;
 
     use super::*;
@@ -554,7 +554,12 @@ mod tests {
 
     #[test]
     fn declaration_collection_retains_nested_contexts_case_values_and_provider_gates() {
-        let gate = IdentityId::new(AssetKind::Ref, ModuleId::from("root"), 0, 10, "r");
+        let gate = IdentityId::new(
+            AssetKind::Ref,
+            ModuleId::from("root"),
+            DeclarationKey::top(0),
+            "r",
+        );
         let mut supplies = Vec::new();
         collect_declarations(
             "@media (width > 10px) { & { COLOR:red ! IMPORTANT; --Theme:{x:y}; &:hover { padding:1px; } } }",

@@ -1,6 +1,6 @@
 {
   "name": "prettier-plugin-stillwind",
-  "version": "0.6.0",
+  "version": "0.8.0",
   "description": "Prettier plugin that sorts Stillwind utilities in JavaScript, TypeScript, Astro, Svelte, Vue, and CSS files",
   "keywords": [
     "astro",
@@ -25,9 +25,12 @@
     "directory": "packages/prettier-plugin"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "CHANGELOG.md"
   ],
   "type": "module",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

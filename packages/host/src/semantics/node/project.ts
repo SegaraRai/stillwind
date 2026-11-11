@@ -44,6 +44,25 @@ export interface PreparedProject {
   identities: Map<string, IdentityId>;
 }
 
+/** Shared empty declaration list, so that cached buffers of sources without assets stay valid. */
+const noAssets: readonly AssetRecord[] = [];
+
+/**
+ * Checker buffers of earlier preparations keyed by source object. Each entry records the inputs
+ * that the buffers depend on, so a preparation reuses it only when those inputs are the same.
+ */
+export type CheckerSourceCache = WeakMap<
+  TypeFactSource,
+  {
+    /** Declarations used to build the buffers. */
+    assets: readonly AssetRecord[];
+    /** Import ranges and checker filenames of their targets used to rewrite module specifiers. */
+    targets: string;
+    /** Buffers in buffer order. */
+    mappings: CheckerSource[];
+  }
+>;
+
 /**
  * TypeScript settings inherited by the generated project used for semantic queries.
  */
@@ -125,6 +144,9 @@ export interface TypeFactsInputs {
  * @param project - Consumer configuration to inherit, or isolated compiler defaults.
  * @param inputs - Captured file replacements and declarations required by this collection.
  * @param configuredDeclarations - Declaration files selected by the consumer's tsconfig.
+ * @param cache - Optional buffers to reuse. A source object reuses its buffers when its assets array
+ * and import targets are the same. The source object must not change in other ways while it is
+ * cached. New buffers are stored in the cache.
  * @returns Virtual text and range mappings without writing any files to disk.
  * @throws If checker edits or projection maps are invalid, or an original probe has no
  * checker-buffer correspondence.
@@ -136,6 +158,7 @@ export function prepareProject(
   project: TypeScriptProject,
   inputs: TypeFactsInputs,
   configuredDeclarations: readonly string[],
+  cache?: CheckerSourceCache,
 ): PreparedProject {
   const virtualFiles = new Map(
     [...(inputs.overlayFiles ?? []), ...(inputs.ambientDeclarations ?? [])].map(([name, text]) => [
@@ -157,24 +180,32 @@ export function prepareProject(
       virtualFiles.set(id, declarations);
       globals.add(id);
     }
-    const syntax = source.kind === "direct" ? source.syntax : source.projection.syntax;
-    const buffers = source.checkerBuffers ?? [
-      {
-        source: source.kind === "direct" ? source.document.code : source.projection.code,
-        language:
-          syntax.language === "tsx" || syntax.language === "jsx"
-            ? ("tsx" as const)
-            : ("ts" as const),
-      },
-    ];
-    for (const [index, buffer] of buffers.entries()) {
-      const shadow = new CheckerSource(
-        source,
-        buffer,
-        index,
-        assetsByModuleId.get(source.moduleId) ?? [],
-        ids,
-      );
+    const assets = assetsByModuleId.get(source.moduleId) ?? noAssets;
+    const targets = (source.resolutions ?? [])
+      .map((item) => `${item.start}:${item.end}:${ids.get(item.id) ?? item.id}`)
+      .join("\n");
+    let cached = cache?.get(source);
+    if (cached?.assets !== assets || cached.targets !== targets) {
+      const syntax = source.kind === "direct" ? source.syntax : source.projection.syntax;
+      const buffers = source.checkerBuffers ?? [
+        {
+          source: source.kind === "direct" ? source.document.code : source.projection.code,
+          language:
+            syntax.language === "tsx" || syntax.language === "jsx"
+              ? ("tsx" as const)
+              : ("ts" as const),
+        },
+      ];
+      cached = {
+        assets,
+        targets,
+        mappings: buffers.map(
+          (buffer, index) => new CheckerSource(source, buffer, index, assets, ids),
+        ),
+      };
+      cache?.set(source, cached);
+    }
+    for (const shadow of cached.mappings) {
       virtualFiles.set(normalize(shadow.id), shadow.text);
       if (shadow.helperModule) {
         virtualFiles.set(normalize(shadow.helperModule.id), shadow.helperModule.text);

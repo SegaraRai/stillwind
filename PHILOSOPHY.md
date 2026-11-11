@@ -73,7 +73,7 @@ The principles themselves will also be updated as the implementation evolves.
     - 値を作るマクロ: `style()`、`style.ref()`・`style.keyframes()`・`style.viewTransition()` の宣言、`style.cva()`
       - インプレースでランタイムコードに一対一で変換され、ランタイム値を持つ
       - 副作用として、CSS の生成に貢献したり、CSS ルールの順序に影響を与えたりする（base スタイルなど）
-      - たとえば `style(...)` は最終的に `{ className: "..." }` に評価されるなにか（たとえば `stillwindMerge(stillwindToFragment({ [stillwindClassKey]: "sw_a" }))`）になる。変換処理としては（副作用を除いて）それ以上でもそれ以下でもない。これは TS 型定義とも整合する話
+      - たとえば `style(...)` は最終的に `{ className: "..." }` に評価されるなにか（たとえば `stillwindClassNameObjectMerge(stillwindClassNameObjectToFragment({ [stillwindClassNameObjectClassKey]: "sw_a" }))`）になる。変換処理としては（副作用を除いて）それ以上でもそれ以下でもない。これは TS 型定義とも整合する話
     - 副作用だけのマクロ: projection（`ref.asAnchor()` など）、ref variant、keyframes use、`transition.for()`
       - CSS に寄与するだけで、変換後は `"sw_a"` のような生成名になって消えるため、それ自体はランタイム値を持たない
       - 値を作るマクロ（主に `style()`）の入力の一部として lowering される。値が必要なら `style()` でラップして materialize する

@@ -1,9 +1,13 @@
 //! Built-in reporting policies shared by direct Rust callers and generated host
 //! presets.
 
+use std::borrow::Cow;
+
 use serde::{Deserialize, Serialize};
 
-use super::{LintConfig, LintKind, LintSettings, LintSeverity};
+use stillwind_css::WritingMode;
+
+use super::{ConflictingUtilitiesConfig, LintConfig, LintKind, LintSettings, LintSeverity};
 
 const RECOMMENDED: &[(LintKind, LintSeverity)] = &[
     (LintKind::InvalidLintSuppression, LintSeverity::Warn),
@@ -28,6 +32,7 @@ const RECOMMENDED: &[(LintKind, LintSeverity)] = &[
     (LintKind::InvalidMediaQuery, LintSeverity::Deny),
     (LintKind::InvalidCssInput, LintSeverity::Deny),
     (LintKind::InvalidRefInput, LintSeverity::Deny),
+    (LintKind::InvalidStoredVariant, LintSeverity::Deny),
     (LintKind::InvalidAnimationOption, LintSeverity::Deny),
     (LintKind::InvalidStyleComposition, LintSeverity::Deny),
     (LintKind::RuntimeConditionRequiresCssIf, LintSeverity::Deny),
@@ -75,6 +80,15 @@ const STYLISTIC: &[(LintKind, LintSeverity)] = &[
     (LintKind::PreferVariantDirective, LintSeverity::Warn),
 ];
 
+/// The `writingModes` option of `conflicting-utilities` in the stylistic preset. The
+/// preset sets no severity for the rule, so the rule keeps the severity of an earlier
+/// preset, such as `recommended`.
+const STYLISTIC_WRITING_MODES: &[WritingMode] = &[
+    WritingMode::HorizontalTb,
+    WritingMode::VerticalRl,
+    WritingMode::VerticalLr,
+];
+
 const STRICT_ADDITIONS: &[(LintKind, LintSeverity)] =
     &[(LintKind::UnusedLintSuppression, LintSeverity::Deny)];
 
@@ -90,6 +104,7 @@ pub enum LintPreset {
     Strict,
     /// Optional conventions for direct styling, logical properties, typed
     /// relationships, utility ordering, typed variables, and the `@variant` directive.
+    /// It also checks `conflicting-utilities` in every writing mode.
     Stylistic,
 }
 
@@ -109,6 +124,16 @@ impl LintPreset {
                     LintSeverity::Deny
                 } else {
                     severity
+                },
+            ));
+        }
+        if self == Self::Stylistic {
+            // Without an earlier preset, the option object reports at the warn level,
+            // as it does in host configuration.
+            settings.insert(LintConfig::ConflictingUtilities(
+                ConflictingUtilitiesConfig {
+                    writing_modes: Cow::Borrowed(STYLISTIC_WRITING_MODES),
+                    ..ConflictingUtilitiesConfig::default()
                 },
             ));
         }
@@ -163,6 +188,11 @@ mod tests {
             stylistic.reporting_severity(LintKind::UnknownUtility),
             LintSeverity::Off
         );
+        assert!(matches!(
+            stylistic.get(LintKind::ConflictingUtilities),
+            Some(LintConfig::ConflictingUtilities(config))
+                if config.writing_modes.as_ref() == WritingMode::ALL
+        ));
     }
 
     #[test]

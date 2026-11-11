@@ -13,10 +13,10 @@
     "@stillwind-internal/e2e-harness": "workspace:*",
     "@stillwind/integration": "workspace:*",
     "@types/node": "catalog:",
-    "nitro": "3.0.261029-rc",
+    "nitro": "3.0.261103-rc",
     "typescript": "catalog:",
     "vite": "catalog:",
-    "vite-plugin-solid": "2.11.14",
+    "vite-plugin-solid": "2.11.15",
     "vite-plus": "catalog:"
   }
 }

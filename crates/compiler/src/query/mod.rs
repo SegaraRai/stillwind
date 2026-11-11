@@ -8,6 +8,7 @@
 //! - [`annotations`] adds comments with resolved values to preview CSS.
 //! - [`canonical`] finds equivalent spellings under the active lint policy.
 //! - [`completion`] offers utility, variant, marker, and theme labels.
+//! - [`conflicts`] suggests logical utilities for conflicting physical utilities.
 //! - [`context`] evaluates CSS and provides the shared canonical indexes, including
 //!   [`prepare_canonical_index`], which a loader can call before it exposes a revision.
 //! - [`input`] selects the compiler resolver for each source input role.
@@ -22,6 +23,7 @@
 mod annotations;
 mod canonical;
 mod completion;
+mod conflicts;
 mod context;
 mod input;
 mod markers;

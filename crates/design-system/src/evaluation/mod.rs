@@ -48,7 +48,7 @@ pub use variants::{
     compare_variant_sequences, compound_variant_inner, document_scoped_selector, document_target,
     exact_variant_definition_resolves, is_tailwind_relationship_candidate, marker_use,
     redundant_variants, repeated_subject_selector, resolve_variant, resolve_variant_with_usage,
-    unsatisfiable_variants,
+    unsatisfiable_variants, variant_alternatives,
 };
 
 pub(crate) use programs::UtilityPrograms;

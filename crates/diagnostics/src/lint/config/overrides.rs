@@ -1,5 +1,7 @@
 //! Applies explicit host fields to effective lint defaults without changing the inputs.
 
+use std::borrow::Cow;
+
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -83,6 +85,8 @@ pub struct LintOverrides {
     pub invalid_css_input: Option<LintSeverity>,
     /// Reporting level for `invalid-ref-input`.
     pub invalid_ref_input: Option<LintSeverity>,
+    /// Reporting level for `invalid-stored-variant`.
+    pub invalid_stored_variant: Option<LintSeverity>,
     /// Reporting level for `invalid-animation-option`.
     pub invalid_animation_option: Option<LintSeverity>,
     /// Reporting level for `invalid-style-composition`.
@@ -213,19 +217,7 @@ impl LintOverrides {
             }
             settings.insert(LintConfig::InvalidMarkerUse(config));
         }
-        if let Some(overrides) = &self.conflicting_utilities {
-            let mut config = match settings.get(LintKind::ConflictingUtilities) {
-                Some(LintConfig::ConflictingUtilities(config)) => config.clone(),
-                _ => ConflictingUtilitiesConfig::default(),
-            };
-            if let Some(value) = overrides.severity {
-                config.severity = value;
-            }
-            if let Some(value) = overrides.allow_shorthand_overrides {
-                config.allow_shorthand_overrides = value;
-            }
-            settings.insert(LintConfig::ConflictingUtilities(config));
-        }
+        self.resolve_utility_overlaps(&mut settings);
         if let Some(overrides) = &self.no_restricted_length_units {
             let mut config = match settings.get(LintKind::NoRestrictedLengthUnits) {
                 Some(LintConfig::NoRestrictedLengthUnits(config)) => config.clone(),
@@ -271,6 +263,25 @@ impl LintOverrides {
             settings.insert(LintConfig::PreferSortedUtilities(severity));
         }
         settings
+    }
+
+    fn resolve_utility_overlaps(&self, settings: &mut LintSettings) {
+        if let Some(overrides) = &self.conflicting_utilities {
+            let mut config = match settings.get(LintKind::ConflictingUtilities) {
+                Some(LintConfig::ConflictingUtilities(config)) => config.clone(),
+                _ => ConflictingUtilitiesConfig::default(),
+            };
+            if let Some(value) = overrides.severity {
+                config.severity = value;
+            }
+            if let Some(value) = overrides.allow_shorthand_overrides {
+                config.allow_shorthand_overrides = value;
+            }
+            if let Some(value) = &overrides.writing_modes {
+                config.writing_modes = Cow::Owned(value.clone());
+            }
+            settings.insert(LintConfig::ConflictingUtilities(config));
+        }
     }
 
     fn resolve_spelling_policies(&self, settings: &mut LintSettings) {
@@ -471,6 +482,7 @@ impl LintOverrides {
             (LintKind::InvalidMediaQuery, self.invalid_media_query),
             (LintKind::InvalidCssInput, self.invalid_css_input),
             (LintKind::InvalidRefInput, self.invalid_ref_input),
+            (LintKind::InvalidStoredVariant, self.invalid_stored_variant),
             (
                 LintKind::InvalidAnimationOption,
                 self.invalid_animation_option,

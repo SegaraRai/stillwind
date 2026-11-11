@@ -249,7 +249,8 @@ function substituteNesting(selector: string, parent: string): string | undefined
  * not a utility is used. The compiler emits such rules nested in a utility body only with that
  * utility.
  * @param wrappers - Enclosing at-rule preludes, outermost first.
- * @throws If a selector has no class outside `:not()` and attribute selectors.
+ * @throws If a selector has no class outside `:not()` and attribute selectors, or if an
+ * `@scope` rule encloses a selector.
  */
 export function utilityRules(
   input: unknown,
@@ -275,6 +276,13 @@ export function utilityRules(
   for (const [selector, body] of Object.entries(input)) {
     if (selector.startsWith("@keyframes ") || selector.startsWith("@property ")) {
       global(wrap(`${selector}{${serializeCss(body)}}`));
+    } else if (scopeRule(selector)) {
+      // A utility body is nested in its class rule, and nesting changes `@scope` there:
+      // `.item{@scope (.theme){color:red}}` colors `.theme` elements inside `.item`, while
+      // `@scope (.theme){.item{color:red}}` colors `.item` elements inside `.theme`.
+      throw new Error(
+        `Tailwind plugin utility selectors cannot be nested in @scope outside a selector: ${selector}`,
+      );
     } else if (selector.startsWith("@")) {
       utilityRules(body, register, global, [...wrappers, selector]);
     } else {
@@ -293,6 +301,16 @@ export function utilityRules(
       }
     }
   }
+}
+
+/**
+ * Whether a CSS-in-JS key is an `@scope` rule.
+ *
+ * @param key - Entry key.
+ * @returns Whether the key is `@scope` with or without a prelude.
+ */
+function scopeRule(key: string): boolean {
+  return /^@scope(?![\w-])/.test(key);
 }
 
 /**
@@ -339,8 +357,8 @@ export function selectorRules(input: unknown): string[] {
  * @param selector - Selector of the body relative to the utility class, `&` for the class itself.
  * @param conditions - Enclosing at-rule preludes, outermost first.
  * @returns Bodies in source order. Each one is either declarations, possibly inside
- * conditions, for `&`, one rule for another selector, or one `@keyframes` or `@property` rule
- * inside its conditions.
+ * conditions, for `&`, one rule for another selector, one `@scope` rule with its nested rules
+ * for `&` or another selector, or one `@keyframes` or `@property` rule inside its conditions.
  */
 export function utilityBodies(input: unknown, selector = "&", conditions: string[] = []): string[] {
   if (Array.isArray(input)) {
@@ -351,12 +369,20 @@ export function utilityBodies(input: unknown, selector = "&", conditions: string
   }
   const result: string[] = [];
   let declarations: Record<string, unknown> = {};
+  /**
+   * Adds CSS as one body for the current selector inside the current conditions.
+   *
+   * @param css - Declarations or rules for the current selector.
+   */
+  const place = (css: string) => {
+    const body = conditions.reduceRight((body, condition) => `${condition}{${body}}`, css);
+    result.push(selector === "&" ? body : `${selector}{${body}}`);
+  };
   /** Adds the declarations collected so far as one body and starts a new collection. */
   const flush = () => {
     const css = serializeCss(declarations);
     if (css) {
-      const body = conditions.reduceRight((body, condition) => `${condition}{${body}}`, css);
-      result.push(selector === "&" ? body : `${selector}{${body}}`);
+      place(css);
     }
     declarations = {};
   };
@@ -375,6 +401,11 @@ export function utilityBodies(input: unknown, selector = "&", conditions: string
             `${key}{${serializeCss(value)}}`,
           ),
         );
+      } else if (scopeRule(key)) {
+        // Nested rules stay inside `@scope`, because `:scope` in a selector means the scoping
+        // root only there. Moved out, `:where(:scope > :first-child)` from `@scope (&)` becomes
+        // the prelude `& :where(:scope > :first-child)`, where `:scope` matches `:root`.
+        place(`${key}{${serializeCss(value)}}`);
       } else if (key.startsWith("@")) {
         result.push(...utilityBodies(value, selector, [...conditions, key]));
       } else {

@@ -40,7 +40,7 @@ mod svelte;
 mod vanilla;
 mod vue;
 
-pub use output::{OutputFormat, OutputSpec, StyleFormat};
+pub use output::{OutputFormat, OutputSpec, RUNTIME_IMPORT, RUNTIME_IMPORT_DEV, StyleFormat};
 pub use projection::{ProjectionDecision, ProjectionExpression};
 pub use spec::{AdapterKind, FRAMEWORKS, FrameworkSpec, MODULE_CSS_IMPORT, from_macro_import};
 

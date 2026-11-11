@@ -1,5 +1,5 @@
 /*! stillwind | MIT License | https://stillwind.dev */
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 /*
 The property-initials slot inserts declarations for selected builtin registrations.
 Each element and the listed pseudo-elements receive their own fallback values in the
@@ -8,11 +8,11 @@ reach descendants. Keep this declaration slot inside the selector rule.
 */
 
 @layer properties {
-  @supports (((-webkit-hyphens: none)) and (not (margin-trim: inline))) or
+  @supports (((-webkit-hyphens: none)) and (not (margin-trim: block))) or
     ((-moz-orient: inline) and (not (color: rgb(from red r g b)))) {
   }
 }
-.sw_wmvay {
+.sw_jf7wf {
   display: grid;
   --sw-if-o06ec: var(--second) 30px;
   --sw-if-xy63z: var(--enabled) var(--sw-if-o06ec, 20px);
@@ -21,20 +21,20 @@ reach descendants. Keep this declaration slot inside the selector rule.
   width: var(--sw-if-jg1gu, 60px);
   opacity: calc(100 * 1%);
 }
-@supports (x: revert-rule) and (--w78xn:) {
-  .sw_wmvay {
+@supports (x: revert-rule) and (--c28d3:) {
+  .sw_jf7wf {
     --sw-if-s6okf: var(--enabled) flex;
     display: var(--sw-if-s6okf, revert-rule);
   }
 }
-@supports (x: revert-rule) and (--w78xn:) {
-  .sw_wmvay {
+@supports (x: revert-rule) and (--c28d3:) {
+  .sw_jf7wf {
     --sw-ifg-qhl3x: var(--second) var(--enabled);
     --sw-if-kbo56: var(--sw-ifg-qhl3x) calc(50 * 1%);
     opacity: var(--sw-if-kbo56, revert-rule) !important;
   }
 }
-.sw_45dpc {
+.sw_lr6al {
   --sw-if-n9v1g: var(--enabled) 80px;
   width: var(--sw-if-n9v1g, 40px);
 }

@@ -8,6 +8,7 @@ import { lintPresets } from "./lint-presets.ts";
 import {
   findConfiguration,
   findDocumentConfiguration,
+  listProjectFiles,
   loadConfiguration,
   resolveIntegrationConfig,
 } from "./node.ts";
@@ -107,6 +108,30 @@ test("build integrations select referenced projects by root and name", async () 
   expect((await resolveIntegrationConfig({ project: "admin" }, root)).config.css).toBe(
     path.join(root, "apps/admin/theme.css"),
   );
+});
+
+test("the selected project scope lists matching files outside node_modules and exclusions", async () => {
+  const { root } = await fixture();
+  await writeProject(root, { files: ["src/**/*.tsx"], exclude: ["src/old/**"] });
+  for (const file of [
+    "src/App.tsx",
+    "src/old/Page.tsx",
+    "src/node_modules/x/Card.tsx",
+    "src/a.ts",
+  ]) {
+    await mkdir(path.dirname(path.join(root, file)), { recursive: true });
+    await writeFile(path.join(root, file), "");
+  }
+  const { scope } = await resolveIntegrationConfig({}, root);
+  if (!scope) {
+    expect.fail("expected a selected project scope");
+  }
+  expect(await listProjectFiles(scope)).toEqual([
+    path.join(root, "src/App.tsx").replaceAll("\\", "/"),
+  ]);
+  expect(
+    (await resolveIntegrationConfig({ configFile: false, css: "theme.css" }, root)).scope,
+  ).toBeUndefined();
 });
 
 test("overlapping references load each file once and skip the declaring file", async () => {

@@ -1,7 +1,7 @@
 //! Declaration-site asset identity.
 //!
 //! An [`IdentityId`] names one asset by where it was declared, never by where it is
-//! used: the kind, the module identity, the declaration span and the local
+//! used: the kind, the module identity, the [`DeclarationKey`] and the local
 //! binding name. Importing, re-exporting or aliasing the value therefore keeps the same
 //! identity, which is what lets the compiler emit one stable CSS name per declaration.
 //!
@@ -29,13 +29,50 @@ pub enum AssetKind {
     Keyframes,
     /// A `style.viewTransition()` named view-transition asset.
     ViewTransition,
+    /// A `style.when()` declaration: a stored variant sequence that `style()` keys use.
+    StoredVariant,
+}
+
+/// Position of a declaration among the declarations of its module, independent of byte
+/// offsets.
+///
+/// The path names the declarations that enclose this one: named functions, classes,
+/// methods, variable bindings, and object keys, from the outermost to the innermost.
+/// Anonymous functions add no segment. The ordinal counts earlier declarations in
+/// source order that have the same kind, path, and binding name. An edit outside the
+/// enclosing declarations therefore keeps the key, and an edit inside them changes only
+/// the keys of later declarations with the same path.
+#[derive(Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeclarationKey {
+    /// Names of the enclosing declarations from the outermost to the innermost.
+    pub path: Vec<LeanStr>,
+    /// Zero-based position among earlier declarations with the same kind, path, and
+    /// binding name.
+    pub ordinal: u32,
+}
+
+impl DeclarationKey {
+    /// Creates a key from enclosing declaration names and an ordinal.
+    pub fn new(path: Vec<LeanStr>, ordinal: u32) -> Self {
+        Self { path, ordinal }
+    }
+
+    /// Creates a key for a declaration with no enclosing named declaration.
+    pub const fn top(ordinal: u32) -> Self {
+        Self {
+            path: Vec::new(),
+            ordinal,
+        }
+    }
 }
 
 /// Full declaration-site identity. The generated 32-bit name is derived later;
 /// retaining this key lets the build adapter detect hash collisions.
 ///
-/// Fields are compared exactly, and the derived order (kind, module identity, span,
-/// binding name) is used to sort and deduplicate candidate sets. It is not source
+/// The identity contains no byte offsets, so an edit elsewhere in the declaring module
+/// keeps it. Fields are compared exactly, and the derived order (kind, module identity,
+/// key, binding name) is used to sort and deduplicate candidate sets. It is not source
 /// order, so consumers must not present it as such.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -44,12 +81,11 @@ pub struct IdentityId {
     kind: AssetKind,
     /// Host module identity of the declaring module.
     module_id: ModuleId,
-    /// UTF-8 byte offset where the declaration starts in the original source.
-    start: u32,
-    /// UTF-8 byte offset where the declaration ends, exclusive.
-    end: u32,
+    /// Enclosing declarations and ordinal, serialized as `path` and `ordinal` fields.
+    #[serde(flatten)]
+    key: DeclarationKey,
     /// Local binding name at the declaration site. Empty for `style()` call sites,
-    /// which are identified by their call span instead.
+    /// which are identified by their key alone.
     binding_name: LeanStr,
 }
 
@@ -64,14 +100,9 @@ impl IdentityId {
         &self.module_id
     }
 
-    /// Returns the declaration's inclusive UTF-8 byte start.
-    pub const fn start(&self) -> u32 {
-        self.start
-    }
-
-    /// Returns the declaration's exclusive UTF-8 byte end.
-    pub const fn end(&self) -> u32 {
-        self.end
+    /// Returns the declaration's enclosing path and ordinal.
+    pub const fn key(&self) -> &DeclarationKey {
+        &self.key
     }
 
     /// Returns the declaration's local binding name, or an empty name for anonymous calls.
@@ -79,34 +110,26 @@ impl IdentityId {
         &self.binding_name
     }
 
-    /// Consumes the identity and returns its declaration coordinates and binding.
-    pub fn into_parts(self) -> (AssetKind, ModuleId, u32, u32, LeanStr) {
-        (
-            self.kind,
-            self.module_id,
-            self.start,
-            self.end,
-            self.binding_name,
-        )
+    /// Consumes the identity and returns its kind, module, key, and binding.
+    pub fn into_parts(self) -> (AssetKind, ModuleId, DeclarationKey, LeanStr) {
+        (self.kind, self.module_id, self.key, self.binding_name)
     }
 
     /// Builds an identity, preserving the supplied module identity.
     ///
-    /// Callers must pass the declaration's own span and binding. Deriving an identity
+    /// Callers must pass the declaration's own key and binding. Deriving an identity
     /// from a use site would make the asset change meaning as soon as it is imported
     /// under another name.
     pub fn new(
         kind: AssetKind,
         module_id: ModuleId,
-        start: u32,
-        end: u32,
+        key: DeclarationKey,
         binding_name: impl Into<LeanStr>,
     ) -> Self {
         Self {
             kind,
             module_id,
-            start,
-            end,
+            key,
             binding_name: binding_name.into(),
         }
     }
@@ -122,15 +145,13 @@ mod tests {
             IdentityId::new(
                 AssetKind::Ref,
                 ModuleId::from(r"src\PopoverMenu.tsx"),
-                4,
-                8,
+                DeclarationKey::top(0),
                 "menu"
             ),
             IdentityId::new(
                 AssetKind::Ref,
                 ModuleId::from("src/PopoverMenu.tsx"),
-                4,
-                8,
+                DeclarationKey::top(0),
                 "menu"
             )
         );

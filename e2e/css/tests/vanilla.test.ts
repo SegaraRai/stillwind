@@ -36,9 +36,8 @@ export function props(active, tone) {
   });
   expect(output.diagnostics).toEqual([]);
   expect(output.code).toBeTruthy();
-  const runtime = new URL("../../../packages/core/src/runtime/class-object.ts", import.meta.url)
-    .href;
-  const code = output.code!.replaceAll('"stillwind/runtime/class-object"', JSON.stringify(runtime));
+  const runtime = new URL("../../../packages/core/src/runtime/index.ts", import.meta.url).href;
+  const code = output.code!.replaceAll('"stillwind/runtime"', JSON.stringify(runtime));
   const url = URL.createObjectURL(new Blob([code], { type: "text/javascript" }));
   let props: (active: boolean, tone: string) => StyleProps;
   try {

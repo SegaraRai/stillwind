@@ -23,6 +23,7 @@ const recommended = {
     "invalid-media-query": "deny",
     "invalid-css-input": "deny",
     "invalid-ref-input": "deny",
+    "invalid-stored-variant": "deny",
     "invalid-animation-option": "deny",
     "invalid-style-composition": "deny",
     "runtime-condition-requires-css-if": "deny",
@@ -65,7 +66,8 @@ const recommended = {
 /**
  * Built-in lint policies for ordered preset composition. Treat their shared objects as readonly.
  * Recommended supplies the omitted-lint default. Strict denies every recommended rule and adds
- * further denied checks. Stylistic enables optional rewrites and utility sorting.
+ * further denied checks. Stylistic enables optional rewrites and utility sorting, and checks
+ * conflicting utilities in every writing mode.
  */
 export const lintPresets = {
   recommended,
@@ -92,6 +94,7 @@ export const lintPresets = {
       "invalid-media-query": "deny",
       "invalid-css-input": "deny",
       "invalid-ref-input": "deny",
+      "invalid-stored-variant": "deny",
       "invalid-animation-option": "deny",
       "invalid-style-composition": "deny",
       "runtime-condition-requires-css-if": "deny",
@@ -140,6 +143,7 @@ export const lintPresets = {
       "prefer-sorted-utilities": "warn",
       "prefer-typed-variables": "warn",
       "prefer-variant-directive": "warn",
+      "conflicting-utilities": { writingModes: ["horizontal-tb", "vertical-rl", "vertical-lr"] },
     },
   },
 } as const;

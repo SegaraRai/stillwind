@@ -4,6 +4,7 @@ import { ClientRouter } from "astro:transitions";
 import { style } from "stillwind/astro";
 
 import jetbrainsMono from "../assets/fonts/jetbrains-mono-regular.woff2?url";
+import SearchDialog from "../components/docs/SearchDialog.astro";
 import { documentRoot } from "../components/site/document";
 import SiteHeader from "../components/site/SiteHeader.astro";
 import ThemeHead from "../components/site/ThemeHead.astro";
@@ -87,5 +88,6 @@ const socialImage = new URL("/og.png", Astro.site);
         </a>
       </footer>
     </div>
+    <SearchDialog />
   </body>
 </html>

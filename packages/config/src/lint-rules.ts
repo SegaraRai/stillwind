@@ -86,6 +86,12 @@ export const lintRules = {
     defaults: null,
     options: null,
   },
+  "invalid-stored-variant": {
+    category: "input",
+    nativeName: "invalidStoredVariant",
+    defaults: null,
+    options: null,
+  },
   "invalid-animation-option": {
     category: "input",
     nativeName: "invalidAnimationOption",
@@ -197,8 +203,9 @@ export const lintRules = {
     defaults: {
       severity: "warn",
       allowShorthandOverrides: false,
+      writingModes: ["horizontal-tb"],
     },
-    options: ["severity", "allowShorthandOverrides"],
+    options: ["severity", "allowShorthandOverrides", "writingModes"],
   },
   "conflicting-provider-properties": {
     category: "hazard",

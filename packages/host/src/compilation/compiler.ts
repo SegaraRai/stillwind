@@ -16,6 +16,7 @@ import { loadSource, type CompilerHost } from "./host.ts";
 import { CompilationFailure, ModuleGraph } from "./module-graph.ts";
 import type { CompilationProject } from "./project.ts";
 import { createModuleAnalysis, type ModuleAnalysis, type ModuleCompileOptions } from "./request.ts";
+import { startPhase, tracePhase } from "./trace.ts";
 
 /** Most reloads with new plugin definitions during one compilation of a graph. */
 const PLUGIN_ROUNDS = 3;
@@ -97,6 +98,8 @@ export async function analyzeModule(
  * @param id - Full resolver identity of the entry source, including its query suffix.
  * @param host - Source metadata, resolution, reading, dependency tracking, and warning operations.
  * @param options - Diagnostic behavior, captured checker inputs, and generated imports for the entry.
+ * @param project - Optional sources shared across compilations whose dependency text does not
+ * change. When the project holds different text for the entry, this compilation does not use it.
  * @returns A promise for the entry output and composition metadata, or undefined when normal mode
  * produces no entry code.
  * @throws If compilation rejects diagnostics, source preparation fails, or host or checker operations fail.
@@ -108,8 +111,13 @@ export async function compileModule(
   id: string,
   host: CompilerHost,
   options: ModuleCompileOptions = {},
+  project?: CompilationProject,
 ) {
-  return compileGraph(session, factsService, code, id, host, options);
+  const captured = project?.source(id);
+  // A bundler plugin can transform the entry before Stillwind receives it. The project keeps the
+  // file text that dependencies observe, so this compilation uses only the received text.
+  const shared = captured && captured.document.code !== code ? undefined : project;
+  return compileGraph(session, factsService, code, id, host, options, undefined, undefined, shared);
 }
 
 /**
@@ -139,6 +147,7 @@ async function compileGraph(
   project?: CompilationProject,
 ) {
   const graph = new ModuleGraph(session, factsService, host, options, analysis, project);
+  const end = startPhase("entry");
   let hasModuleCssImport = false;
   try {
     const descriptor = entryInput ?? {
@@ -149,22 +158,25 @@ async function compileGraph(
         code,
       },
     };
-    const entrySource = await graph.prepare(descriptor);
+    // Copy the entry because this compilation assigns transport imports to it, and a project
+    // shares its prepared sources with other compilations.
+    const entrySource = { ...(await graph.prepare(descriptor)) };
     const entrySummary = graph.scan(entrySource);
     hasModuleCssImport = entrySummary.moduleCssImports > 0;
     if (entrySummary.macroImports > 0) {
       entrySource.stylesheetImports = options.stylesheetImports;
     }
-    if (hasModuleCssImport) {
-      entrySource.moduleCssImport = options.moduleCssImport;
-    }
+    // Dependencies receive the package specifier. A source without module CSS imports compiles to
+    // the same output with any specifier, so the entry receives the same input as a dependency and
+    // keeps the artifact that an earlier dependency compilation published.
+    entrySource.moduleCssImport = hasModuleCssImport
+      ? options.moduleCssImport
+      : "stillwind/module-css";
     await graph.collectDependencies(entrySource, entrySummary);
     const typedSources = await graph.collectTypedSources(entrySource);
     const producer = analysis ? undefined : entrySource.moduleId;
-    const projectOutput = await compileWithPlugins(
-      session,
-      () => session.compile(typedSources, producer),
-      PLUGIN_ROUNDS,
+    const projectOutput = await tracePhase("native-compile", typedSources.length, () =>
+      compileWithPlugins(session, () => session.compile(typedSources, producer), PLUGIN_ROUNDS),
     );
     if (analysis) {
       recordAnalysis(analysis, projectOutput.modules, session, typedSources, graph);
@@ -185,6 +197,8 @@ async function compileGraph(
       );
     }
     throw failure;
+  } finally {
+    end();
   }
 }
 
@@ -211,8 +225,8 @@ function entryOutput(
   const compositionTopology = JSON.stringify(
     composition
       .map(({ derived, base }) => [
-        `${derived.moduleId}:${derived.start}`,
-        `${base.moduleId}:${base.start}`,
+        JSON.stringify([derived.moduleId, derived.path, derived.ordinal]),
+        JSON.stringify([base.moduleId, base.path, base.ordinal]),
       ])
       .sort((a, b) => a[0].localeCompare(b[0]) || a[1].localeCompare(b[1])),
   );

@@ -18,7 +18,7 @@ import { createProject, type TurbopackLoaderOptions } from "./project.ts";
  * @param source - Original module text. Sources without recognized Stillwind imports pass through unchanged.
  * @param inputMap - Optional upstream map composed with compiler replacements for producer output.
  * @returns The immediate callback result for pass-through source, or undefined while asynchronous compilation runs.
- * Compilation registers dependencies, may add an automatic document carrier import, and closes its checker afterward.
+ * Compilation registers dependencies, may add an automatic document carrier import, and releases its project afterward.
  */
 export default function turbopackLoader(
   this: LoaderContext<TurbopackLoaderOptions>,
@@ -36,10 +36,23 @@ export default function turbopackLoader(
   void (async () => {
     const project = await createProject(this);
     try {
+      // Right after an edit, the loader filesystem can still return the previous text of the
+      // resource. The shared sources then take the text that this call received.
+      project.compiler.sourceRead(this.resourcePath, source);
+      const resource = path.normalize(this.resourcePath);
       const request = `./${path.basename(this.resourcePath)}?stillwind-module-css`;
-      const output = await project.compiler.compile(source, this.resourcePath, project.host, {
-        moduleCssImport: request,
-      });
+      const output = await project.compiler.compile(
+        source,
+        this.resourcePath,
+        {
+          ...project.host,
+          read: (id) =>
+            path.normalize(id) === resource ? Promise.resolve(source) : project.host.read(id),
+        },
+        {
+          moduleCssImport: request,
+        },
+      );
       if (!output?.code) {
         return callback(null, source, inputMap);
       }
@@ -110,7 +123,7 @@ export default function turbopackLoader(
         ),
       );
     } finally {
-      project.compiler.close();
+      project.release();
     }
   })().catch(callback);
 }

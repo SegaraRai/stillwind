@@ -59,8 +59,7 @@ fn identity(module: &ModuleAnalysis, call: &StyleCall) -> IdentityId {
     IdentityId::new(
         AssetKind::Style,
         module.module_id.clone(),
-        call.span.start.0,
-        call.span.end.0,
+        call.key.clone(),
         "",
     )
 }
@@ -76,10 +75,10 @@ pub fn validate_composition(
     require_complete: bool,
 ) -> Vec<CompileError> {
     let graph = CompositionGraph::new(modules);
-    if ordered(&graph.edges).is_none() {
+    if ordered(graph.edges.keys(), &graph.edges).is_none() {
         return vec![CompileError::new(CompileDiagnostic::CompositionCycle, at)];
     }
-    if ordered(&graph.modules).is_none() {
+    if ordered(graph.modules.keys(), &graph.modules).is_none() {
         return vec![CompileError::new(
             CompileDiagnostic::CompositionModuleCycle,
             at,
@@ -244,17 +243,24 @@ impl CompositionGraph {
 /// If a cycle remains, this function retains source order for deterministic
 /// diagnostics.
 pub fn ordered_style_calls(module: &ModuleAnalysis) -> Vec<StyleCall> {
+    let seeds: Vec<_> = module
+        .ir
+        .style_calls
+        .iter()
+        .map(|call| identity(module, call))
+        .collect();
     let edges = module
         .ir
         .style_calls
         .iter()
-        .map(|call| {
+        .zip(&seeds)
+        .map(|(call, identity)| {
             let mut dependencies = BTreeSet::new();
             inputs(&call.inputs, &mut dependencies);
-            (identity(module, call), dependencies)
+            (identity.clone(), dependencies)
         })
         .collect();
-    let Some(order) = ordered(&edges) else {
+    let Some(order) = ordered(&seeds, &edges) else {
         return module.ir.style_calls.clone();
     };
     let calls: BTreeMap<_, _> = module
@@ -335,7 +341,14 @@ fn rule_expression(expression: &RuleExpression) -> bool {
     }
 }
 
-fn ordered<K: Clone + Ord>(edges: &BTreeMap<K, BTreeSet<K>>) -> Option<Vec<K>> {
+/// Orders the keys of `edges` so that each key follows its dependencies.
+///
+/// Keys are visited in `seeds` order, so keys without a dependency path between them
+/// keep that order. Returns `None` when the graph has a cycle.
+fn ordered<'k, K: Clone + Ord + 'k>(
+    seeds: impl IntoIterator<Item = &'k K>,
+    edges: &BTreeMap<K, BTreeSet<K>>,
+) -> Option<Vec<K>> {
     fn visit<K: Clone + Ord>(
         key: &K,
         edges: &BTreeMap<K, BTreeSet<K>>,
@@ -363,7 +376,7 @@ fn ordered<K: Clone + Ord>(edges: &BTreeMap<K, BTreeSet<K>>) -> Option<Vec<K>> {
     let mut output = Vec::new();
     let mut pending = BTreeSet::new();
     let mut done = BTreeSet::new();
-    for key in edges.keys() {
+    for key in seeds {
         if !visit(key, edges, &mut pending, &mut done, &mut output) {
             return None;
         }

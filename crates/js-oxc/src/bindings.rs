@@ -69,6 +69,11 @@ impl<'a> MacroExtractor<'a> {
         self.is_style_member(&call.callee, "keyframes")
     }
 
+    /// True for a `style.when(...)` call.
+    pub(crate) fn is_style_when_call(&self, call: &CallExpression<'a>) -> bool {
+        self.is_style_member(&call.callee, "when")
+    }
+
     /// True for a `style.viewTransition(...)` call.
     pub(crate) fn is_style_view_transition_call(&self, call: &CallExpression<'a>) -> bool {
         self.is_style_member(&call.callee, "viewTransition")

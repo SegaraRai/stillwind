@@ -348,6 +348,7 @@ impl<'a> MacroExtractor<'a> {
             ));
             values.push(StyleCall {
                 span: self.source_span(expression.span()),
+                key: self.style_key(self.source_span(expression.span())),
                 output,
                 inputs: Vec::new(),
             });
@@ -359,6 +360,7 @@ impl<'a> MacroExtractor<'a> {
         self.in_cva = false;
         values.push(StyleCall {
             span: self.source_span(expression.span()),
+            key: self.style_key(self.source_span(expression.span())),
             output,
             inputs,
         });

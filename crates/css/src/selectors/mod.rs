@@ -6,6 +6,7 @@
 //! - [`element`] handles conditions on the selected element.
 //! - [`host`] handles conditions on a shadow host.
 //! - [`list`] validates selector lists and splits them into branches.
+//! - [`pseudo_elements`] moves element conditions out of nested pseudo-element rules.
 //! - [`subject`] finds, inserts, and replaces the nesting selector `&`.
 //! - [`target`] classifies the element that each branch styles.
 
@@ -13,6 +14,7 @@ mod classes;
 mod element;
 mod host;
 mod list;
+mod pseudo_elements;
 mod subject;
 mod target;
 
@@ -24,9 +26,13 @@ pub use host::{
     fold_host_conditions, fold_nested_host_conditions, selector_cannot_match_host,
     selector_selects_host,
 };
-pub use list::{selector_is_valid, selector_list_branches};
+pub use list::{
+    selector_cannot_match, selector_has_pseudo_element, selector_is_valid, selector_list_branches,
+};
+pub use pseudo_elements::hoist_pseudo_element_conditions;
 pub use subject::{
     absolutize_nested_selector, implicit_nesting_positions, instantiate_selector,
-    selector_repeats_subject, selector_uses_subject, subject_as_universal, subject_compound_parts,
+    instantiate_variant_selector, selector_repeats_subject, selector_uses_subject,
+    subject_as_universal, subject_compound_parts, wrapped_subject_condition,
 };
 pub use target::{SelectorTarget, selector_target};

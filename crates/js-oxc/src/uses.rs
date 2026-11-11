@@ -34,6 +34,7 @@ impl<'a> MacroExtractor<'a> {
             return;
         }
         if self.is_style_ref_call(call)
+            || self.is_style_when_call(call)
             || self.is_style_keyframes_call(call)
             || self.is_style_view_transition_call(call)
         {
@@ -113,7 +114,7 @@ impl<'a> MacroExtractor<'a> {
             AssetKind::Ref => self.ref_references(expression).is_ok(),
             AssetKind::Keyframes => self.keyframes_references(expression).is_ok(),
             AssetKind::ViewTransition => self.view_transition_references(expression).is_ok(),
-            AssetKind::Style => false,
+            AssetKind::Style | AssetKind::StoredVariant => false,
         };
         self.probing_use.set(false);
         resolved

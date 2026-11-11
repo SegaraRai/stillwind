@@ -7,17 +7,19 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Range;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, PoisonError};
 
 use cssparser::{ParseError, Parser, Token};
 use lean_string::{LeanStr, ToLeanStr};
 
 use stillwind_compiler::{
-    GeneratedRule, MappedStylesheet, ModuleArtifactKey, ModuleResourceReference,
-    RejectedIdentifier, StylesheetMapping, StylesheetPlacement, StylesheetRenderError,
-    StylesheetRenderer, merge_rejected_names, stylesheet_banners,
+    CompileResult, CompiledModule, CssContribution, GeneratedRule, GeneratedSymbol,
+    MappedStylesheet, ModuleArtifactKey, ModuleResourceReference, RejectedIdentifier,
+    StylesheetMapping, StylesheetPlacement, StylesheetRenderError, StylesheetRenderer,
+    merge_rejected_names, stylesheet_banners,
 };
 use stillwind_css::{CssRule, optimize_rules, stylesheet_fragments};
+use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_source::{FileId, Fingerprint, ModuleId, SourceFile, Span};
 
@@ -119,6 +121,70 @@ pub struct StylesheetPart {
     pub css: String,
 }
 
+/// Keeps the render of the latest plan for reuse while its inputs stay equal.
+///
+/// Watch hosts plan the document after each compilation, and most compilations
+/// publish artifacts with unchanged keys. Session clones share one entry. The key
+/// compares content, so a clone with other artifacts misses instead of reading
+/// output rendered for different producers.
+#[derive(Clone, Default)]
+pub(crate) struct StylesheetCache(Arc<Mutex<Option<CachedRender>>>);
+
+/// The key of the stored render and the render itself.
+type CachedRender = (RenderKey, Arc<SelectionRender>);
+
+impl StylesheetCache {
+    /// Returns the render stored for `key`, or `None` when the stored key differs.
+    fn get(&self, key: &RenderKey) -> Option<Arc<SelectionRender>> {
+        let entry = self.0.lock().unwrap_or_else(PoisonError::into_inner);
+        entry
+            .as_ref()
+            .filter(|(stored, _)| stored == key)
+            .map(|(_, render)| Arc::clone(render))
+    }
+
+    /// Replaces the stored entry.
+    fn store(&self, key: RenderKey, render: Arc<SelectionRender>) {
+        *self.0.lock().unwrap_or_else(PoisonError::into_inner) = Some((key, render));
+    }
+}
+
+/// Inputs that determine a [`SelectionRender`] within one session.
+///
+/// Compiler options and identifier generators stay fixed for a session, so the key
+/// omits them.
+#[derive(PartialEq)]
+pub(crate) struct RenderKey {
+    /// Content fingerprint of the design-system snapshot.
+    design_system: Fingerprint,
+    /// Placement passed to the renderer.
+    placement: StylesheetPlacement,
+    /// Whether the returned CSS comes from optimized rules.
+    optimized: bool,
+    /// Artifact key of each producer, in stylesheet order.
+    producers: Vec<(ModuleId, ModuleArtifactKey)>,
+    /// Owner that the session records for each source file of the producers. A
+    /// projection can give one file a second module identity.
+    owners: Vec<(FileId, Option<ModuleId>)>,
+}
+
+/// Rendered CSS and parts of one selection, before the document name check.
+pub(crate) struct SelectionRender {
+    /// Ordered notices for the returned CSS.
+    banners: Vec<LeanStr>,
+    /// Fragments of the reference render.
+    parts: Vec<StylesheetPart>,
+    /// Generated-to-original mappings of the returned CSS.
+    mappings: Vec<StylesheetMapping>,
+    /// Returned CSS, optimized when the selection claims complete coverage.
+    css: String,
+    /// Development fallbacks observed while rendering.
+    rejected_names: Vec<RejectedIdentifier>,
+    /// Names the render generated without a declaration. Each plan checks them
+    /// against the current document.
+    detached_symbols: Vec<GeneratedSymbol>,
+}
+
 impl ProjectSession {
     /// Plans a module, chunk, entry, or document selection supplied by the host.
     ///
@@ -148,25 +214,139 @@ impl ProjectSession {
         }
         let order = self.stylesheet_order(&mut selection.modules)?;
         self.validate_producers(&selection.modules)?;
-        let mut stylesheet = ProjectStylesheet::default();
-        stylesheet.set_order(order);
+        let declaring = self.declaring_modules(&order, &selection.modules);
+        self.validate_producers(&declaring)?;
         let mut producers = BTreeMap::new();
         let mut resources = Vec::new();
         for module in &selection.modules {
             if let Some(artifact) = self.artifacts().get(module) {
-                stylesheet.replace(module.clone(), &artifact.css);
                 producers.insert(module.clone(), artifact.key().clone());
                 resources.extend(artifact.resources.iter().cloned());
             }
         }
+        for module in &order {
+            let Some(artifact) = self.artifacts().get(module) else {
+                continue;
+            };
+            for (owner, rule) in self.linked_rules(artifact) {
+                if let Some(declaring) = self.artifacts().get(owner) {
+                    producers.insert(owner.clone(), declaring.key().clone());
+                    let css = rule.to_css();
+                    resources.extend(
+                        declaring
+                            .resources
+                            .iter()
+                            .filter(|resource| css.contains(resource.placeholder.as_str()))
+                            .filter(|resource| !resources.contains(resource))
+                            .cloned()
+                            .collect::<Vec<_>>(),
+                    );
+                }
+            }
+        }
         let snapshot = self.snapshot();
+        let source_modules: BTreeMap<FileId, ModuleId> = self
+            .analyses()
+            .values()
+            .map(|analysis| (analysis.source.id(), analysis.module_id.clone()))
+            .collect();
+        let optimized = matches!(selection.coverage, StylesheetCoverage::Complete { .. });
+        let key = RenderKey {
+            design_system: snapshot.fingerprints().content.clone(),
+            placement,
+            optimized,
+            producers: order
+                .iter()
+                .chain(&declaring)
+                .filter_map(|module| {
+                    let artifact = self.artifacts().get(module)?;
+                    Some((module.clone(), artifact.key().clone()))
+                })
+                .collect(),
+            owners: order
+                .iter()
+                .chain(&declaring)
+                .filter_map(|module| self.analyses().get(module))
+                .map(|analysis| {
+                    let id = analysis.source.id();
+                    (id, source_modules.get(&id).cloned())
+                })
+                .collect(),
+        };
+        let render = if let Some(render) = self.stylesheet_cache().get(&key) {
+            render
+        } else {
+            let render = Arc::new(self.render_selection(
+                &order,
+                &snapshot,
+                placement,
+                optimized,
+                &producers,
+                &source_modules,
+            )?);
+            self.stylesheet_cache().store(key, Arc::clone(&render));
+            render
+        };
+        // The selected producers were checked when they were published; the names this render
+        // generated belong to no declaration, so they are checked against the document here.
+        // Other producers can claim those names without changing the render, so the check runs
+        // for every plan.
+        self.check_document_names(&render.detached_symbols)
+            .map_err(|diagnostic| StylesheetRenderError {
+                diagnostic,
+                rejected_names: render.rejected_names.clone(),
+            })?;
+        Ok(StylesheetPlan {
+            banners: render.banners.clone(),
+            parts: render.parts.clone(),
+            mappings: render.mappings.clone(),
+            resources,
+            css: render.css.clone(),
+            rejected_names: render.rejected_names.clone(),
+            coverage: selection.coverage,
+            placement,
+            design_system: snapshot.fingerprints().content.clone(),
+            producers,
+        })
+    }
+
+    /// Renders the producers in `order` within the design-system template.
+    ///
+    /// `order` must list validated producers in dependency order. `producers` and
+    /// `source_modules` identify the owners of each part. When `optimized` is set, the
+    /// returned CSS comes from optimized rules; parts always come from the reference
+    /// render.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the template, required support rules, or part boundaries are
+    /// invalid.
+    fn render_selection(
+        &self,
+        order: &[ModuleId],
+        snapshot: &DesignSystemSnapshot,
+        placement: StylesheetPlacement,
+        optimized: bool,
+        producers: &BTreeMap<ModuleId, ModuleArtifactKey>,
+        source_modules: &BTreeMap<FileId, ModuleId>,
+    ) -> Result<SelectionRender, StylesheetRenderError> {
+        let mut stylesheet = ProjectStylesheet::default();
+        stylesheet.set_order(order.to_vec());
+        for module in order {
+            if let Some(artifact) = self.artifacts().get(module) {
+                let mut css = artifact.css.clone();
+                css.rules
+                    .extend(self.linked_rules(artifact).map(|(_, rule)| rule.clone()));
+                stylesheet.replace(module.clone(), &css);
+            }
+        }
         let utility_css =
             stylesheet.module_css_with_origins(|module, rule| self.rule_origin(module, rule));
-        let renderer = StylesheetRenderer::new(&snapshot, self.options(), self.identifiers());
+        let renderer = StylesheetRenderer::new(snapshot, self.options(), self.identifiers());
         let reference = renderer.render_mapped_stylesheet(&utility_css, placement)?;
         let mut rejected_names = reference.rejected_names;
         let reference = reference.stylesheet;
-        let mapped = if matches!(selection.coverage, StylesheetCoverage::Complete { .. }) {
+        let mapped = if optimized {
             let optimized =
                 optimize_stylesheet(&utility_css).map_err(|diagnostic| StylesheetRenderError {
                     diagnostic,
@@ -184,39 +364,20 @@ impl ProjectSession {
         } else {
             reference.clone()
         };
-        let source_modules: BTreeMap<FileId, ModuleId> = self
-            .analyses()
-            .values()
-            .flat_map(|analysis| {
-                std::iter::once(analysis.as_ref()).chain(analysis.asset_support.iter())
-            })
-            .map(|analysis| (analysis.source.id(), analysis.module_id.clone()))
-            .collect();
         let parts =
-            stylesheet_parts(&reference, &producers, &source_modules).map_err(|diagnostic| {
+            stylesheet_parts(&reference, producers, source_modules).map_err(|diagnostic| {
                 StylesheetRenderError {
                     diagnostic,
                     rejected_names: rejected_names.clone(),
                 }
             })?;
-        // The selected producers were checked when they were published; the names this render
-        // generated belong to no declaration, so they are checked against the document here.
-        self.check_document_names(&renderer.take_detached_symbols())
-            .map_err(|diagnostic| StylesheetRenderError {
-                diagnostic,
-                rejected_names: rejected_names.clone(),
-            })?;
-        Ok(StylesheetPlan {
+        Ok(SelectionRender {
             banners: stylesheet_banners(&mapped),
             parts,
             mappings: mapped.mappings,
-            resources,
             css: mapped.css,
             rejected_names,
-            coverage: selection.coverage,
-            placement,
-            design_system: snapshot.fingerprints().content.clone(),
-            producers,
+            detached_symbols: renderer.take_detached_symbols(),
         })
     }
 
@@ -249,11 +410,87 @@ impl ProjectSession {
         Ok(())
     }
 
+    /// Returns the modules outside `selected` that declare a keyframes or view
+    /// transition that a producer in `order` links.
+    fn declaring_modules(
+        &self,
+        order: &[ModuleId],
+        selected: &BTreeSet<ModuleId>,
+    ) -> BTreeSet<ModuleId> {
+        order
+            .iter()
+            .filter_map(|module| self.artifacts().get(module))
+            .flat_map(|artifact| artifact.linked_definitions.iter())
+            .map(|identity| identity.module_id().clone())
+            .filter(|module| !selected.contains(module))
+            .collect()
+    }
+
+    /// Returns the definition rules that `artifact` links, each with its declaring
+    /// module, in the order of [`CompiledModule::linked_definitions`] and then of the
+    /// declaring artifact's rules. A declaration whose module has no artifact
+    /// contributes no rules.
+    fn linked_rules<'a>(
+        &'a self,
+        artifact: &'a CompiledModule,
+    ) -> impl Iterator<Item = (&'a ModuleId, &'a GeneratedRule)> + 'a {
+        artifact
+            .linked_definitions
+            .iter()
+            .flat_map(move |identity| {
+                let owner = identity.module_id();
+                self.artifacts()
+                    .get(owner)
+                    .into_iter()
+                    .flat_map(|declaring| declaring.css.rules.iter())
+                    .filter(move |rule| rule.defines() == Some(identity))
+                    .map(move |rule| (owner, rule))
+            })
+    }
+
+    /// Returns the output of `artifact` with the definitions it links.
+    ///
+    /// The CSS, contributions, symbols, and resources of each linked definition follow
+    /// those of `artifact`. Symbols and resources come from the declaring artifact when
+    /// the definition's CSS names them. A declaration whose module has no artifact
+    /// adds nothing.
+    pub fn linked_output(&self, artifact: &CompiledModule) -> CompileResult {
+        let mut output = artifact.to_module_output();
+        for (owner, rule) in self.linked_rules(artifact) {
+            let css = rule.to_css();
+            output.css.push_str(&css);
+            output.module_css.push_str(&css);
+            output.contributions.push(CssContribution::from(rule));
+            let Some(declaring) = self.artifacts().get(owner) else {
+                continue;
+            };
+            let names = rule_identifiers(&css);
+            for symbol in &declaring.symbols {
+                if names.contains(symbol.name.as_str()) && !output.symbols.contains(symbol) {
+                    output.symbols.push(symbol.clone());
+                }
+            }
+            for resource in &declaring.resources {
+                if css.contains(resource.placeholder.as_str())
+                    && !output.resources.contains(resource)
+                {
+                    output.resources.push(resource.clone());
+                }
+            }
+        }
+        output
+    }
+
+    /// Returns the source span that `rule` of `module` maps to. A linked definition
+    /// rule maps to its declaring module.
     fn rule_origin(
         &self,
         module: &ModuleId,
         rule: &GeneratedRule,
     ) -> Option<(Arc<SourceFile>, Span)> {
+        let module = rule
+            .defines()
+            .map_or(module, |identity| identity.module_id());
         let artifact = self.artifacts().get(module)?;
         let analysis = self.analyses().get(module)?;
         let identifiers = rule_identifiers(&rule.to_css());
@@ -271,11 +508,10 @@ impl ProjectSession {
         // A name without a declaration, such as a conditional helper, has no position in the
         // module to map the rule back to.
         let (start, end) = symbol.start.zip(symbol.end)?;
-        let source = std::iter::once(analysis.as_ref())
-            .chain(analysis.asset_support.iter())
-            .find(|input| symbol.origin.module_id() == Some(&input.module_id))?
-            .source
-            .clone();
+        if symbol.origin.module_id() != Some(module) {
+            return None;
+        }
+        let source = analysis.source.clone();
         let span = Span::new(source.id(), start, end);
         Some((source, span))
     }
@@ -301,25 +537,51 @@ impl ProjectSession {
                 }
             }
         }
-        let mut remaining = modules.clone();
-        let mut order = Vec::new();
-        while !remaining.is_empty() {
-            let ready = remaining
-                .iter()
-                .find(|module| {
-                    self.artifacts().get(*module).is_none_or(|artifact| {
-                        artifact.composition.iter().all(|edge| {
-                            edge.base.module_id() == *module
-                                || !remaining.contains(edge.base.module_id())
-                        })
-                    })
-                })
-                .cloned();
-            let Some(module) = ready else {
-                return Err(StylesheetPlanError::CyclicModules(remaining));
-            };
-            remaining.remove(&module);
-            order.push(module);
+        // Each producer waits for its distinct bases. A ready set ordered by identity gives
+        // the same order as repeatedly taking the smallest ready producer, in time linear in
+        // the edges instead of quadratic in the producers.
+        let mut waiting = BTreeMap::new();
+        let mut consumers: BTreeMap<&ModuleId, Vec<&ModuleId>> = BTreeMap::new();
+        for module in modules.iter() {
+            let bases: BTreeSet<&ModuleId> = self
+                .artifacts()
+                .get(module)
+                .into_iter()
+                .flat_map(|artifact| &artifact.composition)
+                .map(|edge| edge.base.module_id())
+                .filter(|base| *base != module)
+                .collect();
+            waiting.insert(module, bases.len());
+            for base in bases {
+                consumers.entry(base).or_default().push(module);
+            }
+        }
+        let mut ready: BTreeSet<&ModuleId> = waiting
+            .iter()
+            .filter(|(_, count)| **count == 0)
+            .map(|(module, _)| *module)
+            .collect();
+        let mut order = Vec::with_capacity(modules.len());
+        while let Some(module) = ready.pop_first() {
+            order.push(module.clone());
+            for consumer in consumers.get(module).into_iter().flatten() {
+                if let Some(count) = waiting.get_mut(consumer) {
+                    *count -= 1;
+                    if *count == 0 {
+                        ready.insert(consumer);
+                    }
+                }
+            }
+        }
+        if order.len() < modules.len() {
+            let ordered: BTreeSet<&ModuleId> = order.iter().collect();
+            return Err(StylesheetPlanError::CyclicModules(
+                modules
+                    .iter()
+                    .filter(|module| !ordered.contains(module))
+                    .cloned()
+                    .collect(),
+            ));
         }
         Ok(order)
     }

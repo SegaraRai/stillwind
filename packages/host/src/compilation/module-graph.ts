@@ -20,8 +20,9 @@ import {
 } from "../semantics/backend.ts";
 import { loadSource, type CompilerHost } from "./host.ts";
 import { byteToUtf16, cleanModuleId } from "./module-source.ts";
-import type { CompilationProject } from "./project.ts";
+import { ResolutionMismatchError, type CompilationProject } from "./project.ts";
 import type { ModuleAnalysis, ModuleCompileOptions, SemanticDependency } from "./request.ts";
+import { startPhase, tracePhase } from "./trace.ts";
 
 /**
  * Compilation failure carrying diagnostic batches for the same report format used by collect mode.
@@ -131,9 +132,13 @@ export class ModuleGraph {
   async prepare(input: ProjectInput | PreparedSource): Promise<PreparedSource> {
     this.host.onModule?.(input.moduleId, input.resolverId);
     try {
+      const captured = this.project?.source(input.resolverId);
       const source =
-        this.project?.source(input.resolverId) ??
-        ("kind" in input ? input : await prepareSource(input));
+        captured?.document.code === input.document.code
+          ? captured
+          : "kind" in input
+            ? input
+            : await tracePhase("prepare", 1, () => prepareSource(input));
       if (source.resolverId !== input.resolverId) {
         throw new Error(`Host changed resolver identity for ${input.resolverId}`);
       }
@@ -158,9 +163,10 @@ export class ModuleGraph {
   scan(source: PreparedSource): NativeModuleSummary {
     const cached = this.project?.summary(source);
     if (cached) {
+      startPhase("scan-reuse")();
       return cached;
     }
-    const result = this.session.scanSource(source);
+    const result = tracePhase("scan", 1, () => this.session.scanSource(source));
     if (result.kind === "failed") {
       throw new CompilationFailure([result.batch]);
     }
@@ -196,6 +202,9 @@ export class ModuleGraph {
   /**
    * Registers the entry and loads dependencies demanded by its semantic probes.
    *
+   * A loaded dependency is compiled with all of its style calls, so traversal also follows
+   * the probes of every loaded module, not only the imports of the demanded export.
+   *
    * @param entry - Prepared entry source.
    * @param entrySummary - Successful scan of that entry, with the same module identity.
    * @returns A promise that resolves after traversal. Analysis mode retains unresolved and
@@ -212,7 +221,7 @@ export class ModuleGraph {
     const pending: {
       /** Registered source whose exported value or entry probes remain to be traversed. */
       source: PreparedSource;
-      /** Null for entry probes, * for namespace demand, or a demanded export name. */
+      /** Null for the module's own probes, * for namespace demand, or a demanded export name. */
       requested: string | null;
     }[] = [
       {
@@ -240,10 +249,16 @@ export class ModuleGraph {
           semanticResolutions?.get(dependency.source),
         );
         if (next) {
-          pending.push({
-            source: next,
-            requested: dependency.imported,
-          });
+          pending.push(
+            {
+              source: next,
+              requested: dependency.imported,
+            },
+            {
+              source: next,
+              requested: null,
+            },
+          );
         }
       }
     }
@@ -258,13 +273,59 @@ export class ModuleGraph {
    * @throws If strict checker collection or a checker source contract fails.
    */
   async collectTypedSources(entry: PreparedSource) {
-    const facts = await this.#collectFacts();
-    return [...this.#sources.values()].map((source) => ({
+    const styled = this.analysis ? undefined : this.#styleSources(entry);
+    const facts = this.#needsTypeFacts
+      ? await tracePhase("type-facts", styled?.size ?? this.#sources.size, () =>
+          this.#collectFacts(styled),
+        )
+      : new Map<string, NativeTypeFact[]>();
+    const sources = [...this.#sources.values()].filter(
+      (source) => !styled || styled.has(source.resolverId),
+    );
+    return sources.map((source) => ({
       ...source,
+      ...(source.resolverId !== entry.resolverId &&
+        this.#summaries.get(source.moduleId)?.macroImports && {
+          stylesheetImports: this.host.stylesheetImports?.(source.resolverId),
+        }),
       moduleCssImport:
         source.resolverId === entry.resolverId ? source.moduleCssImport : "stillwind/module-css",
       typeFacts: facts.get(source.moduleId) ?? [],
     }));
+  }
+
+  /**
+   * Selects the retained sources that can change the entry's output.
+   *
+   * A dependency matters when it imports a Stillwind macro module, declares assets, imports module
+   * CSS, or reaches such a source through the imports that traversal followed. Other dependencies
+   * cannot export assets, and composition checks have nothing to check in them.
+   *
+   * @param entry - Registered entry, which is always selected.
+   * @returns Resolver identities of the selected sources.
+   */
+  #styleSources(entry: PreparedSource): Set<string> {
+    const selected = new Set<string>([entry.resolverId]);
+    for (const source of this.#sources.values()) {
+      const summary = this.#summaries.get(source.moduleId);
+      if (
+        summary &&
+        (summary.macroImports > 0 || summary.moduleCssImports > 0 || summary.assets.length > 0)
+      ) {
+        selected.add(source.resolverId);
+      }
+    }
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const [importer, targets] of this.#resolutions) {
+        if (!selected.has(importer) && [...targets.values()].some((id) => selected.has(id))) {
+          selected.add(importer);
+          changed = true;
+        }
+      }
+    }
+    return selected;
   }
 
   /**
@@ -465,18 +526,17 @@ export class ModuleGraph {
     }
     try {
       const backend = this.factsService();
-      if (backend && this.project && this.project.revision === this.#projectRevision) {
-        return (
-          await this.project.resolve(backend, this.#checkerSources(), this.options.typeFactsInputs)
-        ).get(source.resolverId);
+      if (!backend) {
+        return undefined;
       }
-      return (
-        await backend?.resolveModules(
-          this.#checkerSources(),
-          this.#assets(),
-          this.options.typeFactsInputs,
-        )
-      )?.get(source.resolverId);
+      const end = startPhase("semantic-resolution");
+      const sources = this.#checkerSources();
+      const resolutions =
+        this.project && this.project.revision === this.#projectRevision
+          ? await this.project.resolve(backend, sources, this.options.typeFactsInputs)
+          : await backend.resolveModules(sources, this.#assets(), this.options.typeFactsInputs);
+      end(sources.length);
+      return resolutions.get(source.resolverId);
     } catch (error) {
       if (!this.analysis) {
         throw error;
@@ -500,7 +560,9 @@ export class ModuleGraph {
     specifier: string,
     semanticId?: string,
   ): Promise<PreparedSource | undefined> {
-    const resolved = await this.#resolveDependency(source, specifier, semanticId);
+    const resolved = await tracePhase("resolve", 1, () =>
+      this.#resolveDependency(source, specifier, semanticId),
+    );
     const observed: SemanticDependency = {
       importer: source.resolverId,
       specifier,
@@ -525,7 +587,7 @@ export class ModuleGraph {
     try {
       let dependency = this.#sources.get(id);
       if (!dependency) {
-        dependency = await this.prepare(await this.#load(id));
+        dependency = await this.prepare(await tracePhase("load", 1, () => this.#load(id)));
         this.#register(dependency);
       }
       return dependency;
@@ -554,11 +616,13 @@ export class ModuleGraph {
   async #resolveDependency(source: PreparedSource, specifier: string, semanticId?: string) {
     try {
       return (
-        (await this.host.resolve(specifier, source.resolverId, { skipSelf: true })) ??
+        (await (this.project
+          ? this.project.resolveImport(this.host, specifier, source.resolverId)
+          : this.host.resolve(specifier, source.resolverId, { skipSelf: true }))) ??
         (semanticId ? { id: semanticId } : null)
       );
     } catch (error) {
-      if (!this.analysis) {
+      if (!this.analysis || error instanceof ResolutionMismatchError) {
         throw error;
       }
       return null;
@@ -573,18 +637,9 @@ export class ModuleGraph {
    * @returns Whether the dependency should be loaded as source.
    */
   #canLoadDependency(id: string, observed: SemanticDependency): boolean {
-    const name = cleanModuleId(id);
-    // Build hosts can resolve runtime exports without identifying declaration files.
-    // The checker supplies those package types.
-    if (
-      /\.d\.[cm]?ts$/.test(name) ||
-      (!this.host.typeFactsResolution && /(?:^|[\\/])node_modules[\\/]/.test(name))
-    ) {
-      observed.status = "types";
-      return false;
-    }
-    if (!(this.host.supports?.(id) ?? /\.(?:[cm]?[jt]sx?|astro|svelte|vue)$/.test(name))) {
-      observed.status = "unsupported";
+    const support = sourceSupport(this.host, id);
+    if (support !== "source") {
+      observed.status = support;
       return false;
     }
     return true;
@@ -606,12 +661,53 @@ export class ModuleGraph {
   }
 
   /**
+   * Reuses facts that the project keeps and collects facts only for the other sources.
+   *
+   * @param backend - Backend whose installed project contains the sources.
+   * @param project - Project that installed the sources for the current revision.
+   * @param sources - Checker sources that {@link CompilationProject.install} returned.
+   * @param selected - Resolver identities of the sources that need facts. Omission selects all.
+   * @returns Facts keyed by compiler identity for every selected source.
+   * @throws If strict checker collection fails.
+   */
+  async #collectWithRetainedFacts(
+    backend: TypeFactsBackend,
+    project: CompilationProject,
+    sources: readonly TypeFactSource[],
+    selected?: ReadonlySet<string>,
+  ): Promise<Map<string, NativeTypeFact[]>> {
+    const facts = new Map<string, NativeTypeFact[]>();
+    const missing = sources.filter((source) => {
+      if (selected && !selected.has(source.resolverId)) {
+        return false;
+      }
+      const retained = project.facts(source);
+      if (retained) {
+        facts.set(source.moduleId, [...retained]);
+      }
+      return !retained;
+    });
+    if (missing.length === 0) {
+      return facts;
+    }
+    const collected = await backend.collect(missing, this.#assets(), this.options.typeFactsInputs);
+    for (const source of missing) {
+      const value = collected.get(source.moduleId) ?? [];
+      project.retainFacts(source, value);
+      facts.set(source.moduleId, value);
+    }
+    return facts;
+  }
+
+  /**
    * Collects available facts for retained sources when entry probes require semantic information.
    *
+   * @param selected - Resolver identities of the sources that need facts. Omission selects all.
+   * Sources outside it still supply checker files when no project is installed.
    * @returns Facts keyed by compiler identity. Analysis mode records unavailable queries and may return partial facts.
    * @throws If strict checker collection fails or a compilation failure occurs while preparing checker sources.
    */
-  async #collectFacts(): Promise<Map<string, NativeTypeFact[]>> {
+  async #collectFacts(selected?: ReadonlySet<string>): Promise<Map<string, NativeTypeFact[]>> {
     if (!this.#needsTypeFacts) {
       return new Map();
     }
@@ -626,11 +722,14 @@ export class ModuleGraph {
         }
         return new Map();
       }
+      const project = this.project?.revision === this.#projectRevision ? this.project : undefined;
+      const sources =
+        project?.install(backend, this.#checkerSources(), this.options.typeFactsInputs) ??
+        this.#checkerSources();
+      if (project && !this.analysis) {
+        return await this.#collectWithRetainedFacts(backend, project, sources, selected);
+      }
       if (this.analysis) {
-        const sources =
-          (this.project?.revision === this.#projectRevision
-            ? this.project?.install(backend, this.#checkerSources(), this.options.typeFactsInputs)
-            : undefined) ?? this.#checkerSources();
         const available = await backend.collectAvailable(
           sources,
           this.#assets(),
@@ -639,11 +738,7 @@ export class ModuleGraph {
         this.analysis.unverified.push(...available.unverified);
         return available.facts;
       }
-      return await backend.collect(
-        this.#checkerSources(),
-        this.#assets(),
-        this.options.typeFactsInputs,
-      );
+      return await backend.collect(sources, this.#assets(), this.options.typeFactsInputs);
     } catch (error) {
       if (!this.analysis || error instanceof CompilationFailure) {
         throw error;
@@ -654,6 +749,34 @@ export class ModuleGraph {
       return new Map();
     }
   }
+}
+
+/**
+ * Decides whether a resolved dependency is loaded as source.
+ *
+ * @param host - Host whose `supports` and `typeFactsResolution` settings apply.
+ * @param id - Full resolved host identity.
+ * @returns `types` for declaration files, and for package files when the host does not resolve
+ * imports through the checker. Returns `unsupported` for files that the host or the default
+ * extension list rejects, and `source` otherwise.
+ */
+export function sourceSupport(
+  host: Pick<CompilerHost, "supports" | "typeFactsResolution">,
+  id: string,
+): "source" | "types" | "unsupported" {
+  const name = cleanModuleId(id);
+  // Build hosts can resolve runtime exports without identifying declaration files.
+  // The checker supplies those package types.
+  if (
+    /\.d\.[cm]?ts$/.test(name) ||
+    (!host.typeFactsResolution && /(?:^|[\\/])node_modules[\\/]/.test(name))
+  ) {
+    return "types";
+  }
+  if (!(host.supports?.(id) ?? /\.(?:[cm]?[jt]sx?|astro|svelte|vue)$/.test(name))) {
+    return "unsupported";
+  }
+  return "source";
 }
 
 /**

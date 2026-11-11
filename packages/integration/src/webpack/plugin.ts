@@ -5,6 +5,7 @@ import { resolveIntegrationConfig, type ResolvedIntegrationConfig } from "@still
 
 import { installEmission, type EmissionCompilation, type EmissionModule } from "./emission.ts";
 import type { ResolveCallback, ResolverHost, ResolveSettings } from "./host.ts";
+import type { ProjectCompiler } from "./project.ts";
 import { stillwindRules } from "./rules.ts";
 
 /**
@@ -72,6 +73,7 @@ export class StillwindPlugin {
       }
       installEmission({
         _compilation: compilation,
+        _compiler: compiler,
         fs: compiler.inputFileSystem!,
         mode: compiler.options.mode,
         /**
@@ -93,9 +95,9 @@ export class StillwindPlugin {
  * Compiler operations shared by webpack and Rspack for installing rules and registering each
  * compilation.
  */
-interface EmissionCompiler<Module extends EmissionModule> {
+interface EmissionCompiler<Module extends EmissionModule> extends ProjectCompiler {
   /** Run and compilation hooks used to evaluate configuration before registering emission. */
-  hooks: {
+  hooks: ProjectCompiler["hooks"] & {
     /** Normal build hook that initializes settings before thisCompilation. */
     beforeRun: {
       /**
@@ -130,6 +132,8 @@ interface EmissionCompiler<Module extends EmissionModule> {
   options: {
     /** Application directory for configuration discovery. Omission uses process.cwd(). */
     context?: string;
+    /** Normalized entry settings, from which the shared project selects local entry files. */
+    entry?: unknown;
     /** Bundler mode forwarded to reconstruction. Only development selects development compilation. */
     mode?: string;
     /** Module rule configuration, initialized by apply when absent. */

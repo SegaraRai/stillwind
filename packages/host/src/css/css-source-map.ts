@@ -247,18 +247,49 @@ export interface DecodedCssSourceMap {
  * @throws If a recognized inline map contains invalid JSON.
  */
 export function decodeCssSourceMap(css: string): DecodedCssSourceMap {
-  const match =
-    /\n\/\*# sourceMappingURL=data:application\/json;base64,([A-Za-z0-9+/=]+) \*\/$/.exec(css);
-  if (!match) {
+  // The payload of a large stylesheet has several megabytes. Matching it with a regular expression
+  // exceeded the call stack in a Next development server whose stylesheet had about 500,000
+  // characters.
+  const prefix = "\n/*# sourceMappingURL=data:application/json;base64,";
+  const suffix = " */";
+  const start = css.lastIndexOf(prefix);
+  const payload =
+    start >= 0 && css.endsWith(suffix)
+      ? css.slice(start + prefix.length, css.length - suffix.length)
+      : "";
+  if (!payload || !isBase64(payload)) {
     return {
       code: css,
       map: null,
     };
   }
   return {
-    code: css.slice(0, match.index),
-    map: JSON.parse(Buffer.from(match[1], "base64").toString("utf8")) as NonNullable<
+    code: css.slice(0, start),
+    map: JSON.parse(Buffer.from(payload, "base64").toString("utf8")) as NonNullable<
       DecodedCssSourceMap["map"]
     >,
   };
+}
+
+/**
+ * Tests whether text contains only base64 alphabet and padding characters.
+ *
+ * @param text - Text to test.
+ * @returns True when every character is `A`-`Z`, `a`-`z`, `0`-`9`, `+`, `/`, or `=`. Empty text
+ * also passes.
+ */
+function isBase64(text: string): boolean {
+  for (const character of text) {
+    if (
+      !(character >= "A" && character <= "Z") &&
+      !(character >= "a" && character <= "z") &&
+      !(character >= "0" && character <= "9") &&
+      character !== "+" &&
+      character !== "/" &&
+      character !== "="
+    ) {
+      return false;
+    }
+  }
+  return true;
 }

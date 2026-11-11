@@ -63,10 +63,12 @@ export default defineConfig({
 `css` selects the stylesheet. `files` selects the files that the CLI and the
 editor check.
 
-<Aside type="note" title="Builds ignore files">
+<Aside type="note" title="Builds compile imports">
   The build compiles every module that your application imports, whether or not `files` matches it.
   The CLI and the language server (LSP) use `files` to find source files, including files that the
-  application does not import.
+  application does not import. A Vite build also loads the files that `files` matches into the type
+  checker before it compiles the first module, so pages that the application loads through dynamic
+  imports share one checker project. The dev server does not read these files in advance.
 </Aside>
 
 Add Stillwind to `vite.config.ts`:

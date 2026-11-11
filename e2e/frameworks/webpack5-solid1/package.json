@@ -8,11 +8,11 @@
     "stillwind": "workspace:*"
   },
   "devDependencies": {
-    "@babel/core": "8.0.10",
+    "@babel/core": "8.1.0",
     "@babel/preset-typescript": "8.0.7",
     "@stillwind-internal/e2e-harness": "workspace:*",
     "@stillwind/integration": "workspace:*",
-    "@swc/core": "1.16.20",
+    "@swc/core": "1.16.22",
     "@types/node": "catalog:",
     "babel-loader": "10.1.1",
     "babel-preset-solid": "1.9.16",

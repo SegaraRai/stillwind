@@ -1,20 +1,20 @@
-.sw_5z9t1 {
+.sw_m4jpd {
   border-radius: 0.25rem;
   display: inline-flex;
 }
-.sw_jy94h {
-  padding: calc(var(--spacing) * 4);
-  padding-inline: calc(var(--spacing) * 2);
+.sw_2jols {
+  padding: calc(var(--spacing)*4);
+  padding-inline: calc(var(--spacing)*2);
 }
-.sw_riolb {
-  padding: calc(var(--spacing) * 8);
-  padding-block: calc(var(--spacing) * 2);
+.sw_0id4f {
+  padding: calc(var(--spacing)*8);
+  padding-block: calc(var(--spacing)*2);
 }
-.sw_1agbk {
+.sw_tgtx6 {
   opacity: 0.5;
 }
-@media (hover: hover) {
-  .sw_9fmy7:hover {
+@media (hover) {
+  .sw_aoat0:hover {
     --tw-shadow:
       0 4px 6px -1px var(--tw-shadow-color, #0000001a),
       0 2px 4px -2px var(--tw-shadow-color, #0000001a);

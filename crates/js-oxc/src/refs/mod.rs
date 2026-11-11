@@ -14,3 +14,5 @@
 mod definitions;
 mod projections;
 mod references;
+
+pub(crate) use references::ref_identity;

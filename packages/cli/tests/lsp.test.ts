@@ -14,6 +14,9 @@ interface Message {
     version?: number;
     diagnostics?: {
       code?: string;
+      codeDescription?: {
+        href: string;
+      };
       severity?: number;
       range: {
         start: {
@@ -128,6 +131,7 @@ test("LSP publishes UTF-16 diagnostics for unsaved buffers, clears recovered err
     );
     expect(first.params!.diagnostics![0]).toMatchObject({
       code: "unknown-utility",
+      codeDescription: { href: "https://stillwind.dev/docs/lints/unknown-utility" },
       range: { start: { line: 1, character: source.split("\n")[1].indexOf("missing") } },
     });
     send("textDocument/didChange", {

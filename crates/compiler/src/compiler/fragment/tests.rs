@@ -13,7 +13,7 @@ use stillwind_ir::{
     ScriptModuleKind, SourceAnalyzer,
 };
 use stillwind_js_oxc::OxcSourceAnalyzer;
-use stillwind_semantic::{AssetKind, IdentityId};
+use stillwind_semantic::{AssetKind, DeclarationKey, IdentityId};
 use stillwind_source::{FileId, ModuleId, SourceFile, Span};
 
 use super::expression::{Atom, Emitted, EmittedEntry, Fragment, Property, ValueExpr};
@@ -65,7 +65,12 @@ fn emission(parts: Vec<StyleEmissionPart>, base: bool) -> StyleEmission {
     StyleEmission {
         style_effects: StyleEffects {
             lint_settings: LintSettings::with_defaults(),
-            identity: IdentityId::new(AssetKind::Style, ModuleId::from("test"), 0, 0, ""),
+            identity: IdentityId::new(
+                AssetKind::Style,
+                ModuleId::from("test"),
+                DeclarationKey::top(0),
+                "",
+            ),
             span: Span::new(FileId(1), 0, 0),
             root: StyleEffect::All(Vec::new()),
         },
@@ -379,7 +384,7 @@ fn folded_javascript_matches_runtime_materialization() {
         cases.push(serde_json::json!({
             "format": "class-name-object",
             "optimized": optimized.text,
-            "reference": format_args!("stillwindMerge({{[stillwindClassKey]:stillwindClsx({})}})", reference.text).to_lean_string(),
+            "reference": format_args!("stillwindClassNameObjectMerge({{[stillwindClassNameObjectClassKey]:stillwindClsx({})}})", reference.text).to_lean_string(),
         }));
     }
     execute_cases(&cases);
@@ -430,10 +435,15 @@ fn append_case(
     fw: &FrameworkSpec,
     analysis: &ModuleAnalysis,
 ) {
-    let optimized = render_style_call(input, fw.output.spec(), &mut RuntimeBindings::new(analysis));
-    let reference = render_reference(input, fw.output.spec(), &mut RuntimeBindings::new(analysis));
+    let bindings = || {
+        let mut bindings = RuntimeBindings::new(analysis);
+        bindings.select_output(fw.output);
+        bindings
+    };
+    let optimized = render_style_call(input, fw.output.spec(), &mut bindings());
+    let reference = render_reference(input, fw.output.spec(), &mut bindings());
     cases.push(serde_json::json!({
-        "format": fw.output.spec().runtime_import.trim_start_matches("stillwind/runtime/"),
+        "format": fw.output,
         "optimized": optimized.text,
         "reference": reference.text,
     }));
@@ -532,8 +542,7 @@ fn style_fields_follow_output_specification() {
     );
     let original = AdapterKind::React.spec().output.spec();
     let output_spec = OutputSpec {
-        runtime_import: original.runtime_import,
-        runtime_import_dev: original.runtime_import_dev,
+        runtime_export_prefix: original.runtime_export_prefix,
         class_property: original.class_property,
         style_property: "inlineStyle",
         style_format: original.style_format,

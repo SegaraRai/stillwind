@@ -1,6 +1,6 @@
 {
   "name": "@stillwind/analysis",
-  "version": "0.6.0",
+  "version": "0.8.0",
   "description": "Analysis services for the Stillwind CLI, language server, and editors",
   "keywords": [
     "stillwind"
@@ -16,9 +16,12 @@
     "directory": "packages/analysis"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "CHANGELOG.md"
   ],
   "type": "module",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -45,7 +48,7 @@
     "@stillwind/config": "workspace:*",
     "@stillwind/host": "workspace:*",
     "@stillwind/native": "workspace:*",
-    "minimatch": "^11.0.3",
+    "minimatch": "^11.0.5",
     "pathe": "catalog:"
   },
   "devDependencies": {

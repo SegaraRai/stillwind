@@ -14,7 +14,7 @@ use lean_string::LeanStr;
 
 use stillwind_diagnostics::{CompileError, LintDirective, LintFinding};
 use stillwind_semantic::{
-    AssetKind, IdentityId, IntegrationDiagnostic, ModuleSummary, TypeFacts, TypeFactsUpdate,
+    IdentityId, IntegrationDiagnostic, ModuleSummary, TypeFacts, TypeFactsUpdate,
 };
 use stillwind_source::{Fingerprint, ModuleId, SourceFile, SourceProvenance, Span};
 
@@ -150,11 +150,6 @@ pub struct ModuleAnalysis {
     pub input: SourceInput,
     /// Projection provenance, empty when the input had no projection.
     pub provenance: Vec<SourceProvenance>,
-    /// Supplies declarations needed to render this producer's CSS on its own.
-    ///
-    /// [`ModuleAnalysis::attach_asset_support_batch`] adds these inputs. They do not
-    /// register producers or serve as entries for dependency invalidation.
-    pub asset_support: Vec<ModuleAnalysis>,
     /// Assets this module consumes from elsewhere. A module may only use assets it
     /// declares itself or that appear here.
     pub external_assets: BTreeSet<IdentityId>,
@@ -185,19 +180,17 @@ pub struct ModuleAnalysis {
 }
 
 impl ModuleAnalysis {
-    /// Reports incompatible composition bases and adds CSS for referenced declarations.
+    /// Reports incompatible composition bases and invalid composition graphs.
     ///
-    /// `inputs` must contain the complete producer graph with each module identity
-    /// once. Returns cloned analyses in input order, or an empty vector for empty
-    /// input. The clones keep their source coordinates. A composition operand that can
-    /// supply a base with inline style adds a lint finding. Missing producers add fatal
-    /// errors at each module's full source span. Referenced keyframes and view
-    /// transitions supply support CSS. Style calls from support modules do not become
-    /// producers.
+    /// `inputs` must contain the complete producer graph with each module identity once.
+    /// Returns cloned analyses in input order, or an empty vector for empty input. The
+    /// clones keep their source coordinates. A composition operand that can supply a
+    /// base with inline style adds a lint finding. Missing producers and cycles add
+    /// fatal errors at each module's full source span.
     ///
-    /// This method checks the graph once for the whole batch instead of once per
-    /// module. It leaves `inputs` unchanged.
-    pub fn attach_asset_support_batch(inputs: &[Self]) -> Vec<Self> {
+    /// This method checks the graph once for the whole batch instead of once per module.
+    /// It leaves `inputs` unchanged.
+    pub fn validate_composition_batch(inputs: &[Self]) -> Vec<Self> {
         let incompatible = IncompatibleComposition::find(&inputs.iter().collect::<Vec<_>>());
         let mut lowered = inputs.to_vec();
         for analysis in &mut lowered {
@@ -217,66 +210,8 @@ impl ModuleAnalysis {
                         analysis.source.full_span(),
                     ));
                 }
-                analysis.attach_declarations(inputs);
                 analysis
             })
             .collect()
-    }
-
-    /// Replaces asset support with copies of referenced declarations from `inputs`.
-    /// The copies exclude style calls and ref definitions. If this module uses no
-    /// external assets, the method clears support and skips the scan. It leaves
-    /// `inputs` unchanged.
-    fn attach_declarations(&mut self, inputs: &[Self]) {
-        self.asset_support.clear();
-        if self.external_assets.is_empty() {
-            return;
-        }
-        for input in inputs {
-            if input.module_id == self.module_id {
-                continue;
-            }
-            let identities: BTreeSet<_> = input
-                .summary
-                .assets
-                .iter()
-                .filter(|asset| self.external_assets.contains(&asset.identity))
-                .map(|asset| asset.identity.clone())
-                .collect();
-            if identities.is_empty() {
-                continue;
-            }
-            let mut support = input.clone();
-            support.asset_support.clear();
-            support.ir.style_calls.clear();
-            support.ir.cva_calls.clear();
-            support.ir.media_calls.clear();
-            support.ir.css_calls.clear();
-            support.ir.ref_definitions.clear();
-            support.ir.keyframes_declarations.retain(|declaration| {
-                identities.iter().any(|identity| {
-                    identity.kind() == AssetKind::Keyframes
-                        && identity.binding_name().as_str() == declaration.binding.value
-                })
-            });
-            support
-                .ir
-                .view_transition_declarations
-                .retain(|declaration| {
-                    identities.iter().any(|identity| {
-                        identity.kind() == AssetKind::ViewTransition
-                            && identity.binding_name().as_str() == declaration.binding.value
-                    })
-                });
-            support
-                .summary
-                .assets
-                .retain(|asset| identities.contains(&asset.identity));
-            if !support.ir.keyframes_declarations.is_empty()
-                || !support.ir.view_transition_declarations.is_empty()
-            {
-                self.asset_support.push(support);
-            }
-        }
     }
 }

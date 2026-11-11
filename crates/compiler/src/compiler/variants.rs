@@ -10,7 +10,7 @@
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_css::{
-    append_element_condition, fold_host_conditions, instantiate_selector,
+    append_element_condition, fold_host_conditions, instantiate_variant_selector,
     selector_cannot_match_host, selector_is_subject_condition, selector_list_branches,
 };
 use stillwind_design_system::{
@@ -95,6 +95,8 @@ pub(super) enum VariantStep<'a> {
         /// parentheses.
         &'a str,
     ),
+    /// A scope boundary whose explicit nesting selectors bind when it is rendered.
+    Scope(&'a str),
     /// A CSS `@starting-style` wrapper with no prelude.
     StartingStyle,
 }
@@ -160,6 +162,7 @@ pub(super) fn variant_paths(applications: &[VariantApplication]) -> Vec<Vec<Vari
                 VariantApplication::Media(condition) => VariantStep::Media(condition),
                 VariantApplication::Container(condition) => VariantStep::Container(condition),
                 VariantApplication::Supports(condition) => VariantStep::Supports(condition),
+                VariantApplication::Scope(prelude) => VariantStep::Scope(prelude),
                 VariantApplication::Conditional(condition) => VariantStep::Conditional(condition),
                 VariantApplication::StartingStyle => VariantStep::StartingStyle,
             };
@@ -241,7 +244,7 @@ pub(super) fn path_selector(path: &[VariantStep<'_>]) -> LeanString {
             | VariantStep::SelectorMediaRule {
                 selector: template, ..
             } => {
-                selector = instantiate_selector(template, &selector);
+                selector = instantiate_variant_selector(template, &selector);
             }
             VariantStep::SelectorCondition(condition) => {
                 selector = append_element_condition(&selector, condition);

@@ -27,6 +27,8 @@ export interface AnalysisProjectConfig extends BaseConfig, BuildOptions {
   /**
    * Nonempty list of globs relative to root. Analysis enumerates these targets and filters reports
    * to their scope. Imported dependencies and global declarations can lie outside this scope.
+   * Builds of the bundler integrations give the selected targets to the checker before the first
+   * compilation, so that a build opens one checker project for all of them.
    */
   files: readonly string[];
   /** Globs relative to root that remove analysis targets. node_modules and .git are always excluded. */

@@ -13,6 +13,32 @@ use crate::evaluation::stillwind::COMPAT_COLOR_SUPPORT;
 use crate::test_support::parse_fixture_theme;
 
 #[test]
+fn scoped_variants_retain_boundaries_and_reject_selector_only_composition() {
+    let source = SourceFile::new(FileId(1), None, None,
+        "@import 'stillwind';@custom-variant scoped{@scope (.card){@slot;}}@custom-variant bound{@scope (&){@slot;}}"
+    ).unwrap();
+    let theme = parse_fixture_theme(&source).unwrap();
+    assert_eq!(
+        resolve_variant(&parse_candidate("scoped:flex").unwrap().variants[0], &theme),
+        Ok(VariantApplication::Scope("(.card)".into()))
+    );
+    for name in [
+        "not-scoped",
+        "group-scoped",
+        "peer-scoped",
+        "has-scoped",
+        "group-bound",
+    ] {
+        let candidate = parse_candidate(&format!("{name}:flex")).unwrap();
+        let error = resolve_variant(&candidate.variants[0], &theme).unwrap_err();
+        assert!(
+            error.reason.to_string().contains("at-rule"),
+            "{name}: {error:?}"
+        );
+    }
+}
+
+#[test]
 fn resolves_user_block_variants_with_the_same_slot_syntax_as_built_ins() {
     let source = SourceFile::new(
         FileId(1),

@@ -1,5 +1,7 @@
 //! Checks length units and logical CSS property policies.
 
+use stillwind_test_support::PACKAGE_CSS;
+
 use super::*;
 
 #[test]
@@ -193,7 +195,7 @@ fn built_in_screen_reader_utilities_skip_implementation_policies() {
             assert_eq!(
                 kinds(
                     &format!("const x=style('{candidate}');"),
-                    stillwind_test_support::PACKAGE_CSS,
+                    PACKAGE_CSS,
                     &options
                 )
                 .contains(&LintKind::PreferLogicalProperties),

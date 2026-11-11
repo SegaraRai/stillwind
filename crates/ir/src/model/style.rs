@@ -3,7 +3,7 @@
 use lean_string::LeanStr;
 use serde::{Deserialize, Serialize};
 
-use stillwind_semantic::IdentityId;
+use stillwind_semantic::{DeclarationKey, IdentityId};
 use stillwind_source::{Span, Spanned};
 
 use super::{
@@ -17,6 +17,9 @@ use crate::OutputFormat;
 pub struct StyleCall {
     /// Span of the whole call, including the callee expression.
     pub span: Span,
+    /// Enclosing declarations and ordinal that identify the call within its module.
+    #[serde(default)]
+    pub key: DeclarationKey,
     /// Prop representation selected by the macro binding that produced this call.
     pub output: OutputFormat,
     /// Arguments in source order. The base unit of a rule is built from the
@@ -196,6 +199,11 @@ pub enum StyleVariant {
         /// and the target. Their order does not define an ancestor path.
         scopes: Vec<RefCondition>,
     },
+    /// Variant sequences of which at least one must hold, written as several
+    /// arguments of `style.when()`. Each sequence lists its wrappers from the outermost
+    /// to the innermost and contains at least one wrapper. The compiler lowers a
+    /// contribution under this wrapper once for each sequence.
+    Alternatives(Vec<Vec<StyleVariant>>),
 }
 
 /// One evaluated argument of a `style(...)` call.

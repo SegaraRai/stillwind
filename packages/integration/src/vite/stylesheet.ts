@@ -1,6 +1,7 @@
 import {
   decodeCssSourceMap,
   finalizeCss,
+  tracePhase,
   warnRejectedNames,
   type DecodedCssSourceMap,
 } from "@stillwind/host";
@@ -84,21 +85,23 @@ export async function resolveStylesheet(
   context: CssContext,
   complete = false,
 ): Promise<StylesheetPlan> {
-  const plan = designSystem.compiler.native.planStylesheet(
-    {
-      modules,
-      coverage: complete
-        ? {
-            kind: "complete",
-            target: "application",
-            revision: String(revision),
-          }
-        : {
-            kind: "observed",
-          },
-      placement: "document",
-    },
-    settings.watching ? settings.devSourceMaps : settings.sourceMaps,
+  const plan = tracePhase("stylesheet-plan", modules.length, () =>
+    designSystem.compiler.native.planStylesheet(
+      {
+        modules,
+        coverage: complete
+          ? {
+              kind: "complete",
+              target: "application",
+              revision: String(revision),
+            }
+          : {
+              kind: "observed",
+            },
+        placement: "document",
+      },
+      settings.watching ? settings.devSourceMaps : settings.sourceMaps,
+    ),
   );
   warnRejectedNames(plan.rejectedNames, (message) => context.warn(message));
 

@@ -171,9 +171,10 @@ for (const version of ["0.7.56", "0.7.61"]) {
         expect(module.composition).toHaveLength(1);
         const identity = module.composition[0].base;
         expect(identity.moduleId).toBe(prepared.moduleId);
-        expect(
-          Buffer.from(prepared.document.code).subarray(identity.start, identity.end).toString(),
-        ).toBe("style('flex')");
+        expect(identity).toMatchObject({
+          path: ["base"],
+          ordinal: 0,
+        });
         expect(module.css).toMatch(/display:\s*grid/);
       });
     }
@@ -290,15 +291,16 @@ const __stillwindCheckerHelper\\u0030=0,__stillwindCheckerHelper1=0;`,
       });
     }
 
-    test("CRLF and Unicode retain original declaration coordinates", async () => {
+    test("CRLF and Unicode keep the base declaration identity", async () => {
       const prepared = await project(
         component("", '<div {...style(base,"grid")}></div>').replaceAll("\n", "\r\n"),
       );
       const { module } = compile(prepared);
       const identity = module.composition[0].base;
-      expect(
-        Buffer.from(prepared.document.code).subarray(identity.start, identity.end).toString(),
-      ).toBe("style('flex')");
+      expect(identity).toMatchObject({
+        path: ["base"],
+        ordinal: 0,
+      });
       expect(module.code).toContain("// 日本語 🧭\r\n");
     });
 

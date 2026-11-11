@@ -15,6 +15,187 @@ pub fn selector_is_valid(selector: &str) -> bool {
     SelectorList::parse_string_with_options(selector, ParserOptions::default()).is_ok()
 }
 
+/// Whether every branch of `selector` puts a combinator after a known pseudo-element or
+/// contains an `:is()` or `:where()` whose branches all do so.
+///
+/// This is a check for selectors produced by nesting, not full grammar validation.
+/// Unknown pseudo-elements remain available to framework transforms. Attributes,
+/// strings, comments, and non-selector function arguments are not inspected.
+pub fn selector_cannot_match(selector: &str) -> bool {
+    selector_list_branches(selector)
+        .into_iter()
+        .all(branch_cannot_match)
+}
+
+fn branch_cannot_match(selector: &str) -> bool {
+    let mut parser = Parser::new(selector);
+    let mut pseudo_element = false;
+    let mut separated = false;
+    let mut colons = 0;
+    while let Ok(token) = parser.next_including_whitespace_and_comments() {
+        match token {
+            Token::Comment(_) => continue,
+            Token::WhiteSpace(_) => {
+                separated = true;
+                continue;
+            }
+            _ if pseudo_element
+                && (separated || matches!(token, Token::Delim('>' | '+' | '~' | '|'))) =>
+            {
+                return true;
+            }
+            Token::Colon => {
+                colons += 1;
+                separated = false;
+                continue;
+            }
+            Token::Ident(name) => {
+                pseudo_element |= (colons == 2 && known_pseudo_element(name))
+                    || (colons == 1 && legacy_pseudo_element(name));
+            }
+            Token::Function(name) => {
+                pseudo_element |= colons == 2 && known_pseudo_element(name);
+                let selector_arguments = colons == 1
+                    && (name.eq_ignore_ascii_case("is") || name.eq_ignore_ascii_case("where"));
+                let mut dead = false;
+                let _: Result<(), ParseError<()>> = parser.parse_nested_block(|inner| {
+                    let start = inner.position();
+                    while inner.next_including_whitespace_and_comments().is_ok() {}
+                    if selector_arguments {
+                        dead = selector_cannot_match(inner.slice_from(start));
+                    }
+                    Ok(())
+                });
+                if dead {
+                    return true;
+                }
+            }
+            Token::SquareBracketBlock | Token::ParenthesisBlock | Token::CurlyBracketBlock => {
+                let _: Result<(), ParseError<()>> = parser.parse_nested_block(|inner| {
+                    while inner.next_including_whitespace_and_comments().is_ok() {}
+                    Ok(())
+                });
+            }
+            _ => {}
+        }
+        colons = 0;
+        separated = false;
+    }
+    false
+}
+
+/// Whether `selector` contains a pseudo-element outside functional arguments, such as
+/// `::selection`, `::part(label)`, or the legacy single-colon `:before`.
+///
+/// Every `::` name counts, including unknown ones, because no pseudo-element is valid
+/// inside `:is()`.
+pub fn selector_has_pseudo_element(selector: &str) -> bool {
+    pseudo_element_start(selector).is_some()
+}
+
+/// Returns the byte offset of the first colon of the first pseudo-element in
+/// `selector` outside functional arguments, with the rules of
+/// [`selector_has_pseudo_element`].
+fn pseudo_element_start(selector: &str) -> Option<usize> {
+    let mut parser = Parser::new(selector);
+    let mut colons = 0;
+    let mut start = 0;
+    loop {
+        let position = parser.position().byte_index();
+        let Ok(token) = parser.next_including_whitespace_and_comments() else {
+            return None;
+        };
+        match token {
+            Token::Colon => {
+                if colons == 0 {
+                    start = position;
+                }
+                colons += 1;
+                continue;
+            }
+            Token::Ident(name) if colons == 2 || (colons == 1 && legacy_pseudo_element(name)) => {
+                return Some(start);
+            }
+            Token::Function(_) if colons == 2 => return Some(start),
+            _ => {}
+        }
+        colons = 0;
+    }
+}
+
+/// Splits a selector branch before its first pseudo-element into the selector of the
+/// originating element and the pseudo-element part, such as `.x` and `::before` for
+/// `.x::before`. A branch that puts whitespace or a combinator before the
+/// pseudo-element, such as `.x ::marker`, gets `*` as its element. Returns `None` when
+/// the branch has no pseudo-element or no element before it.
+pub(super) fn split_pseudo_element(branch: &str) -> Option<(String, &str)> {
+    let start = pseudo_element_start(branch)?;
+    let (element, pseudo_element) = branch.split_at(start);
+    if element.trim().is_empty() {
+        return None;
+    }
+    let element = if element.ends_with(|character: char| {
+        character.is_ascii_whitespace() || matches!(character, '>' | '+' | '~')
+    }) {
+        format!("{element}*")
+    } else {
+        element.to_owned()
+    };
+    Some((element, pseudo_element))
+}
+
+fn legacy_pseudo_element(name: &str) -> bool {
+    ["before", "after", "first-line", "first-letter"]
+        .iter()
+        .any(|known| name.eq_ignore_ascii_case(known))
+}
+
+fn known_pseudo_element(name: &str) -> bool {
+    legacy_pseudo_element(name)
+        || [
+            "selection",
+            "marker",
+            "backdrop",
+            "placeholder",
+            "file-selector-button",
+            "details-content",
+            "target-text",
+            "search-text",
+            "cue",
+            "cue-region",
+            "part",
+            "slotted",
+            "highlight",
+            "picker",
+            "picker-icon",
+            "checkmark",
+            "grammar-error",
+            "spelling-error",
+            "view-transition",
+            "view-transition-group",
+            "view-transition-image-pair",
+            "view-transition-old",
+            "view-transition-new",
+            "-moz-selection",
+            "-moz-placeholder",
+            "-ms-input-placeholder",
+            "-ms-browse",
+            "-webkit-input-placeholder",
+            "-webkit-file-upload-button",
+            "-webkit-details-marker",
+            "-webkit-backdrop",
+            "-webkit-scrollbar",
+            "-webkit-scrollbar-button",
+            "-webkit-scrollbar-track",
+            "-webkit-scrollbar-track-piece",
+            "-webkit-scrollbar-thumb",
+            "-webkit-scrollbar-corner",
+            "-webkit-resizer",
+        ]
+        .iter()
+        .any(|known| name.eq_ignore_ascii_case(known))
+}
+
 /// Splits a selector list at its top-level commas and returns each branch without
 /// surrounding whitespace.
 ///
@@ -54,6 +235,40 @@ pub fn selector_list_branches(selector: &str) -> Vec<&str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn nesting_rejects_combinators_after_known_pseudo_elements() {
+        for selector in [
+            ".a::selection > *",
+            ".a::selection .child",
+            ".a::backdrop + p",
+            ".a::-webkit-details-marker ~ p",
+            ".a:before > p",
+            ".a::part(label) > p",
+            ".a::SELECTION:hover > p",
+            ".a::selection/* > */ > p",
+            ":where(.a::selection > *, .a::marker + p)",
+            ":is(:where(.a::selection > *))",
+        ] {
+            assert!(selector_cannot_match(selector), "{selector}");
+        }
+        for selector in [
+            ".a > ::selection",
+            ".a::selection:hover",
+            ".a::before::marker",
+            ".a::ng-deep > p",
+            ".a::v-deep > p",
+            ".a::future-element > p",
+            ".a[data-x='::selection > *'] > p",
+            ".a\\:\\:selection > p",
+            ".a::selection/* > */:hover",
+            ":is(.a::selection > *, .fallback)",
+            ".a:not(.b::selection > *)",
+            ".a::selection > *, .fallback",
+        ] {
+            assert!(!selector_cannot_match(selector), "{selector}");
+        }
+    }
 
     #[test]
     fn selector_lists_split_only_at_top_level_commas() {

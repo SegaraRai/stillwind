@@ -4,6 +4,32 @@ This file contains unresolved design and validation work. Current supported
 inputs and failure behavior are documented with their APIs. Each item below
 identifies a remaining limitation and the evidence needed to resolve it.
 
+## Tailwind compatibility gaps
+
+The compatibility baseline is Tailwind CSS 4.3.5. These contracts still need work:
+
+- Built-in color utilities resolve numeric alpha modifiers without looking up
+  `--opacity-*` tokens. Define named opacity support and verify its precedence
+  against numeric modifiers, including inline theme values and canonicalization.
+- Arbitrary breakpoint variants such as `max-[64rem]:flex` and selector variants
+  such as `[&_::before]:flex` remain unchanged instead of using the named or child
+  variants that Tailwind suggests. Verify equivalent output before adding replacements.
+- Canonical collapse picks `text-z` for `text-foreground text-primary` when all three
+  custom utilities emit `color: red`. Decide whether input candidates take precedence
+  over shorter aliases. Measure index preparation with thousands of
+  functional variant values and collapse with many utilities linked through `sr-only`;
+  the independent implementations do not establish equivalent performance.
+- Nesting lowering rejects implicit `@scope` roots inside style rules. Preserve their
+  stylesheet-dependent root before enabling this transformation.
+
+Sources: [Tailwind 4.3.4](https://github.com/tailwindlabs/tailwindcss/releases/tag/v4.3.4),
+[Tailwind 4.3.5](https://github.com/tailwindlabs/tailwindcss/releases/tag/v4.3.5),
+[plugin theme](../packages/host/src/css/plugins/tailwind/theme.ts),
+[plugin value inference](../packages/host/src/css/plugins/tailwind/data-type.ts),
+[canonical candidates](../crates/compiler/src/query/canonical/candidate/functions.rs),
+[variant bodies](../crates/design-system/src/evaluation/variants/body.rs),
+[utility rendering](../crates/compiler/src/compiler/utilities/render.rs).
+
 ## Type facts under Deno on Linux
 
 The synchronous TypeScript 7 API passes `child.stdin._handle.fd` to `fs.writeSync` on
@@ -29,7 +55,7 @@ Sources: [style declaration](../packages/core/src/macro/style.ts),
 
 Semantic revisions hash `Debug` representations of facts and asset metadata in
 several entrypoints. Define one deterministic representation shared by those
-entrypoints. Confirm invalidation when facts or asset support change without
+entrypoints. Confirm invalidation when facts or asset metadata change without
 making incidental debug formatting part of the cache contract.
 
 Sources: [project input](../crates/napi/src/api/project.rs),
@@ -157,6 +183,40 @@ interaction of conditional rules that use `revert-rule` with scoped rules.
 Sources: [ref types](../packages/core/src/macro/refs.ts),
 [macro contract](macro-contract.md#ref-attachments-and-providers),
 [ref declarations](../crates/js-oxc/src/visit.rs).
+
+## Stored variant follow-ups
+
+`style.when()` stores a variant sequence or alternatives. These parts are not
+designed or built yet:
+
+- Editors: hover over a use should show the expanded sequence, string arguments
+  should complete variants as keys do, and go to definition should reach the
+  declaration.
+- CVA: CVA values reject computed keys, so they reject stored variants. Accepting a
+  stored variant without a ref there is possible but has low priority, because few
+  use cases need it.
+- Related locations: a finding for an imported declaration points at the use. It
+  could also name the declaration as a related location.
+
+Sources: [extraction](../crates/js-oxc/src/stored_variants.rs),
+[macro contract](macro-contract.md#stored-variants).
+
+## Variant alternative follow-ups
+
+`or(...)` expands to one candidate for each sequence. These parts are open:
+
+- Nested values: `not-or(a,b)` could resolve as `not-a:not-b`, and `group-or(a,b)`
+  as the alternatives of `group-a` and `group-b`. They report `invalid-variant` now.
+- Media lists: `style.media("or(md,print)")` could produce the media query list
+  `(width >= 48rem), print`. It reports `invalid-variant` now.
+- Duplicates: `or(hover,hover)` emits the same rule twice. Only
+  `prefer-canonical-utilities` reports it.
+- Editors: completion and hover inside `or(...)` should treat each sequence as a
+  variant prefix. A finding for an expanded candidate covers the whole candidate,
+  not the failing sequence.
+
+Sources: [expansion](../crates/compiler/src/compiler/style_variants/alternatives.rs),
+[macro contract](macro-contract.md#variant-alternatives).
 
 ## Remaining documentation capabilities
 
@@ -287,3 +347,134 @@ as preview comments do.
 
 Sources: [design-system queries](../packages/host/src/editor/design-system.ts),
 [candidate completion](../crates/compiler/src/query/completion/candidates.rs).
+
+## Retried React Router resolutions
+
+Rolldown can pass the `custom` option of one `this.resolve()` call to a different call that runs
+at the same time ([rolldown#11180](https://github.com/rolldown/rolldown/issues/11180)). Stillwind
+resolves server-only sources with the flag that skips React Router's `.server` check, so it
+resolves again when React Router reports `Server-only module referenced by client`. After a
+Rolldown release gives each pending call its own key, update Vite+ and remove the retry.
+
+Sources: [server source resolution](../packages/integration/src/vite/server-source-resolve.ts),
+[React Router fixture](../e2e/frameworks/vite8-react19-reactrouter8/fixture.ts).
+
+## Separate module compilation from linking
+
+The output of a module should depend only on its own source, the checker facts for
+its own probes, and the interfaces of the modules that those facts name. An edit
+that keeps the interface of a dependency should not compile, transform, or query
+facts for its consumers again. Linking should resolve the names that cross module
+boundaries.
+
+Each declaration has a key that survives edits elsewhere in its module: kind,
+module, enclosing declaration path, ordinal, and binding name. Checker identities
+and cross-module references use this key, and the names of ref markers, anchors,
+containers, keyframes, and view-transition tokens derive from it. Each `style()`
+call has a key of the same form, and its utility classes derive from that key. An
+edit that only moves declarations or calls therefore changes no facts of a consumer
+and no generated names. These couplings remain:
+
+- The JavaScript of a consumer contains names from the dependency:
+  - A literal ref attachment writes the ref marker as the class name.
+  - The identity of a consumer's own utility class spells imported refs, stored
+    variants, and containers by their keys and labels. It still includes the
+    generated names of imported anchors, keyframes, and view transitions, which
+    change only when the key, the label, or the naming configuration changes.
+  - The candidate tables of conditional anchors and keyframes use the imported
+    names as keys.
+  - A dynamic view-transition name passes the imported token as a literal. It does
+    not read the token from the receiver.
+- The CSS of a consumer contains the imported names, and the artifact key contains
+  the imported identities. Planning adds the rules of imported keyframes and view
+  transitions from the artifact of the declaring module.
+- Compilation reads the inline-style flags of composed bases from the analyses of
+  the whole batch, not from the interface of the dependency.
+- Composition records only the base key in `compositionTopology`. The consumer's
+  JavaScript and CSS stay the same. Conditional ref attachments read `.c` at
+  runtime and also stay the same. An edit of a utility string after the last
+  declaration changes no consumer output.
+
+Each compilation still sends the semantic closure of its entry to the native
+session. The session reuses the stored analysis of a module whose source buffer,
+input, and facts are unchanged, without scanning or finalizing it again. Most of the
+remaining native compilation time is the first compilation of each module.
+
+A development server does not register dependencies with `addWatchFile`. Its hot
+update hook compiles the changed producer and then compares the interface of the
+changed file before and after the edit: the asset records of its scan and the types
+of its exports as facts decode them. Utility strings in a style output type do not
+take part. When the interface is the same, the hook does not compile the producers
+that read the file. Otherwise it compiles them again and sends a hot update only for
+those whose JavaScript changes. The comparison does not cover these cases, so a
+development server can keep stale results until the consumer compiles again:
+
+- Checker diagnostics and Stillwind lint findings of a consumer.
+- A producer type that the edit adds or removes and that changes how facts classify
+  a consumer type that the exports do not reach.
+- Global declarations and module augmentation in the changed file.
+
+A changed file that is not itself a producer always compiles its consumers again.
+Vite environments share one checker, but each environment has its own native session
+and compiles every module again. In a build the checker installs the discovered
+sources once and keeps one snapshot. Its time goes to opening that snapshot,
+registering producer types, reading the semantic diagnostics of each queried file,
+and reading facts.
+
+Planned direction:
+
+1. Compile one module for each transform with the facts of its own probes. Key
+   artifacts by the dependency interfaces that they read, and move cycle and
+   missing-producer checks to linking. Read the inline-style flags of bases from
+   the interface of the dependency. Style-effect lints such as
+   `interfering-imported-style-base` already run over published artifacts and stay
+   there. Unchanged dependencies already reuse their stored analyses, so measure
+   the remaining gain against the cost of reporting composition errors at link
+   time.
+
+Open decisions: whether the checker diagnostic check stays on the compilation
+path, and how development reports link-time errors.
+
+Sources: [checker sources](../packages/host/src/semantics/checker-source.ts),
+[variant identities](../crates/compiler/src/compiler/style_variants/plan.rs),
+[composition checks](../crates/ir/src/analysis.rs),
+[stylesheet plans](../crates/project/src/stylesheet_plan.rs),
+[artifact keys](../crates/compiler/src/module_compiler.rs),
+[module graph](../packages/host/src/compilation/module-graph.ts),
+[Vite compilation](../packages/integration/src/vite/compile.ts),
+[Vite hot updates](../packages/integration/src/vite/development.ts),
+[export interfaces](../packages/host/src/semantics/node/export-interface.ts),
+[native compile batches](../crates/napi/src/session/project.rs).
+
+## Document CSS in Turbopack worker processes
+
+Turbopack runs loaders in a pool of worker processes. Each process keeps its own
+compiler for document CSS and compiles only the modules whose sources, or the
+sources of the local modules that they import, changed since its previous
+reconstruction. Turbopack chooses the process for each reconstruction, so the first
+edit that reaches a process without a previous reconstruction compiles the whole
+entry graph. The compilers of a process load the project files into one checker
+and watch the application directory, so such a compilation queries a warm checker.
+In a generated Next application with about 270 modules, an edit takes about 2
+seconds.
+Decide whether reconstruction should reuse compiled modules across processes, for
+example through a cache on disk, or whether the document CSS should combine
+per-module results instead of compiling the graph in one process.
+
+Sources: [graph reconstruction](../packages/integration/src/turbopack/project.ts),
+[application benchmark](../benchmarks/apps/run.ts).
+
+## Component projection on the first page load
+
+A Vite development server converts each Vue and Svelte component to a checker
+script when a request first compiles it. In a generated application with about
+240 components, the first page load takes about 0.9 seconds, while a Solid
+application of the same shape takes about 0.4 seconds and the application
+without Stillwind takes about 0.15 seconds. Loading the converters before the
+first request does not shorten it, so the time goes to the conversions. Decide
+whether conversions can start before the first request, for example for the
+components that the entries import, or whether a cache on disk should keep
+converted scripts between server starts.
+
+Sources: [component conversion](../packages/projection/src/frameworks/index.ts),
+[application benchmark](../benchmarks/apps/run.ts).

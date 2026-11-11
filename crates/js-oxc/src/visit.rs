@@ -2,8 +2,9 @@
 //! summary.
 //!
 //! The visit records module structure (imports, re-exports, specifier literals,
-//! exported bindings), declarations of assets (`style.ref()`, keyframes, view
-//! transitions), `style()` call sites, and `style.media()` and `style.css()` calls.
+//! exported bindings), keyframes and view-transition declarations, `style()` call
+//! sites, and `style.media()` and `style.css()` calls. Ref and `style.when()`
+//! declarations are collected before it.
 //!
 //! Recognition always goes through resolved symbols. The one place spelling is used is
 //! [`ImportBinding`], because an import declaration is the only construct that can
@@ -229,6 +230,7 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
         }
         self.style_calls.push(StyleCall {
             span: self.source_span(call.span),
+            key: self.style_key(self.source_span(call.span)),
             output,
             inputs,
         });
@@ -236,33 +238,14 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
         walk::walk_call_expression(self, call);
     }
 
-    /// Recognizes the three asset producers in one `const x = style.<member>(...)`.
+    /// Recognizes the keyframes and view-transition producers in one
+    /// `const x = style.<member>(...)`.
     ///
     /// Each producer records its definition, its symbol, and the symbolic value the
-    /// binding denotes, so later uses resolve without re-checking the call.
-    #[allow(clippy::too_many_lines)] // One declarator has several declaration forms.
+    /// binding denotes, so later uses resolve without re-checking the call. Ref and
+    /// stored-variant declarations are collected before this visit by
+    /// [`MacroExtractor::seed_declarations`].
     fn visit_variable_declarator(&mut self, declarator: &VariableDeclarator<'a>) {
-        if let (
-            BindingPattern::BindingIdentifier(identifier),
-            Some(Expression::CallExpression(call)),
-        ) = (&declarator.id, &declarator.init)
-            && self.is_style_ref_call(call)
-            && let Some(symbol_id) = identifier.symbol_id.get()
-        {
-            let name = Spanned::new(
-                identifier.name.to_lean_str(),
-                self.source_span(identifier.span),
-            );
-            let definition = self.collect_ref_definition(name, call);
-            self.ref_symbols.insert(symbol_id, definition.clone());
-            self.local_values.insert(
-                symbol_id,
-                ExportedValue::Refs(SymbolicValue::exact(
-                    self.identity(AssetKind::Ref, &definition.binding),
-                )),
-            );
-            self.ref_definitions.push(definition);
-        }
         if let (
             BindingPattern::BindingIdentifier(identifier),
             Some(Expression::CallExpression(call)),
@@ -278,9 +261,11 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
             self.keyframes_symbols.insert(symbol_id, name);
             self.local_values.insert(
                 symbol_id,
-                ExportedValue::Keyframes(SymbolicValue::exact(
-                    self.identity(AssetKind::Keyframes, &definition.binding),
-                )),
+                ExportedValue::Keyframes(SymbolicValue::exact(self.identity(
+                    AssetKind::Keyframes,
+                    &definition.binding,
+                    &definition.key,
+                ))),
             );
             self.keyframes_declarations.push(definition);
         }
@@ -299,9 +284,11 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
             self.view_transition_symbols.insert(symbol_id, name);
             self.local_values.insert(
                 symbol_id,
-                ExportedValue::ViewTransitions(SymbolicValue::exact(
-                    self.identity(AssetKind::ViewTransition, &definition.binding),
-                )),
+                ExportedValue::ViewTransitions(SymbolicValue::exact(self.identity(
+                    AssetKind::ViewTransition,
+                    &definition.binding,
+                    &definition.key,
+                ))),
             );
             self.view_transition_declarations.push(definition);
         }

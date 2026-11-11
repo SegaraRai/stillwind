@@ -8,6 +8,7 @@ import {
   type IntegrationConfig,
   type ViteProject,
 } from "./project.ts";
+import { isReactRouterExportScan } from "./react-router.ts";
 import { transformHooks, type TransformOptions } from "./transform.ts";
 import { virtualModuleHooks } from "./virtual-modules.ts";
 import { attachVueHooks } from "./vue.ts";
@@ -50,6 +51,9 @@ export function createVitePlugins(
        * @throws If configuration discovery or evaluation fails.
        */
       async configResolved(config) {
+        if (isReactRouterExportScan(config)) {
+          return;
+        }
         await project.forConfig(config).configure(config);
         attachVueHooks(config.plugins, project);
       },
@@ -59,6 +63,9 @@ export function createVitePlugins(
        * @returns A post hook that attaches watches and records the server's environments.
        */
       configureServer(server) {
+        if (isReactRouterExportScan(server.config)) {
+          return;
+        }
         const generation = project.forConfig(server.config);
         return () => {
           generation.attachServer(server);
@@ -73,6 +80,9 @@ export function createVitePlugins(
        * @returns Hooks that initialize and close the compiler state owned by this.environment.
        */
       applyToEnvironment(environment) {
+        if (isReactRouterExportScan(environment.getTopLevelConfig())) {
+          return false;
+        }
         const generation = project.forConfig(environment.getTopLevelConfig());
         return compilerPlugin(generation, transform, (owner) => {
           servers.get(generation)?.delete(owner);
@@ -93,12 +103,18 @@ export function createVitePlugins(
       enforce: "pre",
       apply: "serve",
       configureServer(server) {
+        if (isReactRouterExportScan(server.config)) {
+          return;
+        }
         const hook = developmentHooks(project.forConfig(server.config)).configureServer;
         if (typeof hook === "function") {
           return hook.call(this, server);
         }
       },
       applyToEnvironment(environment) {
+        if (isReactRouterExportScan(environment.getTopLevelConfig())) {
+          return false;
+        }
         const { hotUpdate } = developmentHooks(project.forConfig(environment.getTopLevelConfig()));
         return {
           name: "stillwind:development",

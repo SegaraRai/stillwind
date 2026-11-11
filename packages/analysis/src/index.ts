@@ -14,7 +14,7 @@ export type {
   EditorResult,
 } from "@stillwind/host";
 
-export { lintReports } from "./reports.ts";
+export { documentationSection, documentationUrl, lintReports } from "./reports.ts";
 export type {
   AnalysisDependency,
   AnalysisResult,

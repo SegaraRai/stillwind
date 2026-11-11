@@ -45,6 +45,11 @@ A base passes on its classes only. Custom properties such as
 `{ "--progress": value }` in the base do not carry over, and the CLI reports
 them. Set custom properties in the `style()` call that is spread onto the element.
 
+Keep the inferred type of an exported base. When TypeScript emits declaration
+files, it writes that type with `StyleResultOf` from the framework's entrypoint.
+A type annotation such as `StyleResult<string>` hides the identity of the base,
+and Stillwind then cannot find the styles of the base.
+
 ## Express states with variants
 
 Set the state as an attribute, and style it with a variant:

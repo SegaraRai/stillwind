@@ -4,8 +4,7 @@ import { runInNewContext } from "node:vm";
 
 import { TraceMap, originalPositionFor } from "@jridgewell/trace-mapping";
 import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
-import * as runtime from "stillwind/runtime/class-name-object";
-import * as svelteRuntime from "stillwind/runtime/class-string";
+import * as runtime from "stillwind/runtime";
 import { expect, test } from "vite-plus/test";
 
 import { compileModule, fileModuleDescriptor, moduleSourceMap } from "../src/compilation/index.ts";
@@ -232,9 +231,8 @@ test("inactive transition payloads preserve preceding styles in both formats", a
         );
         for (const enabled of [false, true]) {
           for (const outer of [false, true]) {
-            const context = framework === "svelte" ? svelteRuntime : runtime;
             const { props } = evaluate(output.code!, {
-              ...context,
+              ...runtime,
               enabled,
               outer,
             });
@@ -280,7 +278,7 @@ test("common input branches select transitions, custom properties, refs, and com
     for (const enabled of [false, true]) {
       for (const outer of [false, true]) {
         const { props } = evaluate(output.code!, {
-          ...(framework === "svelte" ? svelteRuntime : runtime),
+          ...runtime,
           enabled,
           outer,
         });
@@ -360,7 +358,7 @@ test("pure custom-property and guard calls materialize directly", async () => {
       'const props = style({ "--busy": read(true) }, read(enabled) ? "blue" : "green");',
     ].join("\n"),
   );
-  expect(output.code!).not.toMatch(/stillwindMerge/);
+  expect(output.code!).not.toMatch(/stillwind\w*Merge/);
   const { props } = evaluate(output.code!, { enabled: true });
   expect(Object.keys(props)).toStrictEqual(["className", "style"]);
   expect((props.style as Record<string, string>)["--busy"]).toBe(" ");
@@ -382,8 +380,8 @@ test("direct props and fragment materialization produce the same classes", async
       'const props = style(base, enabled && (nested ? "blue" : "green"));',
     ].join("\n"),
   );
-  expect(direct.code!).not.toMatch(/stillwindMerge/);
-  expect(fragment.code!).toMatch(/stillwindMerge\(stillwindToFragment\(\(base\)\)/);
+  expect(direct.code!).not.toMatch(/stillwind\w*Merge/);
+  expect(fragment.code!).toMatch(/stillwind\w*Merge\(stillwind\w*ToFragment\(\(base\)\)/);
   const bases = { direct: new Set<string>(), fragment: new Set<string>() };
   for (const context of [
     { enabled: false, nested: false },
@@ -418,18 +416,15 @@ test("fragments stay inside the call expression", async () => {
     .code!.split("\n")
     .filter((line) => !line.startsWith("import "))
     .join("\n");
-  const keyUses = nonImport.match(/stillwindClassKey/g)?.length ?? 0;
-  expect(nonImport.match(/\[stillwindClassKey\]/g)?.length ?? 0).toBe(keyUses);
+  const keyUses = nonImport.match(/stillwind\w*ClassKey/g)?.length ?? 0;
+  expect(nonImport.match(/\[stillwind\w*ClassKey\]/g)?.length ?? 0).toBe(keyUses);
   const { props } = evaluate(output.code!, { enabled: true, nested: false });
   expect((props.style as Record<string, string>)["--busy"]).toBe(" ");
   expect(String(props.className).split(" ").length).toBe(1);
 });
 
 test("custom-property folding materializes object and string framework props", async () => {
-  for (const [framework, helpers] of [
-    ["react", runtime],
-    ["svelte", svelteRuntime],
-  ] as const) {
+  for (const framework of ["react", "svelte"]) {
     const output = await compile(
       [
         `import { style } from "stillwind/${framework}";`,
@@ -438,7 +433,7 @@ test("custom-property folding materializes object and string framework props", a
       ].join("\n"),
     );
     expect(output.code!).not.toMatch(
-      /stillwindMerge|stillwindCustomPropertiesKey|stillwindClassKey/,
+      /stillwind\w*Merge|stillwind\w*CustomPropertiesKey|stillwind\w*ClassKey/,
     );
     for (const [progress, expected] of [
       [0, "0"],
@@ -447,7 +442,7 @@ test("custom-property folding materializes object and string framework props", a
       ["calc(1 + 2)", "calc(1 + 2)"],
     ] as const) {
       const { props, events } = evaluate(output.code!, {
-        ...helpers,
+        ...runtime,
         progress,
       });
       expect(Array.from(events)).toStrictEqual(["value"]);
@@ -473,7 +468,7 @@ test("interleaved pure calls fold into one property record", async () => {
       'const props = style({ "--x": read(1) }, { "--value": read(2) }, { "--y": read(3) });',
     ].join("\n"),
   );
-  expect(output.code!).not.toMatch(/stillwindMerge/);
+  expect(output.code!).not.toMatch(/stillwind\w*Merge/);
   const { props } = evaluate(output.code!, {});
   expect(Object.entries(props.style as object)).toStrictEqual([
     ["--x", "1"],
@@ -507,10 +502,7 @@ test("empty branches omit calls while nonempty branches keep guards", async () =
 });
 
 test("pure folding and empty-branch removal preserve materialized values", async () => {
-  for (const [framework, helpers] of [
-    ["react", runtime],
-    ["svelte", svelteRuntime],
-  ] as const) {
+  for (const framework of ["react", "svelte"]) {
     const output = await compile(
       [
         `import { style } from "stillwind/${framework}";`,
@@ -518,8 +510,8 @@ test("pure folding and empty-branch removal preserve materialized values", async
         'const props = style({ "--x": read(x) }, { "--value": x }, { "--y": x + 1 }, enabled && [], "red");',
       ].join("\n"),
     );
-    expect(output.code!).not.toMatch(/stillwindMerge|enabled/);
-    const { props } = evaluate(output.code!, { ...helpers, x: 3 });
+    expect(output.code!).not.toMatch(/stillwind\w*Merge|enabled/);
+    const { props } = evaluate(output.code!, { ...runtime, x: 3 });
     expect(Object.keys(props)).toStrictEqual([
       framework === "react" ? "className" : "class",
       "style",
@@ -649,10 +641,12 @@ test("transition class branches and complete style payloads avoid fragment merge
           `const props = style("green", ${input});`,
         ].join("\n"),
       );
-      expect(output.code!).not.toMatch(/stillwindMerge|stillwindClassKey|stillwindStyleKey/);
+      expect(output.code!).not.toMatch(
+        /stillwind\w*Merge|stillwind\w*ClassKey|stillwind\w*StyleKey/,
+      );
       for (const enabled of [false, true]) {
         const { props } = evaluate(output.code!, {
-          ...(framework === "svelte" ? svelteRuntime : runtime),
+          ...runtime,
           enabled,
           key: "selected",
         });
@@ -683,9 +677,9 @@ test("style strings fold static segments and convert only dynamic values", async
     );
     expect((output.code!.match(/stillwindCssValue\(/g) ?? []).length).toBe(1);
     for (const amount of [3, false, "a;b", new URL("https://example.test/")]) {
-      const { props } = evaluate(output.code!, { ...svelteRuntime, amount });
+      const { props } = evaluate(output.code!, { ...runtime, amount });
       expect(props.style).toBe(
-        `--static:foo;--dynamic:${svelteRuntime.stillwindCssValue(amount)};--tail:bar;--end:initial`,
+        `--static:foo;--dynamic:${runtime.stillwindCssValue(amount)};--tail:bar;--end:initial`,
       );
     }
     const literal = await compile(
@@ -698,7 +692,7 @@ test("style strings fold static segments and convert only dynamic values", async
     expect(literal.code!).toMatch(
       /style:"--foo:bar;--bar:baz;--tiny:1e-7;--large:1e\+21;--negative:-2;--flag: "/,
     );
-    expect(literal.code!).not.toMatch(/stillwindCssValue|stillwindMerge/);
+    expect(literal.code!).not.toMatch(/stillwindCssValue|stillwind\w*Merge/);
   }
 });
 
@@ -712,9 +706,9 @@ test("class-only conditional props use the framework field even when empty", asy
         'const props = style(enabled && "red");',
       ].join("\n"),
     );
-    expect(output.code!).not.toMatch(/stillwindClassProps|stillwindMerge/);
+    expect(output.code!).not.toMatch(/stillwindClassProps|stillwind\w*Merge/);
     const { props } = evaluate(output.code!, {
-      ...svelteRuntime,
+      ...runtime,
       enabled: false,
     });
     const key = framework === "react" ? "className" : "class";

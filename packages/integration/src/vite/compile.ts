@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { extname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import type { EncodedSourceMap } from "@jridgewell/gen-mapping";
@@ -18,6 +18,7 @@ import { finalizeModuleWithMap } from "./finalize.ts";
 import { sourceModuleId } from "./module-ids.ts";
 import type { ModuleRegistry } from "./module-registry.ts";
 import type { IntegrationConfig, ProjectSettings } from "./project.ts";
+import { resolveServerSource } from "./server-source-resolve.ts";
 
 /** Metadata retained in the Vite module graph to reconstruct a producer from a cached transform. */
 export interface ProducerMetadata {
@@ -70,6 +71,11 @@ export interface ProducerInput {
   javascript: string;
   /** Compiler module identities referenced through style composition. */
   dependencies: string[];
+  /**
+   * Files without queries that the compilation read as dependencies, for example to collect type
+   * facts. A development server compiles the producer again when one of them changes.
+   */
+  sourceDependencies: ReadonlySet<string>;
 }
 
 /** Vite operations needed to compile producers and compose their upstream source maps. */
@@ -136,6 +142,15 @@ export async function compileProducer(
   context: CompileContext,
   previous?: Readonly<ProducerInput>,
 ): Promise<ProducerCompilation | undefined> {
+  /**
+   * Selects the automatic stylesheet import of a producer.
+   * @param id - Full Vite identity of the producer.
+   * @returns The producer stylesheet module for an SFC with automatic document CSS, or undefined.
+   */
+  const stylesheetImports = (id: string) =>
+    /\.(?:astro|svelte|vue)$/.test(cleanModuleId(id)) && config.automatic !== false
+      ? [registry.source("producer", id)]
+      : undefined;
   const sfc = /\.(?:astro|svelte|vue)$/.test(cleanModuleId(id));
 
   /**
@@ -150,6 +165,7 @@ export async function compileProducer(
       : pathToFileURL(clean).href;
   };
 
+  const sourceDependencies = new Set<string>();
   const output = await compiler.compile(
     code,
     id,
@@ -157,10 +173,11 @@ export async function compileProducer(
       // Dependency reads supply type and style facts. Vite validates the imports retained in the
       // transformed application when it constructs the JavaScript graph.
       resolve: (specifier, importer) =>
-        context.resolve(specifier, importer, {
-          skipSelf: true,
-          custom: { "react-router:dot-server": true },
-        }),
+        resolveServerSource(
+          (specifier, importer, options) => context.resolve(specifier, importer, options),
+          specifier,
+          importer,
+        ),
       read: (id) => readFile(cleanModuleId(id), "utf8"),
       describe: (resolvedId) => {
         const virtual = resolvedId.startsWith("\0") || resolvedId.startsWith("virtual:");
@@ -172,6 +189,13 @@ export async function compileProducer(
             )
           : cleanModuleId(resolvedId);
         const { syntax, format } = fileSourceKind(resolvedId);
+        // A query can select different text for the same file. Each identity needs its own checker
+        // file because one checker project can contain both. The name keeps the directory and
+        // extension so relative imports and the parser language stay unchanged.
+        const checkerFile =
+          virtual || file === resolvedId
+            ? file
+            : `${file}.stillwind-${createHash("sha256").update(resolvedId).digest("hex").slice(0, 16)}${extname(file)}`;
         return {
           moduleId: virtual
             ? `virtual:${encodeURIComponent(resolvedId)}`
@@ -180,21 +204,27 @@ export async function compileProducer(
             uri: documentUri(resolvedId),
             format,
           },
-          checkerFileName: file,
+          checkerFileName: checkerFile,
           projectionFileName: file.replaceAll("\\", "/"),
           syntax,
         };
       },
       watch: (id) => {
-        context.addWatchFile(id);
+        sourceDependencies.add(cleanModuleId(id));
+        // A development server checks these files in its hot update hook. A Vite watch file would
+        // make every change of a shared dependency transform all importers again, also when their
+        // output stays the same.
+        if (!settings.watching) {
+          context.addWatchFile(id);
+        }
       },
       warn: (message) => {
         context.warn(message);
       },
+      stylesheetImports,
     },
     {
-      stylesheetImports:
-        sfc && config.automatic !== false ? [registry.source("producer", id)] : undefined,
+      stylesheetImports: stylesheetImports(id),
       moduleCssImport: registry.source("value", id),
     },
   );
@@ -240,6 +270,7 @@ export async function compileProducer(
     hasModuleCssImport: output.hasModuleCssImport,
     javascript,
     dependencies: output.compositionModules,
+    sourceDependencies,
   };
 
   const result = {

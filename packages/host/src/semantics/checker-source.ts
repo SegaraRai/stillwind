@@ -27,19 +27,19 @@ interface ShadowEdit {
 /**
  * Serializes a declaration identity as a stable checker string-literal key.
  *
- * @param identity - Native declaration identity with original UTF-8 offsets.
- * @returns `stillwind-identity/v1:` followed by base64url JSON of kind, module ID, range, and
- * binding name in a fixed field order.
+ * @param identity - Native declaration identity with its enclosing path and ordinal.
+ * @returns `stillwind-identity/v2:` followed by base64url JSON of kind, module ID, path, ordinal,
+ * and binding name in a fixed field order.
  */
 export function identityKey(identity: NativeAssetRecord["identity"]): string {
   const serialized = JSON.stringify({
     kind: identity.kind,
     moduleId: identity.moduleId,
-    start: identity.start,
-    end: identity.end,
+    path: identity.path,
+    ordinal: identity.ordinal,
     bindingName: identity.bindingName,
   });
-  return `stillwind-identity/v1:${base64url(serialized)}`;
+  return `stillwind-identity/v2:${base64url(serialized)}`;
 }
 
 /**

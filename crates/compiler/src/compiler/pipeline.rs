@@ -18,10 +18,12 @@ use std::collections::BTreeSet;
 use lean_string::{LeanString, ToLeanString};
 
 use stillwind_design_system::DesignSystemSnapshot;
-use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintSurface, finish_lint_findings};
+use stillwind_diagnostics::{
+    CompileDiagnostic, CompileError, LintFinding, LintSurface, finish_lint_findings,
+};
 use stillwind_ir::{
-    IncompatibleComposition, ModuleAnalysis, composition_dependencies, ordered_style_calls,
-    validate_composition,
+    IncompatibleComposition, ModuleAnalysis, StoredVariantDefinition, composition_dependencies,
+    ordered_style_calls, validate_composition,
 };
 use stillwind_semantic::AssetKind;
 use stillwind_source::{SourceFile, Span};
@@ -36,11 +38,12 @@ use super::emission::{
 use super::fragment::{render_cva_value, render_style_call};
 use super::media::media_query;
 use super::output::CompileResult;
+use super::style_variants::StyleVariantPlan;
+use super::symbols::{DefinitionKind, named_identity, ref_identity};
 use super::symbols::{
     detached_symbol, generated_ref_marker_symbol, generated_ref_symbol, generated_symbol,
     named_declaration, ref_marker_name,
 };
-use super::symbols::{named_identity, ref_identity};
 use super::{Compiler, CssContribution};
 use crate::compiler::rewrite_generated_css;
 use crate::editor_lint::detect;
@@ -207,8 +210,9 @@ impl Compiler {
                     generated_symbol(
                         identifiers,
                         module_id,
-                        AssetKind::Keyframes,
+                        DefinitionKind::Keyframes,
                         &definition.binding,
+                        &definition.key,
                         definition.label.as_ref(),
                     )
                 })
@@ -222,8 +226,9 @@ impl Compiler {
                     generated_symbol(
                         identifiers,
                         module_id,
-                        AssetKind::ViewTransition,
+                        DefinitionKind::ViewTransition,
                         &definition.binding,
+                        &definition.key,
                         definition.label.as_ref(),
                     )
                 })
@@ -355,11 +360,14 @@ impl Compiler {
                 &mut diagnostics,
                 &mut result.lint_findings,
             );
-            if required_definitions.contains(&named_identity(
+            let identity = named_identity(
                 module_id,
                 AssetKind::Keyframes,
                 &animation.binding,
-            )) {
+                &animation.key,
+            );
+            if required_definitions.contains(&identity) {
+                contribution.defines = Some(identity);
                 definition_css.push(contribution);
             }
         }
@@ -375,16 +383,24 @@ impl Compiler {
                 &mut diagnostics,
                 &mut result.lint_findings,
             );
-            if required_definitions.contains(&named_identity(
+            let identity = named_identity(
                 module_id,
                 AssetKind::ViewTransition,
                 &transition.binding,
-            )) {
+                &transition.key,
+            );
+            if required_definitions.contains(&identity) {
+                contribution.defines = Some(identity);
                 definition_css.push(contribution);
             }
         }
         definition_css.append(&mut utility_css);
         utility_css = definition_css;
+        result.linked_definitions = required_definitions
+            .iter()
+            .filter(|identity| identity.module_id() != module_id)
+            .cloned()
+            .collect();
         for ref_definition in module.ref_definitions {
             result.transforms.push(SourceTransform {
                 call_span: ref_definition.call_span,
@@ -409,10 +425,12 @@ impl Compiler {
                     module_id,
                     AssetKind::Keyframes,
                     &animation.binding,
+                    &animation.key,
                 )) {
                     match identifiers.keyframes_name(&named_declaration(
                         module_id,
                         &animation.binding,
+                        &animation.key,
                         animation.label.as_ref(),
                     )) {
                         Ok(name) => {
@@ -437,10 +455,12 @@ impl Compiler {
                     module_id,
                     AssetKind::ViewTransition,
                     &transition.binding,
+                    &transition.key,
                 )) {
                     match identifiers.view_transition_class(&named_declaration(
                         module_id,
                         &transition.binding,
+                        &transition.key,
                         transition.label.as_ref(),
                     )) {
                         Ok(class) => format_args!(
@@ -459,6 +479,25 @@ impl Compiler {
                 expressions: Vec::new(),
             });
         }
+        for definition in &module.stored_variants {
+            // Validation reports problems in the sequence even when no use exists. The
+            // plan itself is discarded, because each use resolves its own wrappers.
+            if let Some(variants) = &definition.variants {
+                let _ = StyleVariantPlan::resolve(
+                    identifiers,
+                    variants,
+                    theme,
+                    &mut diagnostics,
+                    &mut result.lint_findings,
+                );
+            }
+            result.transforms.push(SourceTransform {
+                call_span: definition.call_span,
+                replacement: "undefined".to_lean_string(),
+                expressions: Vec::new(),
+            });
+        }
+        dedupe_stored_variant_findings(&module.stored_variants, &mut result.lint_findings);
 
         result.diagnostics = diagnostics;
         result.symbols = dedupe_name_symbols(symbols);
@@ -541,11 +580,14 @@ impl Compiler {
             result.style_effects.clear();
         } else if result.lint_settings.has_enabled_rules() {
             let mut resolver = StyleResolver::new(&result.style_effects);
+            let mut findings = Vec::new();
             for effects in &result.style_effects {
                 if let Some(style) = resolver.resolve(effects.identity()) {
-                    result.lint_findings.extend(check_style(&style));
+                    findings.extend(check_style(&style));
                 }
             }
+            query.explain_conflicts(&mut findings);
+            result.lint_findings.extend(findings);
         }
         finish_lint_findings(
             source,
@@ -611,6 +653,35 @@ fn push_or_report<T>(
             None
         }
     }
+}
+
+/// Keeps the first of equal findings inside a `style.when()` declaration.
+///
+/// A local use expands the variants of the declaration with their original spans, so
+/// the validation of the declaration and each use report the same problem at the same
+/// place.
+fn dedupe_stored_variant_findings(
+    definitions: &[StoredVariantDefinition],
+    findings: &mut Vec<LintFinding>,
+) {
+    let inside = |finding: &LintFinding| {
+        let span = finding.info.labels[0].span;
+        definitions.iter().any(|definition| {
+            let call = definition.call_span;
+            call.file == span.file && call.start <= span.start && span.end <= call.end
+        })
+    };
+    let mut seen = Vec::<LintFinding>::new();
+    findings.retain(|finding| {
+        if !inside(finding) {
+            return true;
+        }
+        if seen.contains(finding) {
+            return false;
+        }
+        seen.push(finding.clone());
+        true
+    });
 }
 
 /// Whether the CSS of one asset kind belongs to this band.

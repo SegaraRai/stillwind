@@ -20,7 +20,12 @@ import type {
   NativeSkippedCss,
 } from "@stillwind/native";
 
-import { buildCompilerOptions, IntegrationSession, warnSkippedCss } from "../session.ts";
+import {
+  buildCompilerOptions,
+  IntegrationSession,
+  warnSkippedCss,
+  type SharedTypeFacts,
+} from "../session.ts";
 import { readableFile } from "./file-access.ts";
 import type { IntegrationConfig, ProjectSettings } from "./project.ts";
 import { resolvedFile, type StylesheetResource } from "./resources.ts";
@@ -151,10 +156,15 @@ export class DesignSystem {
    *
    * @param settings - Shared project settings configured before initialization.
    * @param config - Compiler options that identify the CSS entrypoint.
+   * @param name - Vite environment name, used as the resolver domain in shared type facts.
+   * @param shared - Returns type facts shared with the other environments of the project. Each
+   * new compiler session calls it once.
    */
   constructor(
     private readonly settings: ProjectSettings,
     private readonly config: IntegrationConfig,
+    private readonly name?: string,
+    private readonly shared?: () => SharedTypeFacts,
   ) {}
 
   /**
@@ -210,13 +220,15 @@ export class DesignSystem {
   }
 
   /**
-   * Marks a design-system revision pending when an observed file changes.
+   * Marks a design-system revision pending when an observed file changes, and discards the
+   * compiler's shared sources and facts for any changed file.
    *
    * @param file - Absolute path of the changed file. Paths that {@link DesignSystem.observes}
-   * rejects have no effect.
+   * rejects do not mark a revision pending.
    * @param entry - Whether the event adds or removes the file.
    */
   changed(file: string, entry: boolean): void {
+    this.#compiler?.sourceChanged(file, entry);
     if (this.observes(file, entry)) {
       this.cssChange++;
     }
@@ -262,6 +274,10 @@ export class DesignSystem {
         this.settings.watching,
         this.settings.compilerMode,
         loaded.plugins,
+        this.settings.fixedEntries,
+        this.settings.watching && this.settings.cssWatching ? this.settings.entries : undefined,
+        this.shared?.(),
+        this.name,
       );
       this.#plugins = loaded.plugins;
       this.#initialized = true;

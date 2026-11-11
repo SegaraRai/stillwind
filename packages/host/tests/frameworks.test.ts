@@ -405,11 +405,10 @@ for (const { extension, source, name, imports } of [
     expect(module.diagnostics).toStrictEqual([]);
     if (source.includes("const base = style")) {
       expect(module.composition.length).toBe(1);
-      expect(
-        Buffer.from(source)
-          .subarray(module.composition[0].base.start, module.composition[0].base.end)
-          .toString("utf8"),
-      ).toBe('style("flex")');
+      expect(module.composition[0].base).toMatchObject({
+        path: ["base"],
+        ordinal: 0,
+      });
     }
     expect(module.code).toBeTruthy();
     const map = new TraceMap(
@@ -441,9 +440,7 @@ for (const { extension, source, name, imports } of [
     if (explicit) {
       expect(module.code).toMatch(/import css from "virtual:stillwind\/module-css\?test=1"/);
     }
-    expect(module.code!, module.code!).toContain(
-      `stillwind/runtime/${extension === "vue" ? "class-object" : "class-string"}`,
-    );
+    expect(module.code!, module.code!).toContain('from "stillwind/runtime"');
     expect(module.code!, module.code!).not.toContain("import { style }");
     expect(module.code!, module.code!).not.toContain("style(active");
     if (source.includes("__VLS_ctx")) {

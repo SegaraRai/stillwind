@@ -38,8 +38,8 @@ test("the Rust workspace has the version of the native package", () => {
 
 test("versioning lists every workspace package by its exact name", () => {
   const manifests = workspaceManifests();
-  const [fixed, ignored] =
-    workspace.split(/^versioning:\r?\n/m)[1]?.split(/^  ignore:\r?\n/m) ?? [];
+  const versioning = workspace.split(/^versioning:\r?\n/m)[1]?.split(/^\S/m)[0];
+  const [fixed, ignored] = versioning?.split(/^  ignore:\r?\n/m) ?? [];
 
   expect(quotedNames(fixed)).toEqual(
     manifests

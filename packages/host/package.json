@@ -1,6 +1,6 @@
 {
   "name": "@stillwind/host",
-  "version": "0.6.0",
+  "version": "0.8.0",
   "description": "Host services shared by Stillwind's build integrations and analysis tools",
   "keywords": [
     "stillwind"
@@ -16,9 +16,12 @@
     "directory": "packages/host"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "CHANGELOG.md"
   ],
   "type": "module",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -48,7 +51,7 @@
     "@stillwind/config": "workspace:*",
     "@stillwind/native": "workspace:*",
     "@stillwind/projection": "workspace:*",
-    "minimatch": "^11.0.3",
+    "minimatch": "^11.0.5",
     "oxc-resolver": "^11.24.2",
     "pathe": "catalog:",
     "tinyglobby": "^0.2.17",
@@ -61,7 +64,7 @@
     "@emnapi/runtime": "1.11.3",
     "@stillwind-internal/tools-workspace": "workspace:*",
     "@types/node": "catalog:",
-    "@vue/compiler-sfc": "^3.5.44",
+    "@vue/compiler-sfc": "^3.5.45",
     "stillwind": "workspace:*",
     "svelte": "^5.57.3",
     "tailwindcss": "catalog:",

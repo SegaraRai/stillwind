@@ -8,6 +8,7 @@ import {
   isStringLiteral,
 } from "typescript-7/unstable/ast/is";
 
+import { startPhase, tracePhase } from "../../compilation/trace.ts";
 import {
   TypeFactsError,
   type AvailableFacts,
@@ -15,12 +16,14 @@ import {
   type TypeFactsBackend,
   type UnverifiedRange,
 } from "../backend.ts";
-import { checkerId, withRequestedProbes } from "../checker-source.ts";
+import { type CheckerSource, checkerId, withRequestedProbes } from "../checker-source.ts";
 import { NodeChecker, type TypeScriptFactsStats } from "./checker.ts";
 import { AssetTypeDecoder } from "./decoder.ts";
+import { exportInterface } from "./export-interface.ts";
 import { visit, diagnosticText, producerArgumentDiagnostic, factsForSource } from "./facts.ts";
 import {
   normalize,
+  type CheckerSourceCache,
   type PreparedProject,
   type TypeFactsEnvironment,
   type TypeFactsInputs,
@@ -48,6 +51,21 @@ export class TypeScriptFactsService implements TypeFactsBackend {
 
   /** Checker buffers prepared from the installed project inputs. */
   #prepared?: PreparedProject;
+
+  /**
+   * Producer types registered for one prepared project in one checker snapshot. Queries against
+   * the same installed project reuse it until the snapshot or the preparation changes.
+   */
+  #decoder?: {
+    snapshot: number;
+    prepared: PreparedProject;
+    decoder: AssetTypeDecoder;
+    /** Checker filenames whose producers the decoder has registered. */
+    registered: Set<string>;
+  };
+
+  /** Checker buffers of earlier preparations, reused while their inputs stay the same. */
+  readonly #checkerSources: CheckerSourceCache = new WeakMap();
 
   /**
    * Whether close has been requested. Subsequent collections reject and repeated close calls do
@@ -205,6 +223,46 @@ export class TypeScriptFactsService implements TypeFactsBackend {
   }
 
   /**
+   * Describes the exports of an installed source as consumers read them through facts.
+   *
+   * @param resolverId - Resolver identity of a source passed to {@link setProjectSources}.
+   * @returns A description that is equal in two installations when consumers read the same facts
+   * from the exports. Returns undefined when the service is closed, no project is installed, the
+   * source is not installed, the exports are too large to describe, or the checker fails.
+   */
+  exportInterface(resolverId: string): string | undefined {
+    if (this.#closed || !this.#installed) {
+      return undefined;
+    }
+    try {
+      const { sources, assets, inputs } = this.#installed;
+      const prepared = this.#prepare(sources, assets, inputs);
+      const mappings = prepared.mappings.filter(
+        (mapping) => mapping.source.resolverId === resolverId,
+      );
+      if (mappings.length === 0) {
+        return undefined;
+      }
+      const project = tracePhase("checker-update", prepared.mappings.length, () =>
+        this.#checker.updateProject(prepared),
+      );
+      const decoder = this.#producers(project, prepared, mappings);
+      const parts: string[] = [];
+      for (const mapping of mappings) {
+        const file = project.program.getSourceFile(mapping.id);
+        const description = file && exportInterface(project.checker, file, decoder);
+        if (description === undefined) {
+          return undefined;
+        }
+        parts.push(description);
+      }
+      return parts.join("\n\n");
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
    * Prepares one request and retries an unexpected checker failure once with a clean API.
    *
    * @param sources - Prepared sources and original UTF-8 probes.
@@ -223,23 +281,30 @@ export class TypeScriptFactsService implements TypeFactsBackend {
     if (this.#closed) {
       throw new Error("TypeScript facts service is closed");
     }
-    if (this.#installed) {
-      const updated = withRequestedProbes(this.#installed.sources, sources);
-      if (updated !== this.#installed.sources) {
-        this.#installed = { ...this.#installed, sources: updated };
-        this.#prepared = undefined;
+    let full: PreparedProject;
+    if (this.#installed && !installedText(this.#installed.sources, sources)) {
+      // A bundler can transform an entry before the compiler receives it. The installed project
+      // keeps the file text, so this query prepares only its own sources.
+      full = tracePhase("checker-prepare", sources.length, () =>
+        this.#checker.prepareProject(sources, assetsByModuleId, inputs, this.#checkerSources),
+      );
+    } else {
+      if (this.#installed) {
+        const updated = withRequestedProbes(this.#installed.sources, sources);
+        if (updated !== this.#installed.sources) {
+          this.#installed = {
+            ...this.#installed,
+            sources: updated,
+          };
+          this.#prepared = undefined;
+        }
       }
+      full = this.#prepare(sources, assetsByModuleId, inputs);
     }
-    const full = this.#prepare(sources, assetsByModuleId, inputs);
     const selected = new Set(sources.map((source) => source.resolverId));
     const mappings = full.mappings.filter((mapping) => selected.has(mapping.source.resolverId));
-    const prepared = {
-      ...full,
-      mappings,
-      identities: new Map(mappings.flatMap((mapping) => [...mapping.identities])),
-    };
     try {
-      return this.#collectPrepared(prepared, available);
+      return this.#collectPrepared(full, mappings, available);
     } catch (firstError) {
       if (firstError instanceof TypeFactsError) {
         throw firstError;
@@ -247,7 +312,7 @@ export class TypeScriptFactsService implements TypeFactsBackend {
       this.stats.restarts += 1;
       this.#restartApi();
       try {
-        return this.#collectPrepared(prepared, available);
+        return this.#collectPrepared(full, mappings, available);
       } catch (retryError) {
         throw new AggregateError(
           [firstError, retryError],
@@ -278,21 +343,109 @@ export class TypeScriptFactsService implements TypeFactsBackend {
     }
     if (this.#installed) {
       try {
-        this.#prepared = this.#checker.prepareProject(
-          this.#installed.sources,
-          this.#installed.assets,
-          this.#installed.inputs,
+        const installed = this.#installed;
+        this.#prepared = tracePhase("checker-prepare", installed.sources.length, () =>
+          this.#checker.prepareProject(
+            installed.sources,
+            installed.assets,
+            installed.inputs,
+            this.#checkerSources,
+          ),
         );
         return this.#prepared;
       } catch {
         // Unrelated invalid checker mappings must not reject a scoped query.
       }
     }
-    return this.#checker.prepareProject(
-      resolutionOnly ? sources.map((source) => ({ ...source, probes: [] })) : sources,
-      assets,
-      inputs,
+    return tracePhase("checker-prepare", sources.length, () =>
+      this.#checker.prepareProject(
+        resolutionOnly ? sources.map((source) => ({ ...source, probes: [] })) : sources,
+        assets,
+        inputs,
+        this.#checkerSources,
+      ),
     );
+  }
+
+  /**
+   * Registers the producer types of the selected buffers and of every prepared buffer that they
+   * import, directly or indirectly. Queries against the same preparation in the same checker
+   * snapshot share the registrations, so each buffer is registered once per snapshot.
+   *
+   * Facts of a buffer can name declarations of any buffer that it imports, so the facts of a
+   * buffer do not depend on the other buffers of a query.
+   *
+   * @param project - Checker project of the current snapshot.
+   * @param prepared - Preparation that produced the snapshot's virtual files.
+   * @param selected - Buffers whose facts the query reads.
+   * @returns A decoder for the identities of `prepared`.
+   */
+  #producers(
+    project: ReturnType<NodeChecker["updateProject"]>,
+    prepared: PreparedProject,
+    selected: readonly CheckerSource[],
+  ): AssetTypeDecoder {
+    if (this.#decoder?.snapshot !== this.stats.snapshots || this.#decoder.prepared !== prepared) {
+      this.#decoder = {
+        snapshot: this.stats.snapshots,
+        prepared,
+        decoder: new AssetTypeDecoder(
+          project.checker,
+          prepared.identities,
+          this.#checker.properties,
+        ),
+        registered: new Set(),
+      };
+    }
+    const { decoder, registered } = this.#decoder;
+    const bySource = new Map<string, CheckerSource[]>();
+    for (const mapping of prepared.mappings) {
+      const key = mapping.source.resolverId;
+      bySource.set(key, [...(bySource.get(key) ?? []), mapping]);
+    }
+    const pending = [...selected];
+    const reached = new Set<string>();
+    const unregistered: CheckerSource[] = [];
+    while (pending.length > 0) {
+      const mapping = pending.pop()!;
+      if (reached.has(mapping.id)) {
+        continue;
+      }
+      reached.add(mapping.id);
+      if (!registered.has(mapping.id)) {
+        unregistered.push(mapping);
+      }
+      for (const resolution of mapping.source.resolutions ?? []) {
+        pending.push(...(bySource.get(resolution.id) ?? []));
+      }
+    }
+    if (unregistered.length === 0) {
+      return decoder;
+    }
+    const end = startPhase("checker-producers");
+    const producers: Node[] = [];
+    for (const mapping of unregistered) {
+      registered.add(mapping.id);
+      const file = project.program.getSourceFile(mapping.id);
+      if (!file) {
+        continue;
+      }
+      producers.push(
+        ...this.#checker
+          .expressions(file)
+          .filter(
+            (node) =>
+              isCallExpression(node) && mapping.producers.has(`${node.getStart(file)}:${node.end}`),
+          ),
+      );
+    }
+    for (const type of this.#checker.types(project.checker, producers)) {
+      if (type) {
+        decoder.register(type);
+      }
+    }
+    end(producers.length);
+    return decoder;
   }
 
   /**
@@ -323,59 +476,42 @@ export class TypeScriptFactsService implements TypeFactsBackend {
   }
 
   /**
-   * Updates the snapshot and collects facts from the prepared checker buffers.
+   * Updates the snapshot and collects facts from the selected checker buffers.
    *
    * @param prepared - Virtual files, original-coordinate mappings, and serialized declaration identities.
+   * @param selected - Mappings of `prepared` whose facts and diagnostics the query requests.
    * @param available - Whether contract failures become unverified ranges where recovery is possible.
    * @returns Deduplicated facts by compiler identity and unverified original UTF-8 ranges.
    * @throws If snapshot update fails, a checker file is missing, facts conflict, or strict collection fails.
    */
-  #collectPrepared(prepared: PreparedProject, available: boolean): AvailableFacts {
-    const project = this.#checker.updateProject(prepared);
+  #collectPrepared(
+    prepared: PreparedProject,
+    selected: readonly CheckerSource[],
+    available: boolean,
+  ): AvailableFacts {
+    const project = tracePhase("checker-update", prepared.mappings.length, () =>
+      this.#checker.updateProject(prepared),
+    );
     const unverified: UnverifiedRange[] = [];
     const result = new Map<string, TypeFact[]>();
-    const decoder = new AssetTypeDecoder(
-      project.checker,
-      prepared.identities,
-      this.#checker.properties,
-    );
-    const producers: Node[] = [];
-    for (const mapping of prepared.mappings) {
-      const file = project.program.getSourceFile(mapping.id);
-      if (!file) {
-        continue;
-      }
-      producers.push(
-        ...this.#checker
-          .expressions(file)
-          .filter(
-            (node) =>
-              isCallExpression(node) && mapping.producers.has(`${node.getStart(file)}:${node.end}`),
-          ),
-      );
-    }
-    for (const type of this.#checker.types(project.checker, producers)) {
-      if (type) {
-        decoder.register(type);
-      }
-    }
-    for (const mapping of prepared.mappings) {
+    const decoder = this.#producers(project, prepared, selected);
+    for (const mapping of selected) {
       const sourceFile = project.program.getSourceFile(mapping.id);
       if (!sourceFile) {
         throw new Error(`TypeScript 7 omitted ${mapping.id}`);
       }
       let diagnostics = this.#checker.diagnostics.get(mapping.id);
       if (!diagnostics) {
-        diagnostics = [
+        diagnostics = tracePhase("checker-diagnostics", 1, () => [
           ...project.program.getSyntacticDiagnostics(mapping.id),
           ...project.program.getSemanticDiagnostics(mapping.id),
-        ];
+        ]);
         this.#checker.diagnostics.set(mapping.id, diagnostics);
       }
       const diagnostic = diagnostics.find(
         (d) =>
           !producerArgumentDiagnostic(d, sourceFile, mapping) &&
-          /stillwind\/v1:|StyleResult|StyleRef|StyleKeyframes|StyleViewTransition|__stillwindDeclarationIdentity|data-__stillwindStyleIdentity/.test(
+          /stillwind\/v1:|StyleResult|StyleRef|StyleKeyframes|StyleViewTransition|StyleStoredVariant|__stillwindDeclarationIdentity|data-__stillwindStyleIdentity/.test(
             diagnosticText(d),
           ),
       );
@@ -398,13 +534,15 @@ export class TypeScriptFactsService implements TypeFactsBackend {
         }
         unverified.push({ moduleId: error.moduleId, start, end, reason: error.message });
       }
-      const facts = factsForSource(
-        sourceFile,
-        mapping,
-        decoder,
-        this.#checker.expressions(sourceFile),
-        (nodes) => this.#checker.types(project.checker, nodes),
-        available ? unverified : undefined,
+      const facts = tracePhase("checker-facts", 1, () =>
+        factsForSource(
+          sourceFile,
+          mapping,
+          decoder,
+          this.#checker.expressions(sourceFile),
+          (nodes) => this.#checker.types(project.checker, nodes),
+          available ? unverified : undefined,
+        ),
       );
       const previous = result.get(mapping.source.moduleId) ?? [];
       for (const fact of facts) {
@@ -437,8 +575,24 @@ export class TypeScriptFactsService implements TypeFactsBackend {
    */
   #restartApi(): void {
     this.#prepared = undefined;
+    this.#decoder = undefined;
     this.#checker.restart();
   }
+}
+
+/**
+ * Tests whether the installed project provides the text of every requested source.
+ *
+ * @param installed - Sources installed in the checker.
+ * @param requested - Sources of one query.
+ * @returns False when a requested source is missing or has different text.
+ */
+function installedText(
+  installed: readonly TypeFactSource[],
+  requested: readonly TypeFactSource[],
+): boolean {
+  const texts = new Map(installed.map((source) => [source.resolverId, source.document.code]));
+  return requested.every((source) => texts.get(source.resolverId) === source.document.code);
 }
 
 /**

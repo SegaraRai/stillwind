@@ -1,10 +1,12 @@
 import { createHash } from "node:crypto";
+import { watch as watchDirectory, type FSWatcher } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { isBuiltin } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import type { BuildConfig, SerializableInlineConfig } from "@stillwind/config";
-import { resolveIntegrationConfig } from "@stillwind/config/node";
+import { resolveIntegrationConfig, type ResolvedIntegrationConfig } from "@stillwind/config/node";
 import {
   cleanModuleId,
   CompilationFailure,
@@ -12,6 +14,7 @@ import {
   fileModuleDescriptor,
   loadCssGraph,
   nodePluginHost,
+  resolveTypeFactsEnvironment,
   warnRejectedNames,
   type CompilerHost,
   type LoadedCssGraph,
@@ -20,7 +23,14 @@ import { scanSource } from "@stillwind/native";
 import type { LoaderContext } from "webpack";
 
 import { nativeBindingFiles } from "../binding-files.ts";
-import { buildCompilerOptions, IntegrationSession, warnSkippedCss } from "../session.ts";
+import { LoaderCache, recordInputs, type InputReader } from "../loader-cache.ts";
+import {
+  buildCompilerOptions,
+  IntegrationSession,
+  SharedTypeFacts,
+  warnSkippedCss,
+} from "../session.ts";
+import { buildSourceEntries } from "../source-entries.ts";
 
 /** Removes readonly constraints recursively so cloned inline settings fit the bundler's loader transport. */
 type MutableSettings<T> = T extends readonly (infer Item)[]
@@ -41,19 +51,33 @@ export type TurbopackLoaderOptions = {
   mode: string;
 };
 
-/** Compiler session and host operations owned by one Turbopack or Next loader invocation. */
+/** Compiler session and host operations that one Turbopack or Next loader invocation uses. */
 export interface TurbopackProject {
   /** Evaluated compiler settings with an absolute project root, captured entry selection, and mode. */
   options: Omit<TurbopackLoaderOptions, "compiler"> & {
     /** Evaluated settings selected from configuration and inline overrides. */
     compiler: BuildConfig;
   };
-  /** Initialized compiler. The caller must close it after compilation or stylesheet reconstruction. */
+  /**
+   * Compiler that other invocations in the same process may use at the same time. The caller must
+   * not close it.
+   */
   compiler: IntegrationSession;
+  /**
+   * Compiler that only {@link compileGraph} uses, so that its compiled modules match the sources
+   * that the previous reconstruction read. Resource owners in its plans resolve through it.
+   */
+  graphCompiler: IntegrationSession;
   /** Filesystem, source metadata, resolver, dependency watcher, and warning operations. */
   host: TurbopackHost;
   /** Completed CSS graph and authored resources used by the compiler. */
   loaded: LoadedCssGraph;
+  /**
+   * Modules that earlier reconstructions visited, keyed by absolute file path. A reconstruction
+   * reuses the imports of a module whose source is unchanged. Absent when the process cannot learn
+   * about added and removed files, which can change how an unchanged import resolves.
+   */
+  scans?: Map<string, GraphNode>;
   /**
    * Resolves an asset with the loader context's default resolver.
    *
@@ -62,6 +86,136 @@ export interface TurbopackProject {
    * @returns A promise for the resolved asset identity. Unresolved requests reject the promise.
    */
   resolveAsset: (specifier: string, importer: string) => Promise<string>;
+  /**
+   * Ends this invocation's use of the compiler and design system. The caller must call it after
+   * compilation or stylesheet reconstruction, and must not use the project afterward.
+   */
+  release: () => void;
+}
+
+/** Design system and compiler shared by loader invocations with equal settings. */
+interface SharedDesignSystem {
+  loaded: LoadedCssGraph;
+  compiler: IntegrationSession;
+  graphCompiler: IntegrationSession;
+  /**
+   * Checker and prepared sources of both compilers. Absent in development when the process cannot
+   * watch the application directory.
+   */
+  shared?: SharedTypeFacts;
+  /** Modules that reconstructions visited, as {@link TurbopackProject.scans} describes. */
+  scans?: Map<string, GraphNode>;
+  /** Whether the directory watcher missed changes since the compilers last compared their sources. */
+  unverified?: boolean;
+  /** Comparison of the sources with the files after missed changes, which loader calls await. */
+  verification?: Promise<void>;
+}
+
+/**
+ * Evaluated configuration keyed by loader options and the application directory. It is evaluated
+ * again when one of its files changes.
+ */
+const configurations = new LoaderCache<ResolvedIntegrationConfig>();
+
+/**
+ * Design systems keyed by evaluated settings and mode. The checker of an idle compiler stops after
+ * this time, so that a worker process does not keep a checker process running.
+ */
+const designSystems = new LoaderCache<SharedDesignSystem>(closeDesignSystem, 30_000);
+
+/**
+ * Closes the checkers of a design system's compilers and discards their shared sources. The design
+ * system stays usable, and a later compilation loads the sources again.
+ *
+ * @param designSystem - Design system whose compilers to close.
+ */
+function closeDesignSystem({ compiler, graphCompiler, shared }: SharedDesignSystem): void {
+  compiler.close();
+  graphCompiler.close();
+  shared?.close();
+}
+
+/**
+ * Design systems of development compilers, keyed by the application directory that one recursive
+ * watcher of this process observes. A design system that the cache dropped can be collected.
+ */
+const sourceWatchers = new Map<string, Set<WeakRef<SharedDesignSystem>>>();
+
+/**
+ * Starts or reuses a recursive watcher that reports changes of script, component, and JSON files
+ * under an application directory to the compilers of registered design systems. Changes under
+ * `node_modules`, `.next`, and `.git` are not reported. When the watcher reports a change without
+ * a file name, which happens when changes overflow its buffer, the registered design systems
+ * compare their sources with the files before their next use. That event and every added or removed
+ * file also discard the modules that reconstructions visited. When the watcher fails, it closes, and
+ * every registered design system discards its shared sources and stops reusing visited modules.
+ *
+ * Events can arrive after a compilation already read a changed file, so callers must also report
+ * the text that they read through {@link IntegrationSession.sourceRead}.
+ *
+ * @param root - Absolute application directory.
+ * @returns The set in which to register design systems, or undefined when the platform cannot
+ * watch the directory recursively.
+ */
+function watchSources(root: string): Set<WeakRef<SharedDesignSystem>> | undefined {
+  const existing = sourceWatchers.get(root);
+  if (existing) {
+    return existing;
+  }
+  const targets = new Set<WeakRef<SharedDesignSystem>>();
+  /**
+   * Calls an operation for every registered design system that is still reachable.
+   * @param operation - Operation that receives the design system.
+   */
+  const each = (operation: (designSystem: SharedDesignSystem) => void) => {
+    for (const target of targets) {
+      const designSystem = target.deref();
+      if (designSystem) {
+        operation(designSystem);
+      } else {
+        targets.delete(target);
+      }
+    }
+  };
+  let watcher: FSWatcher;
+  try {
+    watcher = watchDirectory(root, { recursive: true, persistent: false }, (event, name) => {
+      if (!name) {
+        each((designSystem) => {
+          designSystem.unverified = true;
+          designSystem.scans?.clear();
+        });
+        return;
+      }
+      if (
+        /(?:^|[\\/])(?:node_modules|\.next|\.git)[\\/]/.test(name) ||
+        !/\.(?:[cm]?[jt]sx?|json|astro|svelte|vue)$/.test(name)
+      ) {
+        return;
+      }
+      const file = path.join(root, name);
+      // A rename event reports an added or removed file, which can change import resolution.
+      each((designSystem) => {
+        designSystem.compiler.sourceChanged(file, event === "rename");
+        designSystem.graphCompiler.sourceChanged(file, event === "rename");
+        if (event === "rename") {
+          designSystem.scans?.clear();
+        }
+      });
+    });
+  } catch {
+    return undefined;
+  }
+  watcher.on("error", () => {
+    watcher.close();
+    sourceWatchers.delete(root);
+    each((designSystem) => {
+      designSystem.scans = undefined;
+      closeDesignSystem(designSystem);
+    });
+  });
+  sourceWatchers.set(root, targets);
+  return targets;
 }
 
 /** Compiler host whose resolver returns an identity or rejects instead of returning null. */
@@ -86,14 +240,16 @@ export interface TurbopackHost extends CompilerHost {
 }
 
 /**
- * Loads the design system and creates a compiler for a Turbopack or Next loader invocation.
+ * Loads the design system and compiler for a Turbopack or Next loader invocation, or reuses them.
  *
- * Configuration is evaluated independently in each loader invocation. Configuration dependencies,
- * missing discovery candidates, compiler files, and CSS dependencies are registered with the host.
+ * Invocations in one process share the evaluated configuration while its files keep their contents,
+ * and share the design system and compiler while the configuration and the CSS files stay
+ * unchanged. Configuration dependencies, missing discovery candidates, compiler files, and CSS
+ * dependencies are registered with the loader context of every invocation.
  *
  * @param context - Loader context containing serializable discovery settings, the bundler root,
  * filesystem access, resolver operations, and dependency tracking.
- * @returns A promise for the initialized project. The caller owns the compiler's lifetime.
+ * @returns A promise for the project. The caller must call its `release` function after its last use.
  * @throws If configuration evaluation or project selection fails, the CSS graph cannot be loaded,
  * or compiler initialization fails.
  */
@@ -101,10 +257,43 @@ export async function createProject(
   context: LoaderContext<TurbopackLoaderOptions>,
 ): Promise<TurbopackProject> {
   const supplied = context.getOptions();
-  const configuration = await resolveIntegrationConfig(
-    supplied.compiler,
-    path.resolve(context.rootContext, supplied.root),
+  const applicationRoot = path.resolve(context.rootContext, supplied.root);
+  /**
+   * Reads text through Turbopack's loader filesystem.
+   * @param id - File path accepted by the loader filesystem.
+   * @returns File contents converted to a string.
+   * @throws If the filesystem reports a read error.
+   */
+  const read = (id: string) =>
+    new Promise<string>((done, reject) => {
+      context.fs.readFile(id, (error, contents) =>
+        error ? reject(error) : done(String(contents)),
+      );
+    });
+  const probe: InputReader = (id) =>
+    read(id).catch((error: NodeJS.ErrnoException) => {
+      if (error.code === "ENOENT" || error.code === "ENOTDIR") {
+        return undefined;
+      }
+      throw error;
+    });
+  const configurationLease = await configurations.use(
+    JSON.stringify([supplied.compiler, applicationRoot]),
+    probe,
+    async () => {
+      const value = await resolveIntegrationConfig(supplied.compiler, applicationRoot);
+      const recorder = recordInputs(probe);
+      for (const file of value.dependencies) {
+        recorder.watch(file);
+      }
+      for (const file of value.missing) {
+        recorder.watchMissing(file);
+      }
+      return { value, inputs: await recorder.finish() };
+    },
   );
+  configurationLease.done();
+  const configuration = configurationLease.value;
   const options = {
     ...supplied,
     compiler: configuration.config,
@@ -134,18 +323,6 @@ export async function createProject(
     );
   }
   /**
-   * Reads text through Turbopack's loader filesystem.
-   * @param id - File path accepted by the loader filesystem.
-   * @returns File contents converted to a string.
-   * @throws If the filesystem reports a read error.
-   */
-  const read = (id: string) =>
-    new Promise<string>((done, reject) => {
-      context.fs.readFile(id, (error, contents) =>
-        error ? reject(error) : done(String(contents)),
-      );
-    });
-  /**
    * Adapts a Turbopack resolver to imports relative to a source file.
    * @param settings - Resolution policy passed to the loader's resolver factory.
    * @returns An asynchronous resolver accepting a specifier and full importer identity. Its promise
@@ -169,41 +346,112 @@ export async function createProject(
     dependencyType: "esm",
   });
   const resolveAsset = resolver({});
-  const loaded = await loadCssGraph(
-    path.resolve(options.root, cssEntrypoint(options.compiler)),
-    buildCompilerOptions(options.compiler),
-    {
-      read,
-      documentUri: (id) => pathToFileURL(id).href,
-      sourceMapSource: (id) => pathToFileURL(id).href,
-      watch,
-      watchDirectory: (id) => {
-        context.addContextDependency(id);
-      },
-      resolve: resolver({
-        conditionNames: ["style", "import", "default"],
-        extensions: [".css"],
-        mainFields: ["style", "main"],
-      }),
-      plugins: nodePluginHost,
-    },
-    undefined,
-    undefined,
-    {
-      plugins: options.compiler.plugins,
-      tailwind: options.compiler.tailwind,
-      important: options.compiler.important,
-      root: options.root,
+  const designSystem = await designSystems.use(
+    JSON.stringify([options.compiler, options.root, options.mode]),
+    probe,
+    async () => {
+      const recorder = recordInputs(probe);
+      const loaded = await loadCssGraph(
+        path.resolve(options.root, cssEntrypoint(options.compiler)),
+        buildCompilerOptions(options.compiler),
+        {
+          read: recorder.read,
+          documentUri: (id) => pathToFileURL(id).href,
+          sourceMapSource: (id) => pathToFileURL(id).href,
+          watch: recorder.watch,
+          watchDirectory: recorder.watchDirectory,
+          // The resolver belongs to this invocation's context. Later invocations reuse only the
+          // loaded graph, which does not resolve CSS again.
+          resolve: resolver({
+            conditionNames: ["style", "import", "default"],
+            extensions: [".css"],
+            mainFields: ["style", "main"],
+          }),
+          plugins: nodePluginHost,
+        },
+        undefined,
+        undefined,
+        {
+          plugins: options.compiler.plugins,
+          tailwind: options.compiler.tailwind,
+          important: options.compiler.important,
+          root: options.root,
+        },
+      );
+      // Both compilers load the project files into one checker when its project is empty. Files
+      // do not change during a production build. A development server does not report file
+      // changes to loaders, so the process watches the application directory itself. When it
+      // cannot, each compilation reads the files again.
+      const release = options.mode === "release";
+      const entries = options.entries.map((entry) => path.resolve(options.root, entry));
+      const watcher = release ? undefined : watchSources(options.root);
+      const shared =
+        release || watcher
+          ? new SharedTypeFacts(
+              resolveTypeFactsEnvironment(options.root, options.compiler.tsconfig),
+            )
+          : undefined;
+      const sourceEntries = shared
+        ? await buildSourceEntries(entries, configuration.scope)
+        : undefined;
+      const session = (domain: string) =>
+        new IntegrationSession(
+          options.root,
+          loaded.loader,
+          options.compiler,
+          false,
+          options.mode,
+          loaded.plugins,
+          release ? sourceEntries : undefined,
+          release ? undefined : sourceEntries,
+          shared,
+          domain,
+        );
+      const value = {
+        loaded,
+        compiler: session("loader"),
+        graphCompiler: session("graph"),
+        shared,
+        scans: shared ? new Map<string, GraphNode>() : undefined,
+      };
+      watcher?.add(new WeakRef(value));
+      return {
+        value,
+        inputs: await recorder.finish(),
+      };
     },
   );
-  const compiler = new IntegrationSession(
-    options.root,
-    loaded.loader,
-    options.compiler,
-    false,
-    options.mode,
-    loaded.plugins,
-  );
+  const { loaded, compiler, graphCompiler } = designSystem.value;
+  if (designSystem.value.unverified) {
+    designSystem.value.unverified = false;
+    // The loader filesystem can return the previous text of a file right after an edit.
+    const current = (id: string) =>
+      readFile(id, "utf8").catch((error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT" || error.code === "ENOTDIR") {
+          return undefined;
+        }
+        throw error;
+      });
+    designSystem.value.verification = Promise.all([
+      compiler.verifySources(current),
+      graphCompiler.verifySources(current),
+    ]).then(() => {});
+  }
+  try {
+    await designSystem.value.verification;
+  } catch (error) {
+    designSystem.done();
+    throw error;
+  }
+  for (const file of designSystem.inputs.files.keys()) {
+    watch(file);
+  }
+  for (const file of designSystem.inputs.missing) {
+    context.addMissingDependency(file);
+  }
+  for (const directory of designSystem.inputs.directories) {
+    context.addContextDependency(directory);
+  }
   const host = {
     describe: (id: string) => fileModuleDescriptor(options.root, id),
     read,
@@ -217,7 +465,12 @@ export async function createProject(
             external: true,
           }
         : {
-            id: await resolveJs(specifier, importer),
+            // Turbopack's resolver rewrites an absolute request to a relative one with native
+            // separators, which it cannot resolve. Project files reach the compiler as absolute
+            // paths.
+            id: path.isAbsolute(specifier)
+              ? path.normalize(specifier)
+              : await resolveJs(specifier, importer),
           },
     warn: (message: string) => {
       context.emitWarning(new Error(message));
@@ -226,38 +479,61 @@ export async function createProject(
   return {
     options,
     compiler,
+    graphCompiler,
     host,
     loaded,
+    scans: designSystem.value.scans,
     resolveAsset,
+    release: designSystem.done,
   };
 }
 
 /**
  * Compiles entry-reachable local JS/TS producers and requests one document stylesheet plan.
  *
+ * Calls with the same graph compiler run one at a time. A producer is compiled again only when its
+ * source or the source of a local module that it reaches changed since the previous call.
+ *
  * @param entries - Entry paths, absolute or relative to the evaluated project root. Statically
  * named imports, including lazy imports, are followed. Dynamic request expressions are not traversed.
- * @param project - Initialized loader project. The caller closes its compiler after this operation.
+ * @param project - Loader project. The caller releases it after this operation.
  * Its host receives warnings for the CSS statements that loading skipped and for rejected names.
  * @returns A document plan selecting automatic producers, with a revision derived from visited
  * source paths and contents. Explicit CSS values remain owned by their modules.
  * @throws If source resolution, reading, scanning, compilation, or stylesheet planning fails.
  */
-export async function compileGraph(entries: readonly string[], project: TurbopackProject) {
-  const { options, compiler, host } = project;
-  const pending = entries.map((entry) => path.resolve(options.root, entry));
-  const visited = new Set<string>();
-  const selection: string[] = [];
-  const revision = createHash("sha256");
-  while (pending.length) {
-    const id = pending.shift()!;
-    if (visited.has(id)) {
-      continue;
-    }
-    visited.add(id);
+export function compileGraph(entries: readonly string[], project: TurbopackProject) {
+  const previous = graphRuns.get(project.graphCompiler) ?? Promise.resolve();
+  const run = previous.catch(() => {}).then(() => reconstruct(entries, project));
+  graphRuns.set(project.graphCompiler, run);
+  return run;
+}
+
+/**
+ * Compiles the entry graph and plans its stylesheet for {@link compileGraph}.
+ *
+ * @param entries - Entry paths, absolute or relative to the evaluated project root.
+ * @param project - Loader project whose graph compiler no other reconstruction uses meanwhile.
+ * @returns A document plan for the automatic producers that the entries reach.
+ * @throws If source resolution, reading, scanning, compilation, or stylesheet planning fails.
+ */
+async function reconstruct(entries: readonly string[], project: TurbopackProject) {
+  const { options, graphCompiler: compiler, host } = project;
+  const scans = project.scans;
+  /**
+   * Reads a module, registers it as a dependency, and lists the local modules that it imports.
+   * @param id - Absolute file path.
+   * @returns The visited module.
+   * @throws If reading, scanning, or resolving one of its imports fails.
+   */
+  const visit = async (id: string): Promise<GraphNode> => {
     host.watch(id);
     const source = await host.read(id);
-    revision.update(id).update("\0").update(source).update("\0");
+    compiler.sourceRead(id, source);
+    const cached = scans?.get(id);
+    if (cached?.source === source) {
+      return cached;
+    }
     const descriptor = fileModuleDescriptor(options.root, id);
     const scan = scanSource({
       kind: "direct",
@@ -272,28 +548,112 @@ export async function compileGraph(entries: readonly string[], project: Turbopac
       throw new CompilationFailure([scan.batch]);
     }
     const summary = scan.summary;
-    for (const { source: specifier } of summary.moduleSpecifiers) {
-      if (isBuiltin(specifier) || specifier === "stillwind" || specifier.startsWith("stillwind/")) {
-        continue;
-      }
-      const resolved = await host.resolve(specifier, id);
-      const file = cleanModuleId(resolved.id);
+    const resolved = await Promise.all(
+      summary.moduleSpecifiers.map(({ source: specifier }) =>
+        isBuiltin(specifier) || specifier === "stillwind" || specifier.startsWith("stillwind/")
+          ? Promise.resolve(undefined)
+          : host.resolve(specifier, id),
+      ),
+    );
+    const imports: string[] = [];
+    for (const result of resolved) {
+      const file = result && cleanModuleId(result.id);
       if (
-        !resolved.external &&
+        file &&
+        !result.external &&
         !/[\\/]node_modules[\\/]/.test(file) &&
         /\.[cm]?[jt]sx?$/.test(file)
       ) {
-        pending.push(file);
+        imports.push(file);
       }
     }
-    if (!summary.macroImports && !summary.moduleCssImports) {
+    const node = {
+      id,
+      source,
+      imports,
+      producer: Boolean(summary.macroImports || summary.moduleCssImports),
+    };
+    scans?.set(id, node);
+    return node;
+  };
+  // Modules of one breadth-first level are visited concurrently. The node order equals the order
+  // of a sequential breadth-first traversal, so the revision and compilation order do not depend
+  // on read timing.
+  const visited = new Set<string>();
+  const revision = createHash("sha256");
+  const nodes: GraphNode[] = [];
+  let level = entries.map((entry) => path.resolve(options.root, entry));
+  while (level.length) {
+    const unvisited = [...new Set(level)].filter((id) => !visited.has(id));
+    for (const id of unvisited) {
+      visited.add(id);
+    }
+    const visitedLevel = await Promise.all(unvisited.map(visit));
+    for (const node of visitedLevel) {
+      revision.update(node.id).update("\0").update(node.source).update("\0");
+      nodes.push(node);
+    }
+    level = visitedLevel.flatMap((node) => node.imports);
+  }
+  const outputs = graphOutputs.get(compiler) ?? new Map<string, GraphOutput>();
+  graphOutputs.set(compiler, outputs);
+  /**
+   * Compiles a module and records its output.
+   * @param node - Visited module.
+   * @returns Whether a producer compilation ran.
+   */
+  const compile = async (node: GraphNode) => {
+    const compiled = node.producer
+      ? await compiler.compile(node.source, node.id, host, {
+          moduleCssImport: "stillwind/module-css",
+        })
+      : undefined;
+    outputs.set(node.id, {
+      source: node.source,
+      selected: compiled && !compiled.hasModuleCssImport ? compiled.moduleId : undefined,
+    });
+    return node.producer;
+  };
+  const importers = new Map<string, string[]>();
+  for (const node of nodes) {
+    for (const imported of node.imports) {
+      importers.set(imported, [...(importers.get(imported) ?? []), node.id]);
+    }
+  }
+  const byId = new Map(nodes.map((node) => [node.id, node]));
+  // A module's output depends on the types of the local modules that it imports, so a change
+  // also compiles every module that reaches the changed module. A changed producer that keeps
+  // its exports gives its importers the same output, except for their checker diagnostics, which
+  // are not refreshed until they are compiled for another reason.
+  const queue: GraphNode[] = [];
+  const compiled = new Set<string>();
+  for (const node of nodes) {
+    if (outputs.get(node.id)?.source === node.source) {
       continue;
     }
-    const output = await compiler.compile(source, id, host, {
-      moduleCssImport: "stillwind/module-css",
-    });
-    if (output && !output.hasModuleCssImport) {
-      selection.push(output.moduleId);
+    compiled.add(node.id);
+    if (!(await compile(node)) || !compiler.keepsInterface(node.id)) {
+      queue.push(...(importers.get(node.id) ?? []).map((importer) => byId.get(importer)!));
+    }
+  }
+  const stale = new Set<string>();
+  for (let node = queue.pop(); node; node = queue.pop()) {
+    if (stale.has(node.id)) {
+      continue;
+    }
+    stale.add(node.id);
+    for (const importer of importers.get(node.id) ?? []) {
+      queue.push(byId.get(importer)!);
+    }
+  }
+  const selection: string[] = [];
+  for (const node of nodes) {
+    if (stale.has(node.id) && !compiled.has(node.id)) {
+      await compile(node);
+    }
+    const selected = outputs.get(node.id)?.selected;
+    if (selected) {
+      selection.push(selected);
     }
   }
   const plan = compiler.native.planStylesheet({
@@ -309,3 +669,37 @@ export async function compileGraph(entries: readonly string[], project: Turbopac
   warnRejectedNames(plan.rejectedNames, (message) => host.warn(message));
   return plan;
 }
+
+/** Local JavaScript or TypeScript module that a graph traversal visited. */
+interface GraphNode {
+  /** Absolute file path. */
+  id: string;
+  source: string;
+  /** Absolute paths of the local modules that the source imports. */
+  imports: string[];
+  /** Whether the source imports a Stillwind macro or module CSS, so that it needs compilation. */
+  producer: boolean;
+}
+
+/** Result of the last graph compilation of one module. */
+interface GraphOutput {
+  /** Source text that the result was compiled from. */
+  source: string;
+  /** Compiler module ID that the document plan selects, or undefined when it selects nothing. */
+  selected?: string;
+}
+
+/**
+ * Last graph compilation results of each graph compiler, keyed by absolute file path. A compiler
+ * keeps the compiled state of every module, so a reconstruction compiles only modules whose sources
+ * or imported modules changed since the previous reconstruction. Only reconstructions compile with
+ * a graph compiler: a per-module compilation of another source would replace a module's state
+ * without changing its result here.
+ */
+const graphOutputs = new WeakMap<IntegrationSession, Map<string, GraphOutput>>();
+
+/**
+ * Latest reconstruction of each graph compiler. A concurrent reconstruction could publish a module
+ * from an older snapshot after a newer reconstruction recorded the newer source.
+ */
+const graphRuns = new WeakMap<IntegrationSession, Promise<unknown>>();

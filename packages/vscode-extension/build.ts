@@ -65,6 +65,7 @@ if (!packaging) {
   await writeFile(path.join(output, "package.json"), JSON.stringify(extensionManifest, null, 2));
   await cp(path.join(root, "css-data.json"), path.join(output, "dist/css-data.json"));
   await cp(path.join(root, "README.md"), path.join(output, "README.md"));
+  await cp(path.join(root, "CHANGELOG.md"), path.join(output, "CHANGELOG.md"));
   await cp(path.join(root, "icon.png"), path.join(output, "icon.png"));
   for (const [name, source] of Object.entries(licenses)) {
     await cp(path.join(root, source), path.join(output, name));
@@ -88,7 +89,13 @@ if (process.argv.includes("--package-web") || process.argv.includes("--package-d
   });
   const manifest: Record<string, unknown> = {
     ...extensionManifest,
-    files: ["dist/**", "icon.png", "NPM-THIRD-PARTY-LICENSES", ...Object.keys(licenses)],
+    files: [
+      "dist/**",
+      "icon.png",
+      "CHANGELOG.md",
+      "NPM-THIRD-PARTY-LICENSES",
+      ...Object.keys(licenses),
+    ],
   };
   manifest.main = "./dist/node/extension.cjs";
   if (!desktop) {

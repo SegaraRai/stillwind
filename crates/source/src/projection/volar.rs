@@ -14,7 +14,7 @@ use crate::{CoordinateIndex, SourceFile, Span, Utf16Offset};
 ///
 /// Present arrays must have equal lengths and describe corresponding entries by index.
 /// Entries need not be globally sorted; construction does not validate coordinates.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VolarMapping {
     /// UTF-16 start offsets in the original text.

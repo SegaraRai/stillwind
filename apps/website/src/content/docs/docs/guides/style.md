@@ -64,6 +64,27 @@ export function Link() {
 }
 ```
 
+### Match any of several variants
+
+`or(...)` applies a utility when any of its variants matches. Separate the
+variants with commas. Each one can contain several variants separated by colons:
+
+```tsx
+import { style } from "stillwind/react";
+
+export function MenuItem() {
+  return <li {...style("px-4 py-2 or(hover,focus-within,md:aria-current):bg-gray-100")}>Inbox</li>;
+}
+```
+
+`or(hover,md:focus):p-4` is the same as `hover:p-4 md:focus:p-4`. Each
+variant keeps the position in the stylesheet that it has when you write it alone,
+so [CSS order](/docs/concepts/css-ordering) does not change. You can also use
+`or(...)` in an object key, such as `{ "or(hover,focus):": "underline" }`.
+To reuse alternatives that include
+[ref conditions](/docs/macros/ref/condition), pass several arguments to
+[`style.when()`](/docs/macros/when#alternatives).
+
 ## Style states
 
 When the element has an attribute for the state, use a variant:
@@ -126,6 +147,17 @@ export function DeleteButton() {
 In this example, `dangerButton` has a red background because both background
 rules use equally specific selectors. The order of the class names does not
 affect the result. You can export a stored style and use it in other modules.
+When another module adds utilities that set the same property as the imported
+style, [interfering-imported-style-base](/docs/lints/interfering-imported-style-base)
+reports the call. Define the overriding style in the module that defines the
+base, and import that style instead.
+
+The order of the arguments does not affect the result either.
+`style("bg-red-600", button)` also produces a red background, and
+`style("p-4", "p-2")` produces the same CSS as `style("p-2", "p-4")`. To change
+which utility wins, remove the other utility or build a new style on a base. Do
+not reorder the arguments. See [Argument order](/docs/macros/style#argument-order)
+for the exceptions.
 
 More specific selectors and `!important` can change which declaration wins.
 See [CSS ordering](/docs/concepts/css-ordering) for variants, conditions, and multiple

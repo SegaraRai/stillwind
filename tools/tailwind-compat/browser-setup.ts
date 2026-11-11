@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 
 import { compileTailwindCss } from "@stillwind-internal/tools-tailwind/compiler";
+import { minifyCss } from "@stillwind/native";
 import type { TestProject } from "vite-plus/test/node";
 
 import { compileParity } from "./comparison.ts";
@@ -31,6 +32,44 @@ export default async function setup(project: TestProject) {
   const baseInput =
     '@import "tailwindcss/theme" layer(theme);@import "tailwindcss/utilities" layer(utilities);';
   const cases = [
+    {
+      name: "scope variants select the utility between root and limit",
+      candidates: ["scoped:flex"],
+      properties: ["display"],
+      input: "@custom-variant scoped { @scope (#parent) to (.stop) { @slot; } }",
+    },
+    {
+      name: "scope variant limits exclude the utility",
+      candidates: ["scoped:flex"],
+      properties: ["display"],
+      input: "@custom-variant scoped { @scope (#parent) to (#probe) { @slot; } }",
+    },
+    {
+      name: "scope variants bind an explicit utility root",
+      candidates: ["scoped:flex"],
+      properties: ["display"],
+      input: "@custom-variant scoped { @scope (#parent &) to (#probe) { @slot; } }",
+    },
+    {
+      name: "scope variants keep nested boundaries",
+      candidates: ["scoped:flex"],
+      properties: ["display"],
+      input: "@custom-variant scoped { @scope (#parent) { @scope (#probe) { @slot; } } }",
+    },
+    {
+      name: "scope variants keep outer limits around nested scopes",
+      candidates: ["scoped:flex"],
+      properties: ["display"],
+      input:
+        "@custom-variant scoped { @scope (#parent) to (#probe) { @scope (#probe) { @slot; } } }",
+    },
+    {
+      name: "scope variants retain selectors and conditions inside the boundary",
+      candidates: ["scoped:flex"],
+      properties: ["display"],
+      input:
+        "@custom-variant scoped { @scope (#parent) { @supports (display:flex) { &[id=probe] { @slot; } } } }",
+    },
     {
       name: "arbitrary shadow composes with blur and color",
       candidates: ["blur-sm", "drop-shadow-[0_1px_2px_rgb(0_0_0/0.25)]", "drop-shadow-red-500"],
@@ -149,6 +188,62 @@ export default async function setup(project: TestProject) {
       expectedClass: entry.candidates.join(" "),
       actualClass: native.classes[0].className,
     });
+  }
+  for (const [name, source, color] of [
+    [
+      "scope declarations keep zero specificity",
+      "#parent{@scope (& > #probe){color:red}}div{color:blue}",
+      "blue",
+    ],
+    [
+      "scope limits exclude the limit element",
+      "#parent{@scope (&) to (#probe){#probe{color:red}}}div{color:blue}",
+      "blue",
+    ],
+    [
+      "scope keeps a missing style ancestor",
+      ".missing{@scope (#parent){#probe{color:red}}}#probe{color:blue}",
+      "blue",
+    ],
+    [
+      "scope keeps an explicit parent root",
+      "#parent{@scope (&){color:green;#probe{color:red}}}",
+      "red",
+    ],
+    [
+      "nested scopes keep their outer boundary",
+      "@scope (.missing){@scope (#probe){#probe{color:red}}}#probe{color:blue}",
+      "blue",
+    ],
+  ]) {
+    payload.push({
+      name,
+      properties: ["color"],
+      expected: `#probe{color:${color}}`,
+      actual: minifyCss(source, { include: ["Nesting"] }).css,
+      expectedClass: "",
+      actualClass: "",
+    });
+  }
+  for (const prefix of ["if(--on):scoped", "scoped:if(--on)"]) {
+    for (const active of [false, true]) {
+      const native = compileParity(
+        `import {style} from 'stillwind/react';style(${JSON.stringify(`${prefix}:flex`)});`,
+        stillwindFixtureCss(`${baseInput}@custom-variant scoped { @scope (#parent) { @slot; } }`),
+      );
+      if (native.diagnostics.length) {
+        throw new Error(JSON.stringify(native.diagnostics));
+      }
+      payload.push({
+        name: `${prefix} keeps the computed condition ${active ? "active" : "inactive"}`,
+        properties: ["display"],
+        expected: `#probe{display:${active ? "flex" : "block"}}`,
+        actual: minifyCss(native.css, { include: ["Nesting"] }).css,
+        expectedClass: "",
+        actualClass: native.classes[0].className,
+        extra: active ? "#probe{--on: ;}" : "#probe{--on:initial}",
+      });
+    }
   }
   project.provide("tailwindCases", payload);
 }

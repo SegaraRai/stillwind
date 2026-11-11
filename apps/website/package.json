@@ -6,16 +6,16 @@
   "license": "MIT",
   "type": "module",
   "dependencies": {
-    "@cloudflare/nimbus-docs": "^0.19.1",
+    "@cloudflare/nimbus-docs": "^0.19.4",
     "@fontsource/instrument-sans": "^5.3.0",
-    "astro": "^7.4.4",
+    "astro": "^7.4.8",
     "stillwind": "workspace:*",
     "sugar-high": "^2.6.4"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
     "@emnapi/runtime": "^1.11.3",
-    "@iconify-json/lucide": "^1.2.149",
+    "@iconify-json/lucide": "^1.2.152",
     "@iconify-json/simple-icons": "^1.2.101",
     "@stillwind-internal/tools-builtin-css": "workspace:*",
     "@stillwind-internal/tools-workspace": "workspace:*",
@@ -26,7 +26,7 @@
     "@stillwind/plugin-iconify": "workspace:*",
     "@types/node": "catalog:",
     "cf": "catalog:",
-    "pagefind": "^1.5.2",
+    "pagefind": "^1.6.0",
     "typescript": "catalog:",
     "vite-plus": "catalog:"
   }

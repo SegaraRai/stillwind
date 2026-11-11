@@ -2,10 +2,11 @@
 
 use std::sync::Arc;
 
+use stillwind_css::WritingMode;
 use stillwind_design_system::{
     CssFileInput, DesignSystemLoadStep, DesignSystemLoader, DesignSystemSnapshot,
 };
-use stillwind_diagnostics::{LintKind, LintOverrides, LintSeverity};
+use stillwind_diagnostics::{ConflictingUtilitiesOverride, LintKind, LintOverrides, LintSeverity};
 use stillwind_source::{SourceRegistry, SourceUri};
 use stillwind_test_support::expand_css;
 
@@ -207,6 +208,51 @@ fn candidates_of_one_application_are_compared() {
             (LintKind::ConflictingUtilities, "block"),
         ],
         "each earlier `flex` conflicts with `block`"
+    );
+}
+
+#[test]
+fn a_utility_that_reads_a_variable_and_one_that_sets_it_do_not_compete() {
+    assert_eq!(
+        default_findings(
+            ".a { @apply border-t border-dashed; } .b { @apply divide-y divide-dashed; } .c { @apply text-sm leading-relaxed; }"
+        ),
+        []
+    );
+    assert_eq!(
+        default_findings(".a { @apply border-dashed border-dotted; }")
+            .iter()
+            .filter(|(kind, _, _)| *kind == LintKind::ConflictingUtilities)
+            .map(|(kind, covered, _)| (*kind, covered.as_str()))
+            .collect::<Vec<_>>(),
+        [(LintKind::ConflictingUtilities, "border-dotted")]
+    );
+}
+
+#[test]
+fn conflict_findings_of_an_application_offer_a_named_logical_utility() {
+    let options = CompilerOptions {
+        lint: LintOverrides {
+            conflicting_utilities: Some(ConflictingUtilitiesOverride {
+                writing_modes: Some(WritingMode::ALL.to_vec()),
+                ..ConflictingUtilitiesOverride::default()
+            }),
+            ..LintOverrides::default()
+        },
+        ..CompilerOptions::default()
+    };
+    let snapshot = snapshot(".a { @apply px-2 pt-2; }", &options);
+    let notes: Vec<_> = lint_stylesheets(&snapshot, &options)
+        .findings
+        .iter()
+        .filter(|finding| finding.kind() == LintKind::ConflictingUtilities)
+        .flat_map(|finding| finding.notes.clone())
+        .collect();
+    assert!(
+        notes
+            .iter()
+            .any(|note| note.ends_with("to use logical properties, replace `pt-2` with `pbs-2`, which sets `padding-block-start` in place of `padding-top` in horizontal left-to-right writing modes")),
+        "{notes:?}"
     );
 }
 

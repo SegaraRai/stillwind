@@ -7,7 +7,8 @@
 //!
 //! Modules:
 //!
-//! - [`references`] tokenizes CSS text to find `--name` identifiers.
+//! - [`references`] tokenizes CSS text to find `--name` identifiers and recognizes
+//!   values that only copy one custom property.
 //! - [`registration`] parses compiler-owned `@stillwind-property` blocks and the names
 //!   and syntaxes of authored `@property` rules.
 //! - [`usage`] classifies an emitted stylesheet into declared properties, `var()`
@@ -17,7 +18,7 @@ mod references;
 mod registration;
 mod usage;
 
-pub use references::custom_property_references;
+pub use references::{custom_property_references, var_reference};
 pub use registration::{
     CustomPropertyActivation, CustomPropertyDefinition, extract_authored_property_names,
     extract_authored_property_syntaxes, parse_property_definitions,

@@ -5,7 +5,10 @@ use serde::{Deserialize, Serialize};
 
 use stillwind_source::{Span, Spanned};
 
-use super::{KeyframesDefinition, RefDefinition, StyleCall, ViewTransitionDefinition};
+use super::{
+    KeyframesDefinition, RefDefinition, StoredVariantDefinition, StyleCall,
+    ViewTransitionDefinition,
+};
 use crate::{AdapterKind, OutputFormat};
 
 /// Everything a frontend extracted from one module.
@@ -36,6 +39,9 @@ pub struct ModuleIr {
     pub keyframes_declarations: Vec<KeyframesDefinition>,
     /// In source order. Each entry is a `style.viewTransition()` declaration.
     pub view_transition_declarations: Vec<ViewTransitionDefinition>,
+    /// In source order. Each entry is a `style.when()` declaration.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub stored_variants: Vec<StoredVariantDefinition>,
 }
 
 impl ModuleIr {
@@ -62,6 +68,7 @@ impl ModuleIr {
             ref_definitions: Vec::new(),
             keyframes_declarations: Vec::new(),
             view_transition_declarations: Vec::new(),
+            stored_variants: Vec::new(),
         }
     }
 }
@@ -81,7 +88,8 @@ pub struct CvaCall {
     /// Replaces invalid whole calls with an empty factory.
     #[serde(default)]
     pub empty: bool,
-    /// Replacements for unsupported configuration entries in original source coordinates.
+    /// Replacements for unsupported configuration entries in original source
+    /// coordinates.
     #[serde(default)]
     pub replacements: Vec<CvaReplacement>,
 }

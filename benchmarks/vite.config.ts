@@ -12,10 +12,6 @@ export default defineConfig(({ mode }) => ({
     },
     environment: "node",
     fileParallelism: !mode.startsWith("benchmark") && !mode.startsWith("performance"),
-    execArgv:
-      mode.startsWith("benchmark") || mode.startsWith("performance")
-        ? ["--experimental-transform-types"]
-        : [],
     provide: {
       performanceFull: mode === "performance-full",
       benchmarkWasm: mode === "benchmark-wasm",
@@ -40,6 +36,11 @@ export default defineConfig(({ mode }) => ({
         command: "node compiler/analysis-cli.ts",
         cache: false,
         dependsOn: ["@stillwind/cli#build"],
+      },
+      "bench:apps": {
+        command: "node apps/run.ts",
+        cache: false,
+        dependsOn: ["@stillwind/integration#build", "stillwind#build"],
       },
       "bench:architecture": {
         command:

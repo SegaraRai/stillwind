@@ -97,7 +97,7 @@ export function renderResult(
     }
   };
   const lines: string[] = [];
-  for (const { project, report } of result.diagnostics) {
+  for (const { project, report, docs } of result.diagnostics) {
     const message = clean(report.message);
     const details = [
       ...(report.primary.message ? [`note: ${clean(report.primary.message)}`] : []),
@@ -106,6 +106,7 @@ export function renderResult(
       ),
       ...report.notes.map((note) => `note: ${clean(note)}`),
       ...report.actions.map((action) => `help: ${clean(action.title)}`),
+      ...(docs ? [`docs: ${docs}`] : []),
     ];
     if (options.format === "github") {
       const location = report.primary.location;
@@ -155,6 +156,9 @@ export function renderResult(
       }
       lines.push(...report.notes.map((note) => `  note: ${clean(note)}`));
       lines.push(...report.actions.map((action) => `  help: ${clean(action.title)}`));
+      if (docs) {
+        lines.push(`  docs: ${docs}`);
+      }
       lines.push("");
     }
   }

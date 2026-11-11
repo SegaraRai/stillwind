@@ -5,8 +5,13 @@ slug: docs/lints/interfering-imported-style-base
 ---
 
 This rule reports a base style from another module that sets the same property as
-another base or utility in the call, when neither is built on the other. The order
-of the arguments does not decide which one wins.
+another base or utility in the call, when neither is built on the other. The rule
+reports both cases:
+
+- Two imported bases set the same property. The order of the arguments does not
+  decide which base wins.
+- An imported base and a utility of the call set the same property. The utility of
+  the call wins, but the rule still reports the call.
 
 ## Project files
 
@@ -24,6 +29,7 @@ export const combined = style(first, "p-4");
 ```tsx
 import { first, second } from "./bases";
 export const props = style(first, second);
+export const padded = style(first, "p-4");
 ```
 
 </DiagnosticExample>
@@ -35,13 +41,17 @@ import { combined } from "./bases";
 export const props = style(combined);
 ```
 
+`combined` replaces both reported calls, because it sets `p-4` on top of `first`
+in the module that defines `first`.
+
 ## How to fix
 
 - In the module that defines the styles, build the overriding style on the other
   one, as `combined` does. Then import that style.
 - Or remove the property from one of the styles.
 
-Changing the order of the arguments in the importing module does not fix it.
+Reordering the arguments does not fix it. `style("p-4", first)` and
+`style(second, first)` produce the same CSS and the same finding.
 
 ## Rule settings
 

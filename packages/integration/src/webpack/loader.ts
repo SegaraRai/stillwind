@@ -1,24 +1,21 @@
 import { createHash } from "node:crypto";
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
 import { resolveIntegrationConfig } from "@stillwind/config/node";
 import {
   cleanModuleId,
   composeModuleSourceMap,
-  cssEntrypoint,
   finalizeModuleWithMap,
-  loadCssGraph,
   moduleSourceMap,
-  nodePluginHost,
   warnRejectedNames,
   type UpstreamSourceMap,
 } from "@stillwind/host";
 
-import { buildCompilerOptions, IntegrationSession } from "../session.ts";
 import { cssValueModule, type CssValueResource } from "./css-value.ts";
 import { recordProducer } from "./emission.ts";
 import { createLoaderHost, watchCompilerFiles } from "./host.ts";
+import { useProject } from "./project.ts";
 import {
   classifyRequest,
   relativeRequest,
@@ -88,7 +85,7 @@ export default function webpackLoader(
     return callback(null, source, inputMap);
   }
   const supplied = requestOptions(this.getOptions());
-  let compiler: IntegrationSession | undefined;
+  let release: (() => void) | undefined;
   const {
     read,
     readDependency,
@@ -122,36 +119,16 @@ export default function webpackLoader(
       virtualRequest(this.resourcePath, sfc, config, import.meta.filename, query, supplied);
     watchCompilerFiles(watch);
     const root = path.resolve(this.rootContext, config.root ?? ".");
-    const css = path.resolve(root, cssEntrypoint(config));
-    const loaded = await loadCssGraph(
-      css,
-      buildCompilerOptions(config),
-      {
-        resolve: resolveCss,
-        read,
-        documentUri: (id) => pathToFileURL(id).href,
-        sourceMapSource: (id) => pathToFileURL(id).href,
-        watch,
-        watchDirectory: (id) => this.addContextDependency(id),
-        plugins: nodePluginHost,
-      },
-      undefined,
-      undefined,
-      {
-        plugins: config.plugins,
-        tailwind: config.tailwind,
-        important: config.important,
-        root,
-      },
-    );
-    compiler = new IntegrationSession(
-      root,
-      loaded.loader,
+    const lease = await useProject(
+      this,
+      configuration.scope,
       config,
-      false,
+      root,
       this.mode === "development" ? "development" : "release",
-      loaded.plugins,
+      { read, resolveCss },
     );
+    release = lease.done;
+    const { loaded, compiler, outputs } = lease.value;
     const session = compiler.native;
     const output = await compiler.compile(
       projection || cssValue ? await read(this.resourcePath) : text,
@@ -171,6 +148,9 @@ export default function webpackLoader(
         moduleCssImport: request("stillwind-module-css"),
       },
     );
+    if (!projection && !cssValue) {
+      outputs.set(id, { source: text, moduleId: output?.moduleId });
+    }
     if (!output?.code) {
       return callback(null, projection ? "" : source, projection ? null : inputMap);
     }
@@ -281,7 +261,7 @@ export default function webpackLoader(
     callback(null, code, composedMap, metadata);
   })()
     .catch((error) => callback(error))
-    .finally(() => compiler?.close());
+    .finally(() => release?.());
 }
 
 /**

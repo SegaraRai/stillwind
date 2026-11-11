@@ -9,7 +9,7 @@
 use stillwind_compiler::{CompilerOptions, GeneratedClass, GeneratedSymbol, SourceTransform};
 use stillwind_css::strip_css_comments;
 use stillwind_diagnostics::{CompileDiagnostic, CompileError, LintDiagnostic};
-use stillwind_ir::{MacroImport, ScriptLanguage, ScriptModuleKind, from_macro_import};
+use stillwind_ir::{MacroImport, RUNTIME_IMPORT, ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
 use stillwind_source::{CssSourceName, ModuleId};
 use stillwind_test_support::{CssAssertions as _, css_source};
@@ -17,16 +17,12 @@ use stillwind_test_support::{CssAssertions as _, css_source};
 use super::*;
 
 #[test]
-fn native_runtime_imports_are_binding_safe_and_follow_output_formats() {
+fn native_runtime_imports_are_binding_safe() {
     let theme = css_source(FileId(2), "").unwrap();
     for framework in [
         "alpine", "astro", "lit", "preact", "qwik", "react", "solid", "svelte", "vanilla", "vue",
     ] {
-        let runtime = from_macro_import(&format!("stillwind/{framework}"))
-            .unwrap()
-            .output
-            .spec()
-            .runtime_import;
+        let runtime = RUNTIME_IMPORT;
         let component = SourceFile::new(FileId(1), None, None, format!(
             "import {{style as sw, type Theme}} from 'stillwind/{framework}';\n\
              const text = 'stillwindCssValue(';\n\

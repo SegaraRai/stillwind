@@ -1,6 +1,6 @@
 {
   "name": "@stillwind/integration",
-  "version": "0.6.0",
+  "version": "0.8.0",
   "description": "Stillwind plugins for Vite, Astro, Next.js, Nuxt, SvelteKit, Fresh, webpack, Rspack, Rsbuild, and Turbopack",
   "keywords": [
     "astro",
@@ -36,9 +36,13 @@
     "directory": "packages/integration"
   },
   "files": [
-    "dist"
+    "dist",
+    "index.d.ts",
+    "README.md",
+    "CHANGELOG.md"
   ],
   "type": "module",
+  "types": "./index.d.ts",
   "exports": {
     "./astro": {
       "types": "./dist/astro/index.d.ts",
@@ -66,6 +70,7 @@
     },
     "./sveltekit/handle": {
       "types": "./dist/sveltekit/handle.d.ts",
+      "svelte": "./dist/sveltekit/handle.js",
       "default": "./dist/sveltekit/handle.js"
     },
     "./turbopack": {
@@ -103,19 +108,19 @@
     "rolldown": "catalog:"
   },
   "devDependencies": {
-    "@rsbuild/core": "^2.3.0",
-    "@rspack/core": "^2.3.0",
+    "@rsbuild/core": "^2.3.1",
+    "@rspack/core": "^2.3.1",
     "@stillwind-internal/tools-fixture-css": "workspace:*",
     "@stillwind-internal/tools-workspace": "workspace:*",
     "@sveltejs/kit": "^3.1.1",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
-    "@swc/core": "^1.16.20",
+    "@swc/core": "^1.16.22",
     "@types/node": "catalog:",
     "@vitejs/plugin-vue": "^6.0.10",
-    "astro": "^7.4.4",
+    "astro": "^7.4.8",
     "css-loader": "^7.1.5",
-    "next": "^16.4.3",
-    "nuxt": "^4.6.3",
+    "next": "^16.4.5",
+    "nuxt": "^4.6.4",
     "stillwind": "workspace:*",
     "svelte": "^5.57.3",
     "svelte-loader": "^3.2.4",
@@ -123,7 +128,7 @@
     "typescript": "catalog:",
     "vite": "catalog:",
     "vite-plus": "catalog:",
-    "vue": "^3.5.44",
+    "vue": "^3.5.45",
     "vue-loader": "^17.4.2",
     "webpack": "^5.112.2"
   },

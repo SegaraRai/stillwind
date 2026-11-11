@@ -273,7 +273,8 @@ fn candidates(
     let (ExportedValue::Styles(symbolic)
     | ExportedValue::Refs(symbolic)
     | ExportedValue::Keyframes(symbolic)
-    | ExportedValue::ViewTransitions(symbolic)) = value;
+    | ExportedValue::ViewTransitions(symbolic)
+    | ExportedValue::StoredVariants(symbolic)) = value;
     let values = symbolic
         .finite_candidates()
         .ok_or(ResolutionFailure::MissingFacts)?;

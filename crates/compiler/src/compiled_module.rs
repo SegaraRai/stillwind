@@ -50,11 +50,13 @@ pub struct ModuleArtifactKey {
     pub(crate) source_revision: Fingerprint,
     /// Identity of the module inside the project graph.
     pub(crate) module_id: ModuleId,
-    /// Identity of the source file, which may differ from the module id after projection.
+    /// Identity of the source file, which may differ from the module id after
+    /// projection.
     pub(crate) source_file_id: u32,
     /// Which frontend produced the analysis, for example `oxc`.
     pub(crate) frontend_kind: LeanStr,
-    /// Fingerprint of the type facts and asset metadata that shaped the analysis, when any.
+    /// Fingerprint of the type facts and asset metadata that shaped the analysis, when
+    /// any.
     pub(crate) semantic_revision: Option<Fingerprint>,
 }
 
@@ -138,7 +140,8 @@ pub struct ModuleResourceReference {
 /// output. Applying source edits also checks that their spans are valid.
 #[derive(Clone, Debug)]
 pub struct CompiledModule {
-    /// Effective lint settings captured during compilation, including project conversion options.
+    /// Effective lint settings captured during compilation, including project conversion
+    /// options.
     pub lint_settings: LintSettings,
     /// Records the effects of this module's own style calls and keeps their source
     /// coordinates. The vector is empty after compilation failure. Hosts use
@@ -154,6 +157,10 @@ pub struct CompiledModule {
     pub code_transforms: Vec<SourceTransform>,
     /// The rules this module owns; empty after a failed compilation.
     pub css: ModuleCssArtifact,
+    /// Keyframes and view transitions declared in other modules whose definition rules
+    /// linking adds to this module's CSS. Linking takes those rules from the artifacts
+    /// of the declaring modules.
+    pub linked_definitions: BTreeSet<IdentityId>,
     /// Classes generated for this module's callsites.
     pub classes: Vec<GeneratedClass>,
     /// Generated CSS identifiers with the identities they were allocated from.
@@ -167,7 +174,8 @@ pub struct CompiledModule {
     pub diagnostics: Vec<CompileError>,
     /// Lint findings, which do not fail the compilation.
     pub lint_findings: Vec<LintFinding>,
-    /// Source findings before suppression, retained for composition and directive refreshes.
+    /// Source findings before suppression, retained for composition and directive
+    /// refreshes.
     pub source_lint_findings: Vec<LintFinding>,
     /// Records definitions whose changes invalidate this artifact.
     pub dependencies: CompilationDependencies,
@@ -203,12 +211,13 @@ impl CompiledModule {
         self.diagnostics.is_empty()
     }
 
-    /// Builds a producer's output without assembling document CSS or support layers.
+    /// Builds a producer's output without assembling document CSS or linking definitions
+    /// from other modules.
     ///
-    /// The returned `css` and `module_css` both contain this module's rules and keep
-    /// the lint policy captured during compilation. The stylesheet renderer later
-    /// replaces `css` with the document stylesheet and keeps `module_css` for hosts
-    /// that send CSS per module.
+    /// The returned `css` and `module_css` both contain this module's rules and keep the
+    /// lint policy captured during compilation. The stylesheet renderer later replaces
+    /// `css` with the document stylesheet and keeps `module_css` for hosts that send CSS
+    /// per module.
     ///
     /// The result copies style effects and existing findings without resolving bases
     /// again. Callers must update composition findings when the graph changes.
@@ -216,23 +225,13 @@ impl CompiledModule {
         let module_css = self.css.to_css();
         CompileResult {
             style_effects: self.style_effects.clone(),
-            contributions: self
-                .css
-                .rules
-                .iter()
-                .map(|rule| CssContribution {
-                    banners: rule.banners().to_vec(),
-                    css: (rule.to_css()),
-                    definition: rule.definition(),
-                    keyframes: rule.keyframes(),
-                    required_properties: rule.required_properties().to_vec(),
-                })
-                .collect(),
+            contributions: self.css.rules.iter().map(CssContribution::from).collect(),
             composition: self.composition.clone(),
             resources: self.resources.clone(),
             css: (module_css.clone()),
             module_css: (module_css),
             classes: self.classes.clone(),
+            linked_definitions: self.linked_definitions.clone(),
             symbols: self.symbols.clone(),
             rejected_names: self.rejected_names.clone(),
             dynamic_candidates: self.dynamic_candidates.clone(),

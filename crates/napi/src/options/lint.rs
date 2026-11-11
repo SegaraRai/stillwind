@@ -43,6 +43,8 @@ pub struct NativeLintOptions {
     pub invalid_css_input: Option<String>,
     /// Settings for `invalid-ref-input`.
     pub invalid_ref_input: Option<String>,
+    /// Settings for `invalid-stored-variant`.
+    pub invalid_stored_variant: Option<String>,
     /// Settings for `invalid-animation-option`.
     pub invalid_animation_option: Option<String>,
     /// Settings for `invalid-style-composition`.
@@ -232,6 +234,10 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
                 .transpose()?,
             invalid_ref_input: input
                 .invalid_ref_input
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            invalid_stored_variant: input
+                .invalid_stored_variant
                 .map(|value| lint_severity(&value))
                 .transpose()?,
             invalid_animation_option: input

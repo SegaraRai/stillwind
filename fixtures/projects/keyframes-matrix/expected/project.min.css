@@ -1,7 +1,7 @@
 /*! stillwind | MIT License | https://stillwind.dev */
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer properties {
-  @supports (((-webkit-hyphens: none)) and (not (margin-trim: inline))) or
+  @supports (((-webkit-hyphens: none)) and (not (margin-trim: block))) or
     ((-moz-orient: inline) and (not (color: rgb(from red r g b)))) {
     *,
     :before,
@@ -248,14 +248,14 @@
 }
 @layer components;
 @layer utilities {
-  @keyframes sw-kf-enter-cxv19 {
+  @keyframes sw-kf-enter-zhg87 {
     0% {
       opacity: 0;
       --sw-motion-translate-y: var(--spacing-2);
       translate: var(--sw-motion-translate-x) var(--sw-motion-translate-y)
         var(--sw-motion-translate-z);
-      --sw-motion-scale-x: calc(98 / 100);
-      --sw-motion-scale-y: calc(98 / 100);
+      --sw-motion-scale-x: 0.98;
+      --sw-motion-scale-y: 0.98;
       scale: var(--sw-motion-scale-x) var(--sw-motion-scale-y) var(--sw-motion-scale-z);
     }
     to {
@@ -263,39 +263,39 @@
       --sw-motion-translate-y: 0px;
       translate: var(--sw-motion-translate-x) var(--sw-motion-translate-y)
         var(--sw-motion-translate-z);
-      --sw-motion-scale-x: calc(100 / 100);
-      --sw-motion-scale-y: calc(100 / 100);
+      --sw-motion-scale-x: 1;
+      --sw-motion-scale-y: 1;
       scale: var(--sw-motion-scale-x) var(--sw-motion-scale-y) var(--sw-motion-scale-z);
     }
   }
-  @keyframes sw-kf-12rqq {
+  @keyframes sw-kf-074gt {
     0% {
       opacity: 1;
     }
     to {
       opacity: 0;
-      --sw-motion-scale-x: calc(98 / 100);
-      --sw-motion-scale-y: calc(98 / 100);
+      --sw-motion-scale-x: 0.98;
+      --sw-motion-scale-y: 0.98;
       scale: var(--sw-motion-scale-x) var(--sw-motion-scale-y) var(--sw-motion-scale-z);
     }
   }
-  .sw_rdg4x {
+  .sw_3sup4 {
     border-radius: var(--radius-md);
   }
-  .sw_rdg4x[data-state="closed"] {
-    animation-name: sw-kf-12rqq;
+  .sw_3sup4[data-state="closed"] {
+    animation-name: sw-kf-074gt;
     animation-duration: var(--duration-fast);
     animation-timing-function: var(--ease-standard);
     animation-fill-mode: both;
   }
-  .sw_oyibx {
-    animation-name: sw-kf-enter-cxv19;
+  .sw_d6d1w {
+    animation-name: sw-kf-enter-zhg87;
     animation-duration: var(--duration-normal);
     animation-timing-function: var(--ease-standard);
     animation-fill-mode: both;
   }
-  .sw_0xhzs {
-    animation-name: sw-kf-12rqq;
+  .sw_gairg {
+    animation-name: sw-kf-074gt;
     animation-duration: var(--duration-normal);
     animation-timing-function: var(--ease-standard);
     animation-fill-mode: both;

@@ -318,6 +318,44 @@ test("an accepted CSS reload invalidates SSR producers when generated names chan
   expect(fixture.project.environment("ssr").takeThemeChanges()).toContain("producer.ts");
 });
 
+test("an import that resolves differently in SSR compiles with the SSR declaration", async () => {
+  const keyframes = (utility: string) =>
+    `import { style } from 'stillwind/react'; export const fade = style.keyframes({ from: '${utility}', to: '${utility}' });`;
+  const fixture = await createWatchedProject(
+    {
+      "root.css":
+        "@utility paint { color: red; } @utility tint { color: blue; } " +
+        "@utility wash { color: purple; } @stillwind-slot utilities; @stillwind-slot keyframes;",
+      "tsconfig.json": JSON.stringify({
+        compilerOptions: {
+          module: "esnext",
+          moduleResolution: "bundler",
+          strict: true,
+          types: [],
+        },
+        files: [],
+      }),
+      "client-token.ts": keyframes("tint"),
+      "ssr-token.ts": keyframes("wash"),
+    },
+    // The checker resolves `stillwind/react` from this package's dependencies.
+    { environmentToken: true, parent: path.join(repositoryRoot, "packages/integration") },
+  );
+  await fixture.server.environments.ssr.pluginContainer.buildStart({});
+  const usesToken =
+    " import { fade } from 'environment-token'; export const token = style(fade(''));";
+
+  await fixture.compileProducer("client", usesToken);
+  await fixture.compileProducer("ssr", usesToken);
+
+  const client = await fixture.getCss();
+  const ssr = await fixture.getCss("ssr");
+  expect(client).toMatch(/color:\s*blue/);
+  expect(client).not.toMatch(/color:\s*purple/);
+  expect(ssr).toMatch(/color:\s*purple/);
+  expect(ssr).not.toMatch(/color:\s*blue/);
+});
+
 test("deleting a producer while its transform waits for CSS removes the completed input", async () => {
   const fixture = await createWatchedProject({
     "root.css": "@utility paint { color: red; } @stillwind-slot utilities;",
@@ -377,13 +415,17 @@ async function createWatchedProject(
   options: {
     /** Whether environment-css resolves to separate client.css and ssr.css files. */
     environmentCss?: boolean;
+    /** Whether environment-token resolves to separate client-token.ts and ssr-token.ts files. */
+    environmentToken?: boolean;
     /** Whether Vite HMR is enabled for this fixture. Defaults to false. */
     hmr?: boolean;
     /** Plugins configured for the project. */
     plugins?: StillwindPlugin[];
+    /** Directory that receives the temporary project. Defaults to the repository root. */
+    parent?: string;
   } = {},
 ) {
-  const root = mkdtempSync(path.join(repositoryRoot, ".test-css-watch-"));
+  const root = mkdtempSync(path.join(options.parent ?? repositoryRoot, ".test-css-watch-"));
   for (const [filename, content] of Object.entries(files)) {
     mkdirSync(path.dirname(path.join(root, filename)), { recursive: true });
     writeFileSync(path.join(root, filename), content);
@@ -414,6 +456,12 @@ async function createWatchedProject(
         resolveId(id) {
           if (options.environmentCss && id === "environment-css") {
             return path.join(root, this.environment.name === "ssr" ? "ssr.css" : "client.css");
+          }
+          if (options.environmentToken && id === "environment-token") {
+            return path.join(
+              root,
+              this.environment.name === "ssr" ? "ssr-token.ts" : "client-token.ts",
+            );
           }
           return undefined;
         },
@@ -492,11 +540,13 @@ async function createWatchedProject(
       if (!transform || typeof transform === "function" || !transform.handler) {
         expect.fail("Expected the compiler's transform handler");
       }
-      return transform.handler.call(
+      const result = await transform.handler.call(
         context(environment) as unknown as ThisParameterType<typeof transform.handler>,
         "import { style } from 'stillwind/react'; export const props = style('paint');" + suffix,
         path.join(root, "producer.ts"),
       );
+      await project.publications(environment);
+      return result;
     },
     /**
      * Waits until Vite's watcher includes the requested basename.

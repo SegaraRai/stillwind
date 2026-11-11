@@ -1,6 +1,6 @@
 {
   "name": "@stillwind/cli",
-  "version": "0.6.0",
+  "version": "0.8.0",
   "description": "Stillwind CLI to sort, lint, and fix utilities, inspect generated CSS, and query the design system",
   "keywords": [
     "ci",
@@ -28,9 +28,12 @@
     "stillwind": "dist/main.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "CHANGELOG.md"
   ],
   "type": "module",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

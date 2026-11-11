@@ -21,6 +21,24 @@ use crate::functions::find_css_functions;
 /// including `calc(0)`, but never to a bare `0` outside `calc()` or to an atom.
 #[must_use]
 pub fn fold_calc_expressions(value: &str, zero_unit: Option<&str>) -> LeanString {
+    fold_calls(value, zero_unit, false)
+}
+
+/// Folds every valid `calc()` expression in a CSS fragment like
+/// [`fold_calc_expressions`], and also folds a division of a value by a unitless number
+/// when the quotient is a terminating decimal, as in `calc(98 / 100)` to `.98`.
+///
+/// The folded value can differ from the browser's result only in the last place, and
+/// only when an operand is not exactly representable in binary, as in `.3 / .1`. See
+/// `MathValue::divided_exactly`. A division whose quotient does
+/// not terminate, such as `calc(1 / 3)`, stays a division.
+#[cfg(feature = "minify")]
+#[must_use]
+pub(crate) fn fold_calc_expressions_dividing_exactly(value: &str) -> LeanString {
+    fold_calls(value, None, true)
+}
+
+fn fold_calls(value: &str, zero_unit: Option<&str>, divide_exactly: bool) -> LeanString {
     let mut output = LeanString::with_capacity(value.len());
     let mut cursor = 0;
     for found in find_css_functions(value, &["calc"], 0) {
@@ -34,7 +52,11 @@ pub fn fold_calc_expressions(value: &str, zero_unit: Option<&str>) -> LeanString
             return output;
         };
         let expression = &value[found.arguments];
-        if let Some(mut expression) = MathParser::new(expression).parse() {
+        let mut parser = MathParser::new(expression);
+        if divide_exactly {
+            parser = parser.dividing_exactly();
+        }
+        if let Some(mut expression) = parser.parse() {
             if matches!(expression, MathExpression::Value(MathValue::Number(0.0)))
                 && let Some(unit) = zero_unit
             {

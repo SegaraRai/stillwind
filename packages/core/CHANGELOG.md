@@ -1,5 +1,57 @@
 # stillwind
 
+## 0.8.0
+
+### Minor Changes
+
+- `conflicting-utilities` findings now explain the overlap. When the utilities are a shorthand and a longhand that it covers, such as `m-0 mb-4`, a note names the `allowShorthandOverrides` option. When a physical and a logical property overlap only in some writing modes, such as `px-2 pt-2`, a note names their logical group.
+
+- When a physical utility conflicts with a logical utility, the `conflicting-utilities` finding shows how to use logical properties for both: it names a logical utility from your design system that writes the same value, such as `ms-4` for `ml-4` in `mx-auto ml-4`. When `writingModes` includes a vertical writing mode, as in the `stylistic` preset, it also names `pbs-2` for `pt-2` in `px-2 pt-2`. The suggestion uses the sides of horizontal left-to-right writing modes, appears only when `writingModes` includes `horizontal-tb`, and does not recommend logical properties over physical ones.
+
+- Compiled code now imports its helpers from `stillwind/runtime`, or from `stillwind/runtime/development` in development builds. A module that uses several frameworks' macros imports each shared helper once. The `stillwind/runtime/class-object`, `stillwind/runtime/class-string`, `stillwind/runtime/class-name-object`, and matching `-development` entrypoints are removed. Recompile code that was compiled with an earlier version, because it imports these removed entrypoints.
+
+- Add `style.when(variants)`, which stores a variant sequence such as `card("hover").in(list)`, `card.at("width >= 40rem")`, or `"hover:md"` in a variable. Use the variable as a computed key in `style()`, as a variant segment in a utility template, or in another `style.when()`, so several elements can share a ref condition without repeating it. Stored variants can be exported and imported. The new `invalid-stored-variant` lint rule reports an argument that is not a variant sequence and a use that can refer to several stored variants.
+
+- Add the `or(...)` variant, which applies a utility when any of its comma-separated variant sequences matches. `or(hover,md:focus):p-4` means `hover:p-4 md:focus:p-4`, so each sequence keeps its own CSS order and lint findings. It works in utility strings, object keys of `style()` and `style.css()`, ref conditions such as `card("or(hover,focus-within)")`, and view-transition definitions. Design systems can declare the same behavior under another name with `@stillwind-variant name\(*\) (value: [variant-list]) { @stillwind-intrinsic builtin-or-variant; }`. `style.when()` now accepts several arguments and stores them as alternatives, which can include ref conditions and container queries, such as `style.when("hover", card("focus-within"))`.
+
+- Export `StyleResultOf` from each framework entrypoint, such as `stillwind/react`. TypeScript can now emit declaration files for modules that export a `style()` result, for example with `declaration: true` or the `dts` option of `vp pack`. Before, this failed with TS2883 because the type of the result could not be named from a public entrypoint.
+
+- `conflicting-utilities` has a `writingModes` option that lists the writing modes in which a physical utility and a logical utility are compared: `horizontal-tb`, `vertical-rl`, and `vertical-lr`. The default is `["horizontal-tb"]`, so `px-2 pt-2` is no longer reported, because the two utilities set different sides in horizontal text. `mx-auto ml-4` is still reported. The `stylistic` preset lists all three writing modes. Add `vertical-rl` or `vertical-lr` if your pages use vertical text.
+
+### Patch Changes
+
+- `conflicting-utilities` no longer reports a font size utility together with a `leading-*` utility, such as `text-sm leading-relaxed`. The font size utility reads the line height that the `leading-*` utility sets, so the result does not depend on their order.
+
+- `ambiguous-style-base-order` and `interfering-imported-style-base` findings now include a note that reordering the `style()` arguments does not change which declaration wins. Fix these findings by building the overriding style on the other style or by removing the property from one of them.
+
+- `conflicting-utilities` no longer reports a side utility together with a style utility that sets its style, such as `border-t border-dashed` or `divide-y divide-dashed`. The result of these pairs does not depend on their order.
+
+- Updated dependencies:
+  - @stillwind/config@0.8.0
+  - @stillwind/native@0.8.0
+  - @stillwind/projection@0.8.0
+
+## 0.7.0
+
+### Minor Changes
+
+- `style.css()` now returns a minified stylesheet without the Stillwind and Tailwind license comments, so the strings in your bundle are smaller. The string still applies the same styles.
+
+### Patch Changes
+
+- Rules that a Tailwind CSS JavaScript plugin nests inside `@scope` within a selector, such as `@scope (&)`, now stay inside the `@scope` block, as the same rules in a CSS `@utility` do. Previously, each nested selector moved into the `@scope` prelude, so a selector that used `:scope` matched the document root instead of the scoping root and the rule never applied. For example, daisyUI's `join` lost the radius of its outer corners.
+
+  A plugin that passes `addUtilities()` or `addComponents()` an `@scope` rule outside any selector, such as `{ "@scope (.theme)": { ".item": { … } } }`, now fails with an error. Previously, Stillwind generated CSS that styled other elements than Tailwind CSS does, without a diagnostic.
+
+- Astro components whose frontmatter ends with a `//` line comment now pass `stillwind lint` and the build. Previously, such components failed with SW31005 ("Astro frontmatter coordinates do not match source"), so a trailing comment such as `// TODO` or a tool directive could fail the whole site build.
+
+- The npm package page now shows that each package includes TypeScript declarations. Packages without a root JavaScript entry declare an empty root module, so TypeScript setups that ignore `exports` report a missing export instead of resolving unrelated types.
+
+- Updated dependencies:
+  - @stillwind/config@0.7.0
+  - @stillwind/native@0.7.0
+  - @stillwind/projection@0.7.0
+
 ## 0.6.0
 
 ### Minor Changes

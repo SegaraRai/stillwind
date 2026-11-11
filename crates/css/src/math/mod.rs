@@ -23,3 +23,6 @@ mod parser;
 pub use evaluation::evaluate_numeric;
 pub use folding::{fold_calc_expressions, format_numeric_zero};
 pub use parser::MAX_VALUE_NESTING;
+
+#[cfg(feature = "minify")]
+pub(crate) use folding::fold_calc_expressions_dividing_exactly;

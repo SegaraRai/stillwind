@@ -21,6 +21,11 @@ function component(script: string, template = "") {
   return `---\n// 日本語 🧭\n${macroImport}${baseDeclaration}${script}\n---\n${template}`;
 }
 
+const baseKey = {
+  path: ["base"],
+  ordinal: 0,
+};
+
 function originalRange(code: string, text: string, from = 0) {
   const start = code.indexOf(text, from);
   expect(start).toBeGreaterThanOrEqual(0);
@@ -132,7 +137,12 @@ describe("Astro @astrojs/astro2tsx 0.1.3", () => {
     ).toStrictEqual([{ start: 3, end: code.indexOf("\r\n---", 3) + 2 }]);
     const module = await compile(prepared);
     expect(module.composition).toMatchObject([
-      { base: { moduleId: prepared.moduleId, ...originalRange(code, "style('flex')") } },
+      {
+        base: {
+          moduleId: prepared.moduleId,
+          ...baseKey,
+        },
+      },
     ]);
     expect(module.code).toContain("function identity<T>(value:T):T{return value;}");
     expect(module.code).toContain("// 日本語 🧭\r\n");
@@ -155,9 +165,10 @@ const stringProps = astro(active && "flex", { "--tone": tone }, active && { "--e
     );
     const prepared = await project(code);
     const output = await compile(prepared);
-    for (const format of ["class-name-object", "class-object", "class-string"]) {
-      expect(output.code).toContain(`from "stillwind/runtime/${format}"`);
+    for (const format of ["ClassNameObject", "ClassObject", "ClassString"]) {
+      expect(output.code).toContain(`stillwind${format}Merge`);
     }
+    expect(output.code).toContain('from "stillwind/runtime"');
     expect(output.code).toContain("<script>");
     expect(output.code).not.toMatch(/style as|__stillwind_client/);
   });
@@ -170,7 +181,7 @@ const stringProps = astro(active && "flex", { "--tone": tone }, active && { "--e
     const module = await compile(await project(code));
     expect(module.composition).toMatchObject([
       {
-        base: originalRange(code, "style('flex')"),
+        base: baseKey,
       },
     ]);
     expect(module.code).toContain("[base].map(item=><>");
@@ -186,7 +197,7 @@ const stringProps = astro(active && "flex", { "--tone": tone }, active && { "--e
     const module = await compile(await project(code));
     expect(module.composition).toMatchObject([
       {
-        base: originalRange(code, "style('flex')"),
+        base: baseKey,
       },
     ]);
     expect(module.code).toContain("if(Astro.props.enabled)return Astro.redirect('/');");
@@ -244,7 +255,7 @@ const stringProps = astro(active && "flex", { "--tone": tone }, active && { "--e
       const module = await compile(prepared);
       expect(module.composition).toMatchObject([
         {
-          base: originalRange(code, "style('flex')"),
+          base: baseKey,
         },
       ]);
       expect(module.code).toContain(prefix);
@@ -256,7 +267,11 @@ const stringProps = astro(active && "flex", { "--tone": tone }, active && { "--e
   test("client generic arrow functions retain their finite identities", async () => {
     const code = `<script>\n${macroImport}${baseDeclaration}const identity=<T,>(value:T)=>value;const derived=style(identity(base),'grid');\n</script>`;
     const module = await compile(await project(code));
-    expect(module.composition).toMatchObject([{ base: originalRange(code, "style('flex')") }]);
+    expect(module.composition).toMatchObject([
+      {
+        base: baseKey,
+      },
+    ]);
     expect(module.code).toContain("const identity=<T,>(value:T)=>value;");
   });
 
@@ -311,17 +326,19 @@ const stringProps = astro(active && "flex", { "--tone": tone }, active && { "--e
       undefined,
     ]);
     const module = await compile(prepared);
-    const expected = [...code.matchAll(/style\('flex'\)/g)].map(({ index }) =>
-      originalRange(code, "style('flex')", index),
-    );
     expect(
       module.composition
-        .map(({ base: { start, end } }) => ({
-          start,
-          end,
+        .map(({ base: { path, ordinal } }) => ({
+          path,
+          ordinal,
         }))
-        .sort((a, b) => a.start - b.start),
-    ).toStrictEqual(expected);
+        .sort((a, b) => a.ordinal - b.ordinal),
+    ).toStrictEqual(
+      [0, 1, 2].map((ordinal) => ({
+        path: ["base"],
+        ordinal,
+      })),
+    );
   });
 
   test("an authored client function keeps its binding beside the server macro import", async () => {
@@ -330,7 +347,7 @@ const stringProps = astro(active && "flex", { "--tone": tone }, active && { "--e
     const module = await compile(await project(code));
     expect(module.composition).toMatchObject([
       {
-        base: originalRange(code, "style('flex')"),
+        base: baseKey,
       },
     ]);
     expect(module.code).toContain(client);
@@ -387,7 +404,7 @@ const stringProps = astro(active && "flex", { "--tone": tone }, active && { "--e
     const module = await compile(prepared);
     expect(module.composition).toMatchObject([
       {
-        base: originalRange(code, "style('flex')"),
+        base: baseKey,
       },
     ]);
     for (const script of scripts) {
@@ -402,7 +419,7 @@ const stringProps = astro(active && "flex", { "--tone": tone }, active && { "--e
     const module = await compile(prepared);
     expect(module.composition).toMatchObject([
       {
-        base: originalRange(code, "style('flex')"),
+        base: baseKey,
       },
     ]);
     expect(module.code).toContain("---\r\n---\r\n<script>");

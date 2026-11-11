@@ -7,6 +7,8 @@ import type { Plugin } from "vite";
 import { readableFile } from "./file-access.ts";
 import type { ViteProject } from "./project.ts";
 import { projectionImports } from "./projection-imports.ts";
+import { isReactRouterClientRoute } from "./react-router.ts";
+import { resolveServerSource } from "./server-source-resolve.ts";
 
 /** Project settings whose configured CSS entrypoint has already produced an import warning. */
 const warnedEntrypointImports = new WeakSet<ViteProject["settings"]>();
@@ -22,8 +24,8 @@ export interface TransformOptions {
 /**
  * Creates source transform and watch hooks for the project compiler plugin.
  *
- * Development changes publish CSS after compilation. Invalid projection imports fail through the
- * Vite hook context.
+ * Development compilations advance the CSS revision and publish one snapshot after a burst of
+ * compilations. Invalid projection imports fail through the Vite hook context.
  *
  * @param project - Project configured and initialized by the compiler plugin.
  * @param virtualModules - Virtual module hooks for the same project, used to reload cached
@@ -38,7 +40,7 @@ export function transformHooks(
   virtualModules: Pick<Plugin, "load">,
   options: TransformOptions = {},
 ): Pick<Plugin, "shouldTransformCachedModule" | "watchChange" | "transform"> {
-  const { settings, publish, compile } = project;
+  const { settings, publish, publishSoon, compile } = project;
   const cachedVirtualModules = new Map<string, Set<string>>();
 
   return {
@@ -120,7 +122,8 @@ export function transformHooks(
           !/\.(?:[cm]?[jt]sx?|astro|svelte|vue)$/.test(cleanModuleId(id)) ||
           id.includes("node_modules") ||
           id.startsWith("\0") ||
-          /[?&](?:raw|url|type)(?:[=&]|$)/.test(id)
+          /[?&](?:raw|url|type)(?:[=&]|$)/.test(id) ||
+          (this.environment && isReactRouterClientRoute(id, this.environment.getTopLevelConfig()))
         ) {
           return;
         }
@@ -130,12 +133,11 @@ export function transformHooks(
         }
         const projections = new Map<string, string>();
         for (const specifier of await projectionImports(code, id)) {
-          const source = await this.resolve(specifier.slice(0, -"?stillwind.css".length), id, {
-            skipSelf: true,
-            custom: {
-              "react-router:dot-server": true,
-            },
-          });
+          const source = await resolveServerSource(
+            this.resolve.bind(this),
+            specifier.slice(0, -"?stillwind.css".length),
+            id,
+          );
           if (!source || source.external) {
             this.error(`Cannot resolve Stillwind projection ${specifier}`);
           }
@@ -150,7 +152,7 @@ export function transformHooks(
           const input = project.inputs(name).get(id);
           if (input) {
             await project.environment(name).removeSource(id);
-            await publish(name, this);
+            publishSoon(name);
           }
           await project.environment(name).projections(id, projections);
           return;
@@ -164,7 +166,10 @@ export function transformHooks(
             }
           : this;
         const result = await compile(name, code, id, context);
-        await publish(name, this);
+        // Planning the whole document after each transform makes a cold start quadratic in the
+        // number of producers. A producer module that loads before the delayed snapshot requests
+        // the current revision through the snapshot endpoint instead.
+        publishSoon(name);
         return result;
       },
     },

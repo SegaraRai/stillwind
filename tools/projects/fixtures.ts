@@ -317,7 +317,7 @@ function runnableOutput(module: ModuleOutput, fixture: string) {
   const finalized = finalizeModuleWithMap(module.code!);
   const output = finalized.code;
   const runtimeImports = output.matchAll(
-    /import\s*\{([^}]+)\}\s*from\s*["']stillwind\/runtime\/(?:class-object|class-string|class-name-object)(?:-development)?["']/g,
+    /import\s*\{([^}]+)\}\s*from\s*["']stillwind\/runtime(?:\/development)?["']/g,
   );
   const imported = new Set(
     [...runtimeImports].flatMap((match) =>

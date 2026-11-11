@@ -32,6 +32,11 @@ const optionTypes: Record<string, string> = Object.fromEntries(
       .matchAll(/\((\w+)\) => \{\s*(\w+)Config\s*\};/g),
   ].map(([, variant, type]) => [variant, type]),
 );
+/** Reads `WritingMode::VerticalRl` variants of Rust source as CSS keywords such as `vertical-rl`. */
+const writingModes = (source: string) =>
+  [...source.matchAll(/WritingMode::([A-Z][a-z]+)([A-Z][a-z]+)/g)].map(([, mode, axis]) =>
+    `${mode}-${axis}`.toLowerCase(),
+  );
 const camel = (value: string) =>
   value.replace(/[-_]([a-z])/g, (_, letter: string) => letter.toUpperCase());
 const defaultSource = catalogSource.split("macro_rules! lint_config_value {")[1];
@@ -56,10 +61,16 @@ const rules = [...catalog.matchAll(/(\w+) => "([\w-]+)",/g)].map(([, variant, na
           ...defaultSource
             .split(`(${variant}, $severity:expr) => {`)[1]
             .split("\n    };")[0]
-            .matchAll(/(\w+): (\$severity|Vec::new\(\)|true|false),/g),
+            .matchAll(/(\w+): (\$severity|Vec::new\(\)|true|false|Cow::Borrowed\(&\[[^\]]*\]\)),/g),
         ].map(([, field, value]) => [
           camel(field),
-          value === "$severity" ? "warn" : value === "Vec::new()" ? [] : value === "true",
+          value === "$severity"
+            ? "warn"
+            : value === "Vec::new()"
+              ? []
+              : value.startsWith("Cow::Borrowed")
+                ? writingModes(value)
+                : value === "true",
         ]),
       )
     : undefined;
@@ -100,7 +111,14 @@ function presetEntries(name: string) {
 }
 
 const recommended = presetEntries("RECOMMENDED");
-const stylistic = presetEntries("STYLISTIC");
+const stylistic = {
+  ...presetEntries("STYLISTIC"),
+  "conflicting-utilities": {
+    writingModes: writingModes(
+      presetSource.split("const STYLISTIC_WRITING_MODES:")[1].split("];")[0],
+    ),
+  },
+};
 const strictAdditions = presetEntries("STRICT_ADDITIONS");
 
 async function output(file: string, source: string) {
@@ -176,7 +194,8 @@ const recommended = {
 /**
  * Built-in lint policies for ordered preset composition. Treat their shared objects as readonly.
  * Recommended supplies the omitted-lint default. Strict denies every recommended rule and adds
- * further denied checks. Stylistic enables optional rewrites and utility sorting.
+ * further denied checks. Stylistic enables optional rewrites and utility sorting, and checks
+ * conflicting utilities in every writing mode.
  */
 export const lintPresets = {
   recommended,

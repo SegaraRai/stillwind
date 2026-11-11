@@ -21,6 +21,8 @@ use stillwind_diagnostics::{LintDiagnostic, LintFinding, LintKind, MarkerUseErro
 use stillwind_source::Span;
 use stillwind_syntax::{Variant, parse_candidate};
 
+use super::super::style_variants::expand_candidate;
+
 /// One resolved utility rule, ready to be ordered and rendered.
 #[derive(Clone, Debug)]
 pub(crate) struct CompiledUtility {
@@ -80,23 +82,43 @@ pub(in crate::compiler) struct CompiledUtilityDiagnosticData {
     pub(in crate::compiler) invalid_value: Option<InvalidPropertyValue>,
 }
 
-/// Resolves a candidate and returns its first target, for callers that render a single
-/// rule.
+/// Resolves a candidate and returns the first target of each variant sequence that its
+/// `or(...)` variants expand to, in written order, for callers that render a single rule
+/// for each sequence. A candidate without `or(...)` returns one target.
 ///
 /// # Errors
 ///
 /// Returns a malformed requirement from a matching utility definition.
-pub(in crate::compiler) fn resolve_first_target(
+pub(in crate::compiler) fn resolve_first_targets(
     utility: &str,
     theme: &ThemeIndex,
-) -> Result<Result<CompiledUtility, UtilityFailure>, UtilityResolutionError> {
-    Ok(
-        resolve_utility_targets(utility, theme, VariantContext::Element)?
-            .map(|mut targets| targets.swap_remove(0)),
-    )
+) -> Result<Result<Vec<CompiledUtility>, UtilityFailure>, UtilityResolutionError> {
+    let alternatives = match expand_candidate(utility, theme) {
+        Ok(alternatives) => alternatives,
+        Err(failure) => return Ok(Err(failure)),
+    };
+    let expanded = alternatives.len() != 1 || alternatives[0] != utility;
+    let mut targets = Vec::with_capacity(alternatives.len());
+    for alternative in &alternatives {
+        match resolve_utility_targets(alternative, theme, VariantContext::Element)? {
+            Ok(mut resolved) => targets.push(resolved.swap_remove(0)),
+            Err(failure) if expanded => {
+                return Ok(Err(UtilityFailure {
+                    range: 0..utility.len(),
+                    reason: failure.reason,
+                }));
+            }
+            Err(failure) => return Ok(Err(failure)),
+        }
+    }
+    Ok(Ok(targets))
 }
 
 /// Resolves a candidate into every rule it expands to, in emission order.
+///
+/// A candidate with `or(...)` variants resolves each of its expanded sequences as
+/// [`expand_candidate`] describes, and fails when any sequence fails. Each target keeps
+/// the variants and spelling of its own sequence.
 ///
 /// Every variant must also resolve; an absent CSS registration never drops its guard
 /// and turns the candidate into an unconditional utility. In
@@ -118,6 +140,27 @@ pub(crate) fn resolve_utility_targets(
     theme: &ThemeIndex,
     context: VariantContext,
 ) -> Result<Result<Vec<CompiledUtility>, UtilityFailure>, UtilityResolutionError> {
+    let alternatives = match expand_candidate(utility, theme) {
+        Ok(alternatives) => alternatives,
+        Err(failure) => return Ok(Err(failure)),
+    };
+    if alternatives.len() != 1 || alternatives[0] != utility {
+        let mut targets = Vec::new();
+        for alternative in &alternatives {
+            match resolve_utility_targets(alternative, theme, context)? {
+                Ok(resolved) => targets.extend(resolved),
+                // The range of the failure refers to the expanded text, so the failure
+                // covers the whole candidate as written.
+                Err(failure) => {
+                    return Ok(Err(UtilityFailure {
+                        range: 0..utility.len(),
+                        reason: failure.reason,
+                    }));
+                }
+            }
+        }
+        return Ok(Ok(targets));
+    }
     let resolved = match resolve_utility(utility, theme)? {
         Ok(resolved) => resolved,
         Err(failure) => {

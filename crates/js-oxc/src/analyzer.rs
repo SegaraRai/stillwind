@@ -62,7 +62,8 @@ impl OxcSourceAnalyzer {
                 ExportedValue::Styles(value)
                 | ExportedValue::Refs(value)
                 | ExportedValue::Keyframes(value)
-                | ExportedValue::ViewTransitions(value) => {
+                | ExportedValue::ViewTransitions(value)
+                | ExportedValue::StoredVariants(value) => {
                     assets.extend(value.finite_candidates().into_iter().flatten().cloned());
                 }
             }
@@ -261,7 +262,6 @@ impl SourceAnalyzer for ConfiguredSourceAnalyzer {
         ModuleAnalysis {
             input: scan.input,
             provenance,
-            asset_support: Vec::new(),
             external_assets: OxcSourceAnalyzer::external_assets(facts),
             module_id: scan.module_id,
             source: scan.source,
@@ -327,7 +327,7 @@ fn select_framework(parsed: &mut ParsedJavaScript, input: &SourceInput, lint: bo
 #[cfg(test)]
 mod tests {
     use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
-    use stillwind_semantic::{AssetKind, SymbolicValue, TypeFact};
+    use stillwind_semantic::{AssetKind, DeclarationKey, SymbolicValue, TypeFact};
     use stillwind_source::{FileId, SourceFile};
 
     use super::*;
@@ -381,8 +381,8 @@ mod tests {
             ScriptLanguage::Ts,
             ScriptModuleKind::Module,
         );
-        assert_eq!(scan.summary.schema, 4);
-        for (schema, accepted) in [(3, false), (4, false), (TypeFacts::SCHEMA, true)] {
+        assert_eq!(scan.summary.schema, 5);
+        for (schema, accepted) in [(4, false), (5, false), (TypeFacts::SCHEMA, true)] {
             let facts = TypeFacts {
                 schema,
                 module_id: scan.module_id.clone(),
@@ -412,7 +412,12 @@ mod tests {
 
     #[test]
     fn external_ref_assets_include_only_finite_candidates() {
-        let reference = IdentityId::new(AssetKind::Ref, "refs.ts".into(), 0, 1, "handle");
+        let reference = IdentityId::new(
+            AssetKind::Ref,
+            "refs.ts".into(),
+            DeclarationKey::top(0),
+            "handle",
+        );
         let facts = TypeFacts {
             schema: TypeFacts::SCHEMA,
             module_id: "consumer.ts".into(),

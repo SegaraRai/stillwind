@@ -1,9 +1,9 @@
-import { stillwindClsx } from "stillwind/runtime/class-name-object";
+import { stillwindClsx } from "stillwind/runtime";
 
 const loading = Date.now() % 2 === 0;
 const emphasized = location.hash === "#emphasized";
 
-export const buttonProps = {className:stillwindClsx("sw_hpdco",(loading) && ("sw_hmw23"),(emphasized) ? ("sw_96vzq") : ("sw_ke6ey"),"legacy-button",loading && "is-loading")};
+export const buttonProps = {className:stillwindClsx("sw_801ut",(loading) && ("sw_47yet"),(emphasized) ? ("sw_hra5a") : ("sw_lwn5s"),"legacy-button",loading && "is-loading")};
 
 export function SaveButton() {
   return (

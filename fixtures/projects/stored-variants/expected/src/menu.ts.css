@@ -1,0 +1,41 @@
+.sw_lshss {
+  position: relative;
+}
+.sw_lshss:where(.sw_menu_mg4fw) {
+  container-name: sw-c-menu-mg4fw;
+  container-type: inline-size;
+}
+.sw_nefwu {
+  padding-inline: calc(var(--spacing) * 2);
+}
+@media (hover: hover) {
+  .sw_vqac8:is(:is(:where(.sw_menu_mg4fw)):has(:is(:where(.sw_trigger_ga2g3):hover)) *) {
+    rotate: calc(90 * 1deg);
+  }
+}
+.sw_vqac8:active:focus-visible {
+  --tw-scale-x: calc(95 * 1%);
+  --tw-scale-y: calc(95 * 1%);
+  --tw-scale-z: calc(95 * 1%);
+  scale: var(--tw-scale-x) var(--tw-scale-y);
+}
+@container sw-c-menu-mg4fw (width >= 40rem) {
+  @media (hover: hover) {
+    .sw_u21ap:is(:is(:where(.sw_menu_mg4fw)):has(:is(:where(.sw_trigger_ga2g3):hover)) *) {
+      --tw-font-weight: var(--font-weight-bold);
+      font-weight: var(--font-weight-bold);
+    }
+  }
+}
+@media (hover: hover) {
+  .sw_u21ap:is(:is(:where(.sw_menu_mg4fw)):has(:is(:where(.sw_trigger_ga2g3):hover)) *) {
+    text-decoration-line: underline;
+  }
+}
+@media (hover: hover) {
+  .sw_8ak0a:active:focus-visible:is(
+      :is(:where(.sw_menu_mg4fw)):has(:is(:where(.sw_trigger_ga2g3):hover)) *
+    ) {
+    opacity: calc(50 * 1%);
+  }
+}

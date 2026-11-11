@@ -34,27 +34,30 @@ catalogs:
     "@jridgewell/gen-mapping": ^0.3.13
     "@jridgewell/remapping": ^2.3.5
     "@jridgewell/trace-mapping": ^0.3.31
-    "@rolldown/browser": ^1.2.16
+    "@rolldown/browser": ^1.3.1
     "@types/node": ^26.6.6
-    "@vitest/browser-playwright": 5.0.5
-    "@vitest/ui": 5.0.5
+    "@vitest/browser-playwright": 5.1.0
+    "@vitest/ui": 5.1.0
     "@webref/css": 8.7.8
-    cf: ^1.0.0-beta.26
+    cf: ^1.0.0-beta.29
     pathe: ^2.0.3
-    playwright: ^1.64.1
-    rolldown: ^1.2.16
-    tailwindcss: 4.3.3
+    playwright: ^1.65.0
+    rolldown: ^1.3.1
+    tailwindcss: 4.3.5
     typescript: ^6.0.3
-    vite: npm:@voidzero-dev/vite-plus-core@1.4.0
-    vite-plus: 1.4.0
-    vitest: 5.0.5
+    vite: npm:@voidzero-dev/vite-plus-core@1.5.1
+    vite-plus: 1.5.1
+    vitest: 5.1.0
 
 overrides:
   # The browser loader and wasm-runtime plugins require the same emnapi API.
-  "@rolldown/browser>@emnapi/core": 2.0.0-beta.2
-  "@rolldown/browser>@emnapi/runtime": 2.0.0-beta.2
+  "@rolldown/browser>@emnapi/core": 2.0.0-beta.3
+  "@rolldown/browser>@emnapi/runtime": 2.0.0-beta.3
+  # Rsbuild and the integration's direct Rspack must resolve one Rspack instance.
+  # The integration's Rspack takes its @swc/helpers peer from the version that Next pins.
+  "@rsbuild/core>@swc/helpers": 0.5.23
   # Vue's language plugin and its TypeScript augmentation share one Volar version.
-  "@vue/language-core@3.3.14>@volar/language-core": 2.4.30
+  "@vue/language-core@3.3.14>@volar/language-core": 2.4.31
   "@vitest/ui": "catalog:"
   vite@*: "catalog:"
   vitest@*: "catalog:"
@@ -68,8 +71,8 @@ peerDependencyRules:
     vitest: "*"
 
 patchedDependencies:
-  "@napi-rs/cli@3.10.9": patches/@napi-rs__cli@3.10.9.patch
-  "@rolldown/browser@1.2.16": patches/@rolldown__browser@1.2.16.patch
+  "@napi-rs/cli@3.10.12": patches/@napi-rs__cli@3.10.12.patch
+  "@rolldown/browser@1.3.1": patches/@rolldown__browser@1.3.1.patch
 
 versioning:
   maxBump: minor
@@ -164,3 +167,16 @@ versioning:
     - "@stillwind-internal/tools-tailwind-compat"
     - "@stillwind-internal/tools-webref"
     - "@stillwind-internal/tools-workspace"
+
+minimumReleaseAgeExclude:
+  - "@cloudflare/build-output-utils@0.9.12"
+  - "@cloudflare/config@0.31.1"
+  - "@cloudflare/runtime-types@0.1.25"
+  - "@cloudflare/workerd-darwin-64@1.20261110.1"
+  - "@cloudflare/workerd-darwin-arm64@1.20261110.1"
+  - "@cloudflare/workerd-linux-64@1.20261110.1"
+  - "@cloudflare/workerd-linux-arm64@1.20261110.1"
+  - "@cloudflare/workerd-windows-64@1.20261110.1"
+  - cf@1.0.0-beta.29
+  - miniflare@5.20261110.0-beta
+  - workerd@1.20261110.1

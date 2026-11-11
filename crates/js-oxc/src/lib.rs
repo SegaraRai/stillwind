@@ -2,9 +2,10 @@
 //!
 //! This crate is the JavaScript frontend. It parses a module with Oxc and finds the
 //! `style` binding that a Stillwind macro import created. It extracts style calls, ref
-//! definitions, keyframes, and view-transition declarations, and resolves the framework
-//! adapter. It then publishes a [`stillwind_semantic::ModuleSummary`] and the type
-//! probes that the host checker must answer.
+//! definitions, stored variants, keyframes, and view-transition declarations, and
+//! resolves the framework adapter. It then publishes a
+//! [`stillwind_semantic::ModuleSummary`] and the type probes that the host checker must
+//! answer.
 //!
 //! Three contracts hold throughout:
 //!
@@ -23,11 +24,14 @@
 //! - [`bindings`] recognizes imported macro symbols.
 //! - [`contract`] validates macro argument expressions before folding.
 //! - [`cva`] validates factory configurations and extracts their values.
+//! - [`declarations`] collects ref and stored-variant declarations before the main
+//!   visit.
 //! - [`demand`] finds the imports that unresolved values need.
 //! - [`entry`] coordinates parsing and extraction.
 //! - [`expressions`] lowers style inputs.
 //! - [`imports`] records bindings and their reads.
 //! - [`keyframes`] extracts keyframes declarations and their uses.
+//! - [`keys`] allocates declaration keys that survive edits elsewhere in a module.
 //! - [`local_span`] supplies file-local range keys for extraction and checker
 //!   bookkeeping.
 //! - [`media`] records `style.media()` arguments.
@@ -38,9 +42,10 @@
 //! - [`refs`] extracts ref declarations and their uses.
 //! - [`resolution`] distinguishes unsupported values from missing facts.
 //! - [`state`] holds the state of one extraction.
+//! - [`stored_variants`] reads `style.when()` declarations and expands their uses.
 //! - [`style_bindings`] seeds local style producers.
 //! - [`stylesheet`] records `style.css()` inputs and options.
-//! - [`templates`] preserves ref substitutions in template literals.
+//! - [`templates`] preserves ref and stored-variant substitutions in template literals.
 //! - [`uses`] rejects unconsumed projections and ref variants.
 //! - [`view_transition`] extracts view-transition declarations and their uses.
 //! - [`visit`] collects module structure and macro uses.
@@ -62,11 +67,13 @@ mod ast;
 mod bindings;
 mod contract;
 mod cva;
+mod declarations;
 mod demand;
 mod entry;
 mod expressions;
 mod imports;
 mod keyframes;
+mod keys;
 mod local_span;
 mod media;
 mod normalization;
@@ -74,6 +81,7 @@ mod projected_scan;
 mod refs;
 mod resolution;
 mod state;
+mod stored_variants;
 mod style_bindings;
 mod stylesheet;
 mod templates;

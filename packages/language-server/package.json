@@ -1,6 +1,6 @@
 {
   "name": "@stillwind/language-server",
-  "version": "0.6.0",
+  "version": "0.8.0",
   "description": "Stillwind Language Server Protocol handlers with Node and browser transports",
   "keywords": [
     "language-server",
@@ -18,9 +18,12 @@
     "directory": "packages/language-server"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "CHANGELOG.md"
   ],
   "type": "module",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

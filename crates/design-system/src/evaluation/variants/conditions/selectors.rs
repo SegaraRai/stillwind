@@ -3,7 +3,7 @@
 
 use lean_string::ToLeanStr;
 
-use stillwind_css::subject_compound_parts;
+use stillwind_css::{subject_compound_parts, wrapped_subject_condition};
 
 use super::super::VariantApplication;
 use super::atoms::{Condition, Test};
@@ -12,7 +12,8 @@ use super::atoms::{Condition, Test};
 /// it twice has the same effect as applying it once.
 ///
 /// Media, container, and support conditions and runtime conditions qualify. A selector
-/// qualifies when it is `&` followed by a compound selector without pseudo-elements.
+/// qualifies when it is `&` followed by a compound selector without pseudo-elements,
+/// or a `:is()` wrapper whose branches each end in one subject.
 /// Selectors that select another element, the starting style, and variants that
 /// declare properties do not qualify.
 pub(super) fn is_filter(application: &VariantApplication) -> bool {
@@ -28,13 +29,17 @@ pub(super) fn is_filter(application: &VariantApplication) -> bool {
         VariantApplication::SelectorTemplate(selector)
         | VariantApplication::BareSelector { selector, .. }
         | VariantApplication::SelectorCondition(selector)
-        | VariantApplication::SelectorMedia { selector, .. } => selector
-            .strip_prefix('&')
-            .and_then(subject_compound_parts)
-            .is_some(),
+        | VariantApplication::SelectorMedia { selector, .. } => {
+            selector
+                .strip_prefix('&')
+                .and_then(subject_compound_parts)
+                .is_some()
+                || wrapped_subject_condition(selector).is_some()
+        }
         VariantApplication::SelectorRule { .. }
         | VariantApplication::SelectorMediaRule { .. }
-        | VariantApplication::StartingStyle => false,
+        | VariantApplication::StartingStyle
+        | VariantApplication::Scope(_) => false,
     }
 }
 
@@ -50,24 +55,34 @@ pub(super) fn moves_subject(application: &VariantApplication) -> bool {
         | VariantApplication::Supports(_)
         | VariantApplication::Conditional(_)
         | VariantApplication::StartingStyle => false,
+        VariantApplication::Scope(_) => true,
         VariantApplication::SelectorSuffix(suffix) => subject_compound_parts(suffix).is_none(),
         VariantApplication::SelectorTemplate(selector)
         | VariantApplication::BareSelector { selector, .. }
         | VariantApplication::SelectorCondition(selector)
         | VariantApplication::SelectorRule { selector, .. }
         | VariantApplication::SelectorMedia { selector, .. }
-        | VariantApplication::SelectorMediaRule { selector, .. } => selector
-            .strip_prefix('&')
-            .and_then(subject_compound_parts)
-            .is_none(),
+        | VariantApplication::SelectorMediaRule { selector, .. } => {
+            selector
+                .strip_prefix('&')
+                .and_then(subject_compound_parts)
+                .is_none()
+                && wrapped_subject_condition(selector).is_none()
+        }
     }
 }
 
-/// The conditions that `selector` adds to the styled element, or none when it is not a
-/// compound selector on `&`. `:not(x)` with a single selector `x` becomes the negation
-/// of `x`.
+/// The conditions that `selector` adds to the styled element. Accepts a compound
+/// selector on `&` or a `:is()` wrapper whose branches end in one subject; other
+/// selectors contribute none. `:not(x)` with a single selector `x` becomes the
+/// negation of `x`.
 pub(super) fn selector_conditions(selector: &str, variant: usize) -> Vec<Condition> {
-    let Some(parts) = selector.strip_prefix('&').and_then(subject_compound_parts) else {
+    let wrapped = wrapped_subject_condition(selector);
+    let Some(parts) = selector
+        .strip_prefix('&')
+        .or(wrapped.as_deref())
+        .and_then(subject_compound_parts)
+    else {
         return Vec::new();
     };
     parts
@@ -122,7 +137,7 @@ mod tests {
         assert_eq!(template("&:is(.a, .b)").len(), 1);
         assert_eq!(template("&[data-state=\"a b\"]").len(), 1);
         assert!(is_filter(&VariantApplication::SelectorTemplate(
-            "&:is(:where(.group):hover *)".into()
+            ":is(:where(.group):hover &)".into()
         )));
         assert!(moves_subject(&VariantApplication::SelectorTemplate(
             ":is(& > *)".into()

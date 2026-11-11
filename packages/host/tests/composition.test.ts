@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { runInNewContext } from "node:vm";
 
 import { NativeDesignSystemLoader, NativeProjectSession } from "@stillwind/native";
-import * as runtime from "stillwind/runtime/class-name-object";
+import * as runtime from "stillwind/runtime";
 import { expect, test } from "vite-plus/test";
 
 import { compileModule, fileModuleDescriptor } from "../src/compilation/index.ts";
@@ -294,7 +294,7 @@ export function other() {
 }
 export const base = style("red");`,
   });
-  expect(output.code!).toMatch(/stillwindMerge/);
+  expect(output.code!).toMatch(/stillwind\w*Merge/);
 });
 
 test("logical values require checked candidates or a confirmed non-asset", async () => {
@@ -389,6 +389,33 @@ test("imported bases retain overlap diagnostics across output formats", async ()
   });
 });
 
+test("composition loads producers of styles that the entry does not import", async () => {
+  // The entry demands only `used`, but compiling `middle` also compiles `unused`, whose
+  // base lives in a module that `used` does not reach.
+  const output = await compile({
+    "entry.ts": `
+import { style } from "stillwind/react";
+import { used } from "./middle";
+
+globalThis.props = style(used, "blue");
+`,
+    "middle.ts": `
+import { style } from "stillwind/react";
+import { other } from "./other";
+
+export const used = style("red");
+export const unused = style(other, "green");
+`,
+    "other.ts": `
+import { style } from "stillwind/react";
+
+export const other = style("blue");
+`,
+  });
+  expect(output.diagnostics).toEqual([]);
+  expect(output.css).toMatch(/color:\s*blue/);
+});
+
 test("composition follows imported and re-exported style producers", async () => {
   const root = path.dirname(fileURLToPath(import.meta.url));
   const files = new Map([
@@ -430,7 +457,7 @@ test("composition follows imported and re-exported style producers", async () =>
     const result = await compile();
     expect(result).toBeTruthy();
     expect(result!.code!).toMatch(
-      /\(flag\) \? \(stillwindToFragment\(\(a\)\)\) : \(stillwindToFragment\(\(b\)\)\)/,
+      /\(flag\) \? \(stillwind\w*ToFragment\(\(a\)\)\) : \(stillwind\w*ToFragment\(\(b\)\)\)/,
     );
     expect(result!.css).toMatch(/color:\s*blue/);
     expect(result!.css).not.toMatch(/color:\s*red|color:\s*green/);

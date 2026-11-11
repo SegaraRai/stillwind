@@ -4,6 +4,7 @@ use std::rc::Rc;
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_diagnostics::CompileDiagnostic;
+use stillwind_semantic::DeclarationKey;
 use stillwind_source::{CssSourceName, ModuleId};
 
 use super::*;
@@ -64,7 +65,7 @@ fn class_context(branch: &str) -> ClassContext {
     ClassContext {
         module: ModuleId::from("src/a.tsx"),
         namespace: (LeanString::new()).into(),
-        call: 12,
+        key: DeclarationKey::new(vec!["App".into()], 2),
         branch: branch.to_lean_str(),
     }
 }
@@ -72,8 +73,7 @@ fn class_context(branch: &str) -> ClassContext {
 fn declaration_context(label: Option<&str>) -> DeclarationContext {
     DeclarationContext {
         module: ModuleId::from("src/a.tsx"),
-        start: 20,
-        end: 24,
+        key: DeclarationKey::top(0),
         binding: "menu".into(),
         label: label.and_then(|label| Label::new(label).ok()),
     }
@@ -82,8 +82,7 @@ fn declaration_context(label: Option<&str>) -> DeclarationContext {
 fn locator_context(declaration: &DeclarationContext) -> LocatorContext {
     LocatorContext {
         module: declaration.module.clone(),
-        start: declaration.start,
-        end: declaration.end,
+        key: declaration.key.clone(),
         binding: declaration.binding.clone(),
         label: declaration.label.clone(),
         projection: None,
@@ -344,12 +343,12 @@ fn identity_fields_use_nul_boundaries() {
     let class = ClassName(ClassContext {
         module: ModuleId::from("src/a:1.tsx"),
         namespace: "app:one".to_lean_str(),
-        call: 12,
+        key: DeclarationKey::new(vec!["App".into()], 2),
         branch: "0:flex:wide".to_lean_str(),
     });
     assert_eq!(
         class.identity(),
-        "stillwind/style/v1\0app:one\0src/a:1.tsx\x0012\x000:flex:wide\0"
+        "stillwind/style/v2\0app:one\0src/a:1.tsx\0App\u{1f}\x002\x000:flex:wide\0"
     );
     assert_eq!(
         LayerNameRequest(LayerContext {
@@ -362,13 +361,12 @@ fn identity_fields_use_nul_boundaries() {
     assert_eq!(
         RefMarkerName(DeclarationContext {
             module: ModuleId::from("src/a:1.tsx"),
-            start: 2,
-            end: 5,
+            key: DeclarationKey::new(vec!["A".into()], 2),
             binding: "a:b".into(),
             label: None,
         })
         .identity(),
-        "stillwind/v1\0src/a:1.tsx\0ref\x002:5\0a:b\0"
+        "stillwind/v2\0src/a:1.tsx\0ref\0A\u{1f}\x002\0a:b\0"
     );
 }
 
@@ -396,7 +394,7 @@ fn detached_owner_identities_do_not_reuse_hash_inputs() {
     let name = context.drain_detached().pop().unwrap();
     assert_eq!(
         name.identity,
-        "stillwind-identity/v1\0slot\0src/a.tsx\0\x0012\0view-transition\0"
+        "stillwind-identity/v2\0slot\0src/a.tsx\0\0App\u{1f}\x002\0view-transition\0"
     );
     assert_ne!(name.identity, slot.identity());
 

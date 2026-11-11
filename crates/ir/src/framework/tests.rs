@@ -28,11 +28,12 @@ fn frameworks_declare_their_materialized_style_format() {
             spec.output.spec().class_property == "className"
                 || spec.output.spec().class_property == "class"
         );
-        assert!(
-            spec.output
-                .spec()
-                .runtime_import
-                .starts_with("stillwind/runtime/")
-        );
+        for other in FRAMEWORKS {
+            assert_eq!(
+                spec.output.spec().runtime_export_prefix
+                    == other.output.spec().runtime_export_prefix,
+                spec.output == other.output,
+            );
+        }
     }
 }

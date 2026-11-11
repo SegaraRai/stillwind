@@ -22,7 +22,7 @@ content-auto data-checked:content-auto [--gutter:1rem] w-[calc(var(--gutter)*2)]
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer utilities {
   .w-\[calc\(var\(--gutter\)\*2\)\] {
     width: calc(var(--gutter) * 2);
@@ -64,7 +64,7 @@ bg-brand tab-8 hocus:bg-brand
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer utilities {
   .bg-brand {
     background-color: var(--brand);
@@ -110,7 +110,7 @@ hv:flex op:flex child:flex either:flex blk:flex blk-next:flex
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer utilities {
   .hv\:flex :hover {
     display: flex;
@@ -188,7 +188,7 @@ box-4 box-lg-2 box-1.5 box-2.5 box-1/2 box-in box-3 box-[2px] box-(--v) box-lg-l
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer theme {
   :root, :host {
     --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans', Arial,

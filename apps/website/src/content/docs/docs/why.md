@@ -47,9 +47,8 @@ In Stillwind, you create the name as a variable with [`style.ref()`](/docs/macro
 ```tsx
 import { style } from "stillwind/react";
 
-const card = style.ref("card");
-
 export function Card() {
+  const card = style.ref("card");
   return (
     <article {...style(card, "rounded-lg p-4")}>
       <h2 {...style({ [card("hover")]: "text-blue-600" })}>Project</h2>
@@ -73,12 +72,11 @@ In Stillwind, you define them in the component that uses them:
 ```tsx
 import { style } from "stillwind/react";
 
-const enter = style.keyframes({
-  from: "opacity-0",
-  to: "opacity-100",
-});
-
 export function Notice() {
+  const enter = style.keyframes({
+    from: "opacity-0",
+    to: "opacity-100",
+  });
   return <aside {...style(enter("duration-300"))}>Your changes are saved.</aside>;
 }
 ```

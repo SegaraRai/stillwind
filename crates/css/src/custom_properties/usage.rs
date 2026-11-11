@@ -16,6 +16,8 @@ use lightningcss::stylesheet::{ParserOptions, StyleSheet};
 use lightningcss::visit_types;
 use lightningcss::visitor::{Visit, VisitTypes, Visitor};
 
+use crate::normalize_scopes;
+
 /// Failure to parse an emitted stylesheet, even with error recovery enabled.
 #[derive(Debug, thiserror::Error)]
 #[error("CSS parse error: {0}")]
@@ -103,6 +105,8 @@ impl<'i> Visitor<'i> for CustomPropertyUsage {
 /// Returns an error when the emitted stylesheet cannot be parsed, including
 /// with Lightning CSS error recovery enabled.
 pub fn custom_property_usage(css: &str) -> Result<CustomPropertyUsage, PropertyUsageError> {
+    let normalized = normalize_scopes(css);
+    let css = normalized.css.as_str();
     let mut stylesheet = StyleSheet::parse(
         css,
         ParserOptions {

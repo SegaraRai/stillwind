@@ -262,6 +262,7 @@ export class BrowserTypeFactsService implements TypeFactsBackend {
           ref: "refIdentity",
           keyframes: "keyframesIdentity",
           viewTransition: "viewTransitionIdentity",
+          storedVariant: "storedVariantIdentity",
         }[kind];
         const property = checker
           .getPropertiesOfType(checker.getTypeAtLocation(node))
@@ -299,7 +300,7 @@ export class BrowserTypeFactsService implements TypeFactsBackend {
       ].find(
         (item) =>
           !producerArgumentDiagnostic(item, file, mapping) &&
-          /stillwind\/v1:|StyleResult|StyleRef|StyleKeyframes|StyleViewTransition|__stillwindDeclarationIdentity|data-__stillwindStyleIdentity/.test(
+          /stillwind\/v1:|StyleResult|StyleRef|StyleKeyframes|StyleViewTransition|StyleStoredVariant|__stillwindDeclarationIdentity|data-__stillwindStyleIdentity/.test(
             ts.flattenDiagnosticMessageText(item.messageText, "\n"),
           ),
       );

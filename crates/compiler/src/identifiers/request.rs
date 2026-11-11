@@ -14,6 +14,7 @@
 
 use lean_string::{LeanStr, LeanString, ToLeanString};
 
+use stillwind_semantic::DeclarationKey;
 use stillwind_source::{CssSourceName, ModuleId};
 
 use super::generator::{GeneratedName, IdentifierGenerator};
@@ -82,8 +83,8 @@ pub struct ClassContext {
     pub module: ModuleId,
     /// The caller's class namespace, which separates independently built projects.
     pub namespace: LeanStr,
-    /// Byte offset of the call.
-    pub call: u32,
+    /// Key of the `style()` call in its module.
+    pub key: DeclarationKey,
     /// Branch discriminator and canonical spelling of the contribution.
     pub branch: LeanStr,
 }
@@ -93,10 +94,8 @@ pub struct ClassContext {
 pub struct DeclarationContext {
     /// Module identity of the declaring module.
     pub module: ModuleId,
-    /// Byte offset of the first character of the declaration's name.
-    pub start: u32,
-    /// Byte offset just past the declaration's name.
-    pub end: u32,
+    /// Enclosing declarations and ordinal of the declaration in its module.
+    pub key: DeclarationKey,
     /// Binding name the declaration is assigned to.
     pub binding: LeanStr,
     /// Authored label, normalized for name use, when the declaration has one.
@@ -108,12 +107,8 @@ impl DeclarationIdentity for DeclarationContext {
         &self.module
     }
 
-    fn start(&self) -> u32 {
-        self.start
-    }
-
-    fn end(&self) -> u32 {
-        self.end
+    fn key(&self) -> &DeclarationKey {
+        &self.key
     }
 
     fn binding(&self) -> &str {
@@ -126,10 +121,8 @@ impl DeclarationIdentity for DeclarationContext {
 pub struct LocatorContext {
     /// Module identity of the declaration that owns the name.
     pub module: ModuleId,
-    /// Byte offset of the first character of the declaration's name.
-    pub start: u32,
-    /// Byte offset just past the declaration's name.
-    pub end: u32,
+    /// Enclosing declarations and ordinal of the declaration in its module.
+    pub key: DeclarationKey,
     /// Binding name of the declaration that owns the name.
     pub binding: LeanStr,
     /// Authored label, normalized for name use, when the declaration has one.
@@ -143,12 +136,8 @@ impl DeclarationIdentity for LocatorContext {
         &self.module
     }
 
-    fn start(&self) -> u32 {
-        self.start
-    }
-
-    fn end(&self) -> u32 {
-        self.end
+    fn key(&self) -> &DeclarationKey {
+        &self.key
     }
 
     fn binding(&self) -> &str {
@@ -351,37 +340,43 @@ macro_rules! name_requests {
 /// Canonical identity of a named declaration, in the versioned identity spelling.
 fn declaration_identity(context: &impl DeclarationIdentity, kind: &str) -> LeanString {
     format_args!(
-        "stillwind/v1\0{}",
-        declaration_fields(
-            context.module(),
-            kind,
-            context.start(),
-            context.end(),
-            context.binding()
-        )
+        "stillwind/v2\0{}",
+        declaration_fields(context.module(), kind, context.key(), context.binding())
     )
     .to_lean_string()
 }
 
 /// Fields shared by the hash request and owner identity of a named declaration.
+///
+/// Each path segment ends with U+001F, so segments and the fields around them stay
+/// separate.
 pub(crate) fn declaration_fields(
     module: &ModuleId,
     kind: &str,
-    start: u32,
-    end: u32,
+    key: &DeclarationKey,
     binding: &str,
 ) -> LeanString {
-    format_args!("{module}\0{kind}\0{start}:{end}\0{binding}\0").to_lean_string()
+    format_args!("{module}\0{kind}\0{}\0{binding}\0", key_fields(key)).to_lean_string()
+}
+
+/// Spells `key` as its path segments, each followed by U+001F, then NUL and the
+/// ordinal.
+pub(crate) fn key_fields(key: &DeclarationKey) -> LeanString {
+    let mut fields = LeanString::new();
+    for segment in &key.path {
+        fields.push_str(segment);
+        fields.push('\u{1f}');
+    }
+    fields.push_str(&format!("\0{}", key.ordinal));
+    fields
 }
 
 /// The declaration fields one identity is computed from.
 trait DeclarationIdentity {
     /// Module identity of the declaring module.
     fn module(&self) -> &ModuleId;
-    /// Byte offset of the first character of the declaration's name.
-    fn start(&self) -> u32;
-    /// Byte offset just past the declaration's name.
-    fn end(&self) -> u32;
+    /// Enclosing declarations and ordinal of the declaration in its module.
+    fn key(&self) -> &DeclarationKey;
     /// Binding name the declaration is assigned to.
     fn binding(&self) -> &str;
 }
@@ -470,10 +465,10 @@ impl NameRequest<ViewTransitionSlotName> for ViewTransitionSlotRequest {
 
     fn identity(&self) -> LeanString {
         format_args!(
-            "stillwind/view-transition-slot/v1\0{namespace}\0{module}\0{call}\0{branch}\0",
+            "stillwind/view-transition-slot/v2\0{namespace}\0{module}\0{key}\0{branch}\0",
             namespace = self.0.namespace,
             module = self.0.module,
-            call = self.0.call,
+            key = key_fields(&self.0.key),
             branch = self.0.branch,
         )
         .to_lean_string()
@@ -482,8 +477,11 @@ impl NameRequest<ViewTransitionSlotName> for ViewTransitionSlotRequest {
     fn detached_owner_identity(&self) -> Option<LeanString> {
         Some(
             format_args!(
-                "stillwind-identity/v1\0slot\0{}\0{}\0{}\0{}\0",
-                self.0.module, self.0.namespace, self.0.call, self.0.branch,
+                "stillwind-identity/v2\0slot\0{}\0{}\0{}\0{}\0",
+                self.0.module,
+                self.0.namespace,
+                key_fields(&self.0.key),
+                self.0.branch,
             )
             .to_lean_string(),
         )
@@ -500,10 +498,10 @@ impl NameRequest<ViewTransitionSlotName> for ViewTransitionSlotRequest {
 
 name_requests! {
     ClassName(ClassContext): UtilityClass as UtilityClass = |context: &ClassContext| format_args!(
-        "stillwind/style/v1\0{namespace}\0{module}\0{call}\0{branch}\0",
+        "stillwind/style/v2\0{namespace}\0{module}\0{key}\0{branch}\0",
         namespace = context.namespace,
         module = context.module,
-        call = context.call,
+        key = key_fields(&context.key),
         branch = context.branch,
     ).to_lean_string(), asks(utility_class);
     RefMarkerName(DeclarationContext): RefMarker as RefMarker = |context: &DeclarationContext| declaration_identity(context, "ref"), asks(ref_marker), labels(label);

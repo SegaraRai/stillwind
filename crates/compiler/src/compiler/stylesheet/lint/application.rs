@@ -4,18 +4,19 @@
 //! candidates resolve in [`VariantContext::Element`]. Candidates are compared only
 //! with the other candidates of the same statement.
 
-use std::collections::BTreeSet;
 use std::ops::Range;
 
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
-use stillwind_css::{declaration_ranges, properties_interfere, property_covers};
+use stillwind_css::{
+    declaration_ranges, properties_interfere_in, property_covers, reads_written_value,
+};
 use stillwind_design_system::VariantContext;
 use stillwind_diagnostics::{
-    FixAction, Label, LabelScope, LintConfig, LintDiagnostic, LintFinding, LintKind,
-    MarkerUseErrorKind, SourceEdit,
+    ConflictingUtilitiesConfig, FixAction, Label, LabelScope, LintDiagnostic, LintFinding,
+    LintKind, MarkerUseErrorKind, SourceEdit,
 };
-use stillwind_source::{JoinText, Span};
+use stillwind_source::Span;
 
 use super::analysis::Checker;
 use crate::candidate_fixes::{WrittenSource, detect as detect_fixes};
@@ -24,6 +25,7 @@ use crate::compiler::utilities::{
     CompiledUtility, marker_use_finding, resolve_utility_targets, unresolved_lint_kind,
     unresolved_utility_finding,
 };
+use crate::utility_conflicts::{PropertyPairs, conflict_notes, conflict_policy, describe_overlaps};
 
 /// Checks the `candidates` of one `@apply` statement, which are byte ranges of the
 /// checker's source.
@@ -211,22 +213,22 @@ fn check_canonical_group(checker: &mut Checker<'_>, candidates: &[Range<usize>])
 ///
 /// Candidates compete when rules with the same variants and selector write
 /// interfering properties with different values. With `allow-shorthand-overrides`, a
-/// shorthand and a property that it covers do not compete.
+/// shorthand and a property that it covers do not compete. A logical property and a
+/// physical property compete only when they set one physical side in one of the
+/// configured writing modes.
 fn check_pairs(checker: &mut Checker<'_>, resolved: &[(Range<usize>, Vec<CompiledUtility>)]) {
     let duplicate = checker.enabled(LintKind::DuplicateUtility);
     let conflict = checker.enabled(LintKind::ConflictingUtilities);
     if !duplicate && !conflict {
         return;
     }
-    let allow = matches!(
-        checker.settings.get(LintKind::ConflictingUtilities),
-        Some(LintConfig::ConflictingUtilities(config)) if config.allow_shorthand_overrides
-    );
+    let policy = conflict_policy(checker.settings);
     let text = checker.source.text();
     for (index, (range, utilities)) in resolved.iter().enumerate() {
         let raw = &text[range.clone()];
         for (previous_range, previous) in &resolved[..index] {
             let previous_raw = &text[previous_range.clone()];
+            let mut notes = Vec::new();
             let diagnostic = if raw == previous_raw {
                 if !duplicate {
                     continue;
@@ -236,21 +238,18 @@ fn check_pairs(checker: &mut Checker<'_>, resolved: &[(Range<usize>, Vec<Compile
                 }
             } else {
                 let overlaps = if conflict {
-                    overlapping_properties(utilities, previous, allow)
+                    overlapping_properties(utilities, previous, &policy)
                 } else {
-                    BTreeSet::new()
+                    PropertyPairs::new()
                 };
                 if overlaps.is_empty() {
                     continue;
                 }
+                notes = conflict_notes(&overlaps, policy.allow_shorthand_overrides);
                 LintDiagnostic::ConflictingUtilities {
                     previous: previous_raw.to_lean_str(),
                     utility: raw.to_lean_str(),
-                    properties: overlaps
-                        .into_iter()
-                        .collect::<Vec<_>>()
-                        .join_text(", ")
-                        .into(),
+                    properties: describe_overlaps(&overlaps),
                 }
             };
             let mut finding = LintFinding::new(diagnostic, checker.span(range.clone()));
@@ -259,19 +258,23 @@ fn check_pairs(checker: &mut Checker<'_>, resolved: &[(Range<usize>, Vec<Compile
                 span: checker.span(previous_range.clone()),
                 message: Some("previous utility".into()),
             });
+            finding.info.notes = notes;
+            checker
+                .query
+                .explain_conflicts(std::slice::from_mut(&mut finding));
             checker.report(finding);
         }
     }
 }
 
-/// Returns the competing properties of `current` and `previous`, written as `a` or as
-/// `b and a` when the properties differ.
+/// Returns the competing properties of `current` and `previous`, as pairs of the
+/// `previous` property and the `current` property.
 fn overlapping_properties(
     current: &[CompiledUtility],
     previous: &[CompiledUtility],
-    allow: bool,
-) -> BTreeSet<LeanStr> {
-    let mut overlaps = BTreeSet::new();
+    policy: &ConflictingUtilitiesConfig,
+) -> PropertyPairs {
+    let mut overlaps = PropertyPairs::new();
     for a in current {
         for b in previous.iter().filter(|b| {
             b.selector == a.selector
@@ -280,24 +283,36 @@ fn overlapping_properties(
                     .map(|variant| &variant.raw)
                     .eq(a.variants.iter().map(|variant| &variant.raw))
         }) {
-            for (ap, av) in declarations(&a.declaration) {
-                for (bp, bv) in declarations(&b.declaration) {
-                    if !properties_interfere(&ap, &bp)
+            let a_declarations = declarations(&a.declaration);
+            let b_declarations = declarations(&b.declaration);
+            for (ap, av) in &a_declarations {
+                for (bp, bv) in &b_declarations {
+                    if !properties_interfere_in(ap, bp, &policy.writing_modes)
                         || ap == bp && av == bv
-                        || allow && (property_covers(&ap, &bp) || property_covers(&bp, &ap))
+                        || policy.allow_shorthand_overrides
+                            && (property_covers(ap, bp) || property_covers(bp, ap))
+                        || reads_written_value(ap, av, bp, bv, |name| {
+                            custom_value(&b_declarations, name)
+                        })
+                        || reads_written_value(bp, bv, ap, av, |name| {
+                            custom_value(&a_declarations, name)
+                        })
                     {
                         continue;
                     }
-                    overlaps.insert(if ap == bp {
-                        ap.to_lean_str()
-                    } else {
-                        format_args!("{bp} and {ap}").to_lean_str()
-                    });
+                    overlaps.insert((bp.to_lean_str(), ap.to_lean_str()));
                 }
             }
         }
     }
     overlaps
+}
+
+/// Returns the value that `site` assigns to the custom property `name`.
+fn custom_value<'v>(site: &[(LeanString, &'v str)], name: &str) -> Option<&'v str> {
+    site.iter()
+        .find(|(property, _)| property.as_str() == name)
+        .map(|(_, value)| *value)
 }
 
 /// Returns the lowercase property and trimmed value, including any `!important`, of

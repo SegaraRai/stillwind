@@ -11,6 +11,8 @@
 
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
+use crate::is_length_unit;
+
 /// A numeric CSS value whose unit category is retained during constant folding.
 #[derive(Clone, Debug, PartialEq)]
 pub(super) enum MathValue {
@@ -31,6 +33,104 @@ pub(super) enum MathValue {
         /// Numeric part before `%`, so `50` represents `50%`, not `0.5`.
         f64,
     ),
+}
+
+impl MathValue {
+    /// Divides the value by `divisor` when the quotient of the decimal numbers that
+    /// print the operands is a terminating decimal of at most 15 significant digits.
+    ///
+    /// IEEE 754 division rounds the exact quotient to the nearest representable number,
+    /// and so does parsing its decimal text. When both operands are exactly
+    /// representable in binary, such as `98` and `100`, the returned value therefore
+    /// equals the result of the browser's division in any binary floating-point format.
+    /// For other operands, such as `.3 / .1`, the browser divides rounded operands and
+    /// its result can differ from the returned value in the last place. Returns
+    /// `None` for a zero divisor, for a quotient such as `1/3`, and when an operand has
+    /// too many digits to compute exactly. The unit or percentage stays unchanged.
+    pub(super) fn divided_exactly(&self, divisor: f64) -> Option<Self> {
+        let quotient = |value: f64| exact_decimal_quotient(value, divisor);
+        Some(match self {
+            Self::Number(value) => Self::Number(quotient(*value)?),
+            Self::Dimension(value, unit) => Self::Dimension(quotient(*value)?, unit.clone()),
+            Self::Percentage(value) => Self::Percentage(quotient(*value)?),
+        })
+    }
+}
+
+/// Divides the shortest decimal texts of `dividend` and `divisor` exactly.
+///
+/// Returns `None` when `divisor` is zero, when the quotient does not terminate, when it
+/// has more than 15 significant digits, or when an intermediate value overflows.
+fn exact_decimal_quotient(dividend: f64, divisor: f64) -> Option<f64> {
+    if divisor == 0.0 {
+        return None;
+    }
+    let (dividend, dividend_scale) = decimal_parts(dividend)?;
+    let (divisor, divisor_scale) = decimal_parts(divisor)?;
+    // dividend / 10^a divided by divisor / 10^b equals
+    // (dividend * 10^b) / (divisor * 10^a).
+    let mut numerator = dividend.checked_mul(10_i128.checked_pow(divisor_scale)?)?;
+    let mut denominator = divisor.checked_mul(10_i128.checked_pow(dividend_scale)?)?;
+    if denominator < 0 {
+        numerator = -numerator;
+        denominator = -denominator;
+    }
+    let common = gcd(numerator.unsigned_abs(), denominator.unsigned_abs());
+    let common = i128::try_from(common).ok()?;
+    numerator /= common;
+    denominator /= common;
+    // The quotient terminates exactly when the reduced denominator has no prime
+    // factor other than 2 and 5. Scaling by 10^scale then makes it an integer.
+    let mut remaining = denominator;
+    let mut twos = 0_u32;
+    let mut fives = 0_u32;
+    while remaining % 2 == 0 {
+        remaining /= 2;
+        twos += 1;
+    }
+    while remaining % 5 == 0 {
+        remaining /= 5;
+        fives += 1;
+    }
+    if remaining != 1 {
+        return None;
+    }
+    let scale = twos.max(fives);
+    let digits = numerator.checked_mul(10_i128.checked_pow(scale)?)? / denominator;
+    if digits.unsigned_abs() >= 10_u128.pow(15) {
+        return None;
+    }
+    let sign = if digits < 0 { "-" } else { "" };
+    let magnitude = digits.unsigned_abs().to_string();
+    let scale = usize::try_from(scale).ok()?;
+    let text = if scale == 0 {
+        format!("{sign}{magnitude}")
+    } else {
+        let padded = format!("{magnitude:0>width$}", width = scale + 1);
+        let (whole, fraction) = padded.split_at(padded.len() - scale);
+        format!("{sign}{whole}.{fraction}")
+    };
+    text.parse().ok()
+}
+
+/// Splits the shortest decimal text of `value` into an integer and a power-of-ten
+/// scale, so `-1.25` becomes `(-125, 2)`. Returns `None` for a non-finite value or when
+/// the digits overflow.
+fn decimal_parts(value: f64) -> Option<(i128, u32)> {
+    if !value.is_finite() {
+        return None;
+    }
+    let text = value.to_string();
+    let (whole, fraction) = text.split_once('.').unwrap_or((&text, ""));
+    let digits: i128 = format!("{whole}{fraction}").parse().ok()?;
+    Some((digits, u32::try_from(fraction.len()).ok()?))
+}
+
+fn gcd(mut left: u128, mut right: u128) -> u128 {
+    while right != 0 {
+        (left, right) = (right, left % right);
+    }
+    left.max(1)
 }
 
 /// One node of a parsed `calc()` expression.
@@ -155,7 +255,7 @@ impl MathExpression {
             | (
                 Self::Value(MathValue::Dimension(value, unit)),
                 Self::Value(MathValue::Dimension(0.0, zero)),
-            ) if crate::is_length_unit(&zero) && crate::is_length_unit(&unit) => {
+            ) if is_length_unit(&zero) && is_length_unit(&unit) => {
                 Self::Value(MathValue::Dimension(value, unit))
             }
             (Self::Value(MathValue::Number(left)), Self::Value(MathValue::Number(right))) => {
@@ -288,6 +388,21 @@ fn serialize_number(value: f64) -> LeanString {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn divides_exactly_only_when_the_quotient_terminates() {
+        let number = |value: f64, divisor: f64| MathValue::Number(value).divided_exactly(divisor);
+        assert_eq!(number(98.0, 100.0), Some(MathValue::Number(0.98)));
+        assert_eq!(number(-1.25, 2.0), Some(MathValue::Number(-0.625)));
+        assert_eq!(number(0.1, 0.4), Some(MathValue::Number(0.25)));
+        assert_eq!(
+            MathValue::Dimension(10.0, "px".into()).divided_exactly(8.0),
+            Some(MathValue::Dimension(1.25, "px".into()))
+        );
+        assert_eq!(number(1.0, 3.0), None);
+        assert_eq!(number(1.0, 0.0), None);
+        assert_eq!(number(1.0, 2.0_f64.powi(60)), None);
+    }
 
     #[test]
     fn products_combine_dimensionless_coefficients_on_either_side() {

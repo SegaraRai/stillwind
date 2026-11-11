@@ -1,5 +1,7 @@
 //! Ref projections, static and dynamic, and the declarations they render.
 
+use std::fmt::Write as _;
+
 use lean_string::{LeanString, ToLeanString};
 
 use stillwind_design_system::{UtilityOrder, VariantContext};
@@ -34,7 +36,7 @@ impl CallEmitter<'_> {
         projection: &RefProjection,
         wrappers: &[StyleVariant],
     ) -> Option<LiteralContribution> {
-        let plan = StyleVariantPlan::resolve(
+        let plans = StyleVariantPlan::resolve(
             self.identifiers,
             wrappers,
             self.theme,
@@ -63,7 +65,7 @@ impl CallEmitter<'_> {
                 }
             }
         };
-        Some(rule_contribution(&plan, declaration, selector))
+        Some(rule_contribution(&plans, &declaration, selector.as_deref()))
     }
 
     /// Lowers the ref use at `span` with the JavaScript conditions in `guard` and
@@ -166,7 +168,7 @@ impl CallEmitter<'_> {
         wrappers: &[StyleVariant],
         fold: bool,
     ) -> Option<Emitted> {
-        let plan = StyleVariantPlan::resolve(
+        let plans = StyleVariantPlan::resolve(
             self.identifiers,
             wrappers,
             self.theme,
@@ -183,51 +185,52 @@ impl CallEmitter<'_> {
         if declaration.is_empty() {
             return None;
         }
-        let contribution = rule_contribution(&plan, declaration, None);
+        let contribution = rule_contribution(&plans, &declaration, None);
         self.record_properties(&contribution, true, span, guard, None, None);
         self.contribute_rule(contribution, guard, fold)
     }
 }
 
-/// Returns an authored utility with `declaration`, an optional selector, and resolved
-/// variants.
+/// Returns an authored utility with `declaration` and an optional selector for each
+/// plan, with the plan's variants.
 ///
 /// `declaration` contains complete CSS declarations. `selector` is a template with
 /// `&` for the generated class, or `None` to use that class directly. The caller must
 /// escape any generated identifiers in both strings. The returned contribution includes
-/// these strings and `plan` in its canonical identity and allocates no class or symbol.
-pub(super) fn rule_contribution(
-    plan: &StyleVariantPlan,
-    declaration: LeanString,
-    selector: Option<LeanString>,
+/// these strings and the plans in its canonical identity and allocates no class or
+/// symbol.
+pub(super) fn rule_contribution<'a>(
+    plans: impl IntoIterator<Item = &'a StyleVariantPlan>,
+    declaration: &str,
+    selector: Option<&str>,
 ) -> LiteralContribution {
-    let canonical = format_args!(
-        "{}\0ref-use\0{}\0{}\0",
-        plan.canonical,
-        selector.as_deref().unwrap_or(""),
-        declaration
-    )
-    .to_lean_string();
-    let mut utility = CompiledUtility {
-        banners: Vec::new(),
-        diagnostic_data: CompiledUtilityDiagnosticData::default(),
-        context: VariantContext::Element,
-        required_properties: Vec::new(),
-        variants: Vec::new(),
-        variant_applications: Vec::new(),
-        declaration: (declaration).into(),
-        selector: (selector).map(Into::into),
-        container: None,
-        nested: Vec::new(),
-        order: UtilityOrder::Authored(None),
-        candidate: (LeanString::new()).into(),
-    };
-    plan.apply_rule(&mut utility);
-    LiteralContribution {
-        canonical: (canonical),
-        utilities: vec![utility],
-        ..LiteralContribution::default()
+    let mut contribution = LiteralContribution::default();
+    for plan in plans {
+        let _ = write!(
+            contribution.canonical,
+            "{} ref-use {} {} ",
+            plan.canonical,
+            selector.unwrap_or(""),
+            declaration
+        );
+        let mut utility = CompiledUtility {
+            banners: Vec::new(),
+            diagnostic_data: CompiledUtilityDiagnosticData::default(),
+            context: VariantContext::Element,
+            required_properties: Vec::new(),
+            variants: Vec::new(),
+            variant_applications: Vec::new(),
+            declaration: declaration.into(),
+            selector: selector.map(Into::into),
+            container: None,
+            nested: Vec::new(),
+            order: UtilityOrder::Authored(None),
+            candidate: (LeanString::new()).into(),
+        };
+        plan.apply_rule(&mut utility);
+        contribution.utilities.push(utility);
     }
+    contribution
 }
 
 /// Returns the CSS declaration for `scope`, or an empty string for an empty ref list.
@@ -346,6 +349,7 @@ mod tests {
     use lean_string::ToLeanStr;
 
     use stillwind_ir::ContainerType;
+    use stillwind_semantic::DeclarationKey;
     use stillwind_source::{FileId, Span, Spanned};
 
     use super::*;
@@ -368,6 +372,7 @@ mod tests {
         let mut definition = RefDefinition {
             module_id: ModuleId::from("x"),
             binding: binding.clone(),
+            key: DeclarationKey::top(0),
             label: None,
             call_span: binding.span,
         };

@@ -1,0 +1,26 @@
+@import "stillwind/builtins.css";
+
+@custom-variant in-card {
+  @scope (.card) to (.stop) {
+    @slot;
+  }
+}
+@custom-variant card-root {
+  @scope (.card &) {
+    @slot;
+  }
+}
+@custom-variant nested-card {
+  @scope (.outer) {
+    @scope (.inner) {
+      @slot;
+    }
+  }
+}
+
+.authored {
+  @variant in-card {
+    @apply flex;
+  }
+}
+@stillwind-slot utilities;

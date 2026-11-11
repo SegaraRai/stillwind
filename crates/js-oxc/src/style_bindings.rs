@@ -19,7 +19,7 @@ use oxc::semantic::{Scoping, SymbolId};
 
 use stillwind_ir::{OutputFormat, from_macro_import};
 use stillwind_semantic::{AssetKind, ExportedValue, IdentityId, SymbolicValue};
-use stillwind_source::{ModuleId, SourceFile, Span};
+use stillwind_source::{SourceFile, Span};
 
 use crate::state::MacroExtractor;
 
@@ -39,16 +39,26 @@ impl<'a> MacroExtractor<'a> {
             macros: &macros,
             scoping: self.scoping,
             source: self.source,
-            module_id: self.module_id,
             coordinates: self.coordinates,
-            values: HashMap::new(),
+            calls: Vec::new(),
             writes: HashSet::new(),
         };
         collector.visit_program(program);
-        collector
-            .values
-            .retain(|symbol, _| !collector.writes.contains(symbol));
-        self.local_values.extend(collector.values);
+        for (symbol, call) in collector.calls {
+            if collector.writes.contains(&symbol) {
+                continue;
+            }
+            let identity = IdentityId::new(
+                AssetKind::Style,
+                self.module_id.clone(),
+                self.style_key(call),
+                "",
+            );
+            self.local_values.insert(
+                symbol,
+                ExportedValue::Styles(SymbolicValue::exact(identity)),
+            );
+        }
         self.style_symbols.extend(macros);
     }
 }
@@ -81,18 +91,17 @@ impl<'a> Visit<'a> for MacroBindings {
 
 /// Visitor state for one seeding pass.
 struct Bindings<'s> {
-    /// Module identity used for style declarations.
-    module_id: &'s ModuleId,
     /// Symbols bound to the imported `style` macro.
     macros: &'s HashMap<SymbolId, OutputFormat>,
     /// Scoping table used to resolve callee references.
     scoping: &'s Scoping,
     /// Analysis source that owns Oxc byte spans.
     source: &'s SourceFile,
-    /// Maps analysis UTF-8 spans to original UTF-8 spans before creating identities.
+    /// Maps analysis UTF-8 spans to original UTF-8 spans. A call without a mapping is
+    /// not recorded.
     coordinates: &'s dyn Fn(Span) -> Option<Span>,
-    /// Resolved value for each direct style binding.
-    values: HashMap<SymbolId, ExportedValue>,
+    /// Direct style bindings and their calls in the analysis buffer, in source order.
+    calls: Vec<(SymbolId, Span)>,
     /// Symbols that are ever written to, and therefore not constants.
     writes: HashSet<SymbolId>,
 }
@@ -109,19 +118,11 @@ impl<'a> Visit<'a> for Bindings<'_> {
             && let Some(symbol) = self.scoping.get_reference(reference).symbol_id()
             && self.macros.contains_key(&symbol)
             && let Some(binding) = identifier.symbol_id.get()
-            && let Some(span) =
-                (self.coordinates)(Span::new(self.source.id(), call.span.start, call.span.end))
         {
-            self.values.insert(
-                binding,
-                ExportedValue::Styles(SymbolicValue::exact(IdentityId::new(
-                    AssetKind::Style,
-                    self.module_id.clone(),
-                    span.start.0,
-                    span.end.0,
-                    "",
-                ))),
-            );
+            let span = Span::new(self.source.id(), call.span.start, call.span.end);
+            if (self.coordinates)(span).is_some() {
+                self.calls.push((binding, span));
+            }
         }
         walk::walk_variable_declarator(self, declaration);
     }

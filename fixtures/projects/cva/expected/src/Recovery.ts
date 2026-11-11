@@ -1,12 +1,12 @@
-import { stillwindCva } from "stillwind/runtime/class-name-object";
+import { stillwindClassNameObjectCva } from "stillwind/runtime";
 
-export const recovered = stillwindCva("sw_ctxaq", {
+export const recovered = stillwindClassNameObjectCva("sw_9mmdu", {
   variants: {
-    size: { small: "sw_n5qi8", unsupported: "" },
+    size: { small: "sw_6rv3c", unsupported: "" },
   },
   defaultVariants: { size: "small", ...{} },
   compoundVariants: [
     ...[],
-    { size: "small", class: "sw_4oh6j" },
+    { size: "small", class: "sw_wma4y" },
   ],
 });

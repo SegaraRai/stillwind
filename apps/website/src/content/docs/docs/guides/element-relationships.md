@@ -21,9 +21,8 @@ Create a ref, attach it to the parent, and use it in the child's style:
 ```tsx
 import { style } from "stillwind/react";
 
-const card = style.ref("card");
-
 export function Card() {
+  const card = style.ref("card");
   return (
     <article {...style(card, "rounded-lg p-4")}>
       <h2 {...style({ [card("hover")]: "text-blue-600" })}>Project</h2>
@@ -48,10 +47,9 @@ element. To use a sibling, add `.in()` with a ref on an element that contains bo
 ```tsx
 import { style } from "stillwind/react";
 
-const card = style.ref("card");
-const trigger = style.ref("trigger");
-
 export function Card() {
+  const card = style.ref("card");
+  const trigger = style.ref("trigger");
   return (
     <section {...style(card, "p-4")}>
       <button {...style(trigger, "rounded-md px-4 py-2")}>Details</button>
@@ -74,9 +72,8 @@ and query it with [`at()`](/docs/macros/ref/at):
 ```tsx
 import { style } from "stillwind/react";
 
-const card = style.ref("card");
-
 export function Card() {
+  const card = style.ref("card");
   return (
     <section {...style(card, card.asContainer("inline-size"), "p-4")}>
       <p {...style({ [card.at("width >= 40rem")]: "text-lg" })}>
@@ -100,9 +97,8 @@ position another element against it with
 ```tsx
 import { style } from "stillwind/react";
 
-const trigger = style.ref("trigger");
-
 export function AnchoredHint() {
+  const trigger = style.ref("trigger");
   return (
     <section {...style(style.anchorScope([trigger]))}>
       <button {...style(trigger, trigger.asAnchor())}>Open hint</button>

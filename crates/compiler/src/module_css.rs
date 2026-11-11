@@ -8,6 +8,7 @@ use std::sync::Arc;
 use lean_string::{LeanStr, ToLeanString};
 
 use stillwind_css::{CssBanner, CssRule};
+use stillwind_semantic::IdentityId;
 use stillwind_source::{Fingerprint, SourceFile, Span};
 
 use crate::{CssContribution, MappedStylesheet};
@@ -21,6 +22,8 @@ pub struct RuleKey(pub Fingerprint);
 pub struct GeneratedRule {
     /// Whether a stylesheet keeps one copy of equal occurrences from several producers.
     definition: bool,
+    /// The keyframes or view transition this occurrence defines, if any.
+    defines: Option<IdentityId>,
     /// Whether this occurrence belongs in the keyframes slot.
     keyframes: bool,
     /// Registration dependencies, sorted and unique after construction.
@@ -58,6 +61,7 @@ impl GeneratedRule {
         };
         Self {
             definition: false,
+            defines: None,
             keyframes,
             required_properties,
             banners: Vec::new(),
@@ -75,8 +79,10 @@ impl GeneratedRule {
     pub fn with_banners(mut self, mut banners: Vec<CssBanner>) -> Self {
         if !self.banners.is_empty() {
             let definition = self.definition;
+            let defines = self.defines.take();
             self = Self::new(self.syntax, self.keyframes, self.required_properties);
             self.definition = definition;
+            self.defines = defines;
         }
         banners.sort();
         banners.dedup();
@@ -105,6 +111,19 @@ impl GeneratedRule {
     /// producers.
     pub fn definition(&self) -> bool {
         self.definition
+    }
+
+    /// Sets the keyframes or view transition this occurrence defines. The content
+    /// identity does not change.
+    #[must_use]
+    pub fn with_defines(mut self, defines: Option<IdentityId>) -> Self {
+        self.defines = defines;
+        self
+    }
+
+    /// Returns the keyframes or view transition this occurrence defines, if any.
+    pub fn defines(&self) -> Option<&IdentityId> {
+        self.defines.as_ref()
     }
 
     /// Returns whether this occurrence belongs in the keyframes slot.
@@ -169,6 +188,21 @@ impl GeneratedRule {
     }
 }
 
+impl From<&GeneratedRule> for CssContribution {
+    /// Returns a contribution with the CSS, placement, and registration dependencies
+    /// of `rule`.
+    fn from(rule: &GeneratedRule) -> Self {
+        Self {
+            banners: rule.banners().to_vec(),
+            css: rule.to_css(),
+            definition: rule.definition(),
+            defines: rule.defines().cloned(),
+            keyframes: rule.keyframes(),
+            required_properties: rule.required_properties().to_vec(),
+        }
+    }
+}
+
 /// Ordered occurrences owned by one producer.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ModuleCssArtifact {
@@ -186,6 +220,7 @@ impl ModuleCssArtifact {
                     GeneratedRule::new(syntax, part.keyframes, part.required_properties.clone())
                         .with_banners(part.banners.clone())
                         .with_definition(part.definition)
+                        .with_defines(part.defines.clone())
                 }));
         }
         Ok(artifact)

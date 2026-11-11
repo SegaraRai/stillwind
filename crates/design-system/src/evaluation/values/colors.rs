@@ -53,6 +53,7 @@ pub(in crate::evaluation) fn resolve_compat_color(arguments: &str) -> Option<Lea
 /// Returns a fallback declaration when mixing depends on variables or currentcolor.
 /// Known theme values are expanded only in the fallback. Unknown values keep the
 /// first color without its opacity, matching Tailwind's compatibility transform.
+/// Mixes without an explicit interpolation method are preserved without a fallback.
 /// Fully supported targets keep the original declaration without a capability query.
 pub(crate) fn color_fallback(declaration: &str, theme: &ThemeIndex) -> Option<LeanString> {
     if !declaration.contains("color-mix(") {
@@ -103,7 +104,13 @@ impl ColorFallback<'_> {
                 continue;
             }
             let arguments = &value[function.arguments];
-            let runtime_color = split_top_level(arguments, |token| matches!(token, Token::Comma))
+            let parts = split_top_level(arguments, |token| matches!(token, Token::Comma));
+            if parts.len() != 3 || !explicit_interpolation_method(parts[0]) {
+                output.push_str(&value[function.start..end]);
+                cursor = end;
+                continue;
+            }
+            let runtime_color = parts
                 .iter()
                 .skip(1)
                 .any(|part| !find_css_functions(first_component(part), &["var"], 0).is_empty());
@@ -111,28 +118,23 @@ impl ColorFallback<'_> {
             let current_color = contains_current_color(arguments);
             self.required |= variables || current_color;
             self.runtime_color |= runtime_color || current_color;
-            let parts = split_top_level(arguments, |token| matches!(token, Token::Comma));
-            if parts.len() == 3 {
-                if unresolved || current_color {
-                    output.push_str(&self.mixes(first_component(parts[1]), depth + 1, true));
-                } else {
-                    let space = if self.required
-                        && matches!(
-                            parts[0].trim(),
-                            "in oklab" | "in oklch" | "in lab" | "in lch"
-                        ) {
-                        "in srgb"
-                    } else {
-                        parts[0].trim()
-                    };
-                    let first = self.mixes(parts[1].trim(), depth + 1, true);
-                    let second = self.mixes(parts[2].trim(), depth + 1, true);
-                    output.push_str(
-                        &format_args!("color-mix({space}, {first}, {second})").to_lean_string(),
-                    );
-                }
+            if unresolved || current_color {
+                output.push_str(&self.mixes(first_component(parts[1]), depth + 1, true));
             } else {
-                output.push_str(&value[function.start..end]);
+                let space = if self.required
+                    && matches!(
+                        parts[0].trim(),
+                        "in oklab" | "in oklch" | "in lab" | "in lch"
+                    ) {
+                    "in srgb"
+                } else {
+                    parts[0].trim()
+                };
+                let first = self.mixes(parts[1].trim(), depth + 1, true);
+                let second = self.mixes(parts[2].trim(), depth + 1, true);
+                output.push_str(
+                    &format_args!("color-mix({space}, {first}, {second})").to_lean_string(),
+                );
             }
             cursor = end;
         }
@@ -184,6 +186,14 @@ impl ColorFallback<'_> {
             variable = value;
         }
     }
+}
+
+/// Whether `method` starts with `in` and a color-space identifier, ignoring whitespace
+/// and comments. The identifier may name a custom color space.
+fn explicit_interpolation_method(method: &str) -> bool {
+    let mut parser = Parser::new(method);
+    matches!(parser.next(), Ok(Token::Ident(name)) if name.eq_ignore_ascii_case("in"))
+        && matches!(parser.next(), Ok(Token::Ident(_)))
 }
 
 fn first_component(value: &str) -> &str {
@@ -382,6 +392,35 @@ mod tests {
         .unwrap();
         assert_css_eq!(output.declaration, "color:var(--external);");
         assert_eq!(output.nested.len(), 1);
+    }
+
+    #[test]
+    fn color_fallback_requires_an_explicit_interpolation_method_and_two_colors() {
+        let snapshot = snapshot(&[]);
+        for value in [
+            "color-mix(currentcolor 50%,transparent)",
+            "color-mix(var(--external),red)",
+            "color-mix(var(--color-red-500))",
+            "color-mix(in)",
+            "color-mix(in,var(--external),red)",
+            "color-mix(in oklab,currentcolor,red,blue)",
+        ] {
+            assert_eq!(
+                color_fallback(&format!("color:{value}"), snapshot.theme()),
+                None,
+                "{value}"
+            );
+        }
+        for method in ["in oklab", " IN oklab", "/* note, blue */ in oklab"] {
+            assert_css_eq!(
+                color_fallback(
+                    &format!("color:color-mix({method},currentcolor 50%,transparent)"),
+                    snapshot.theme()
+                )
+                .unwrap(),
+                "color:currentcolor"
+            );
+        }
     }
 
     #[test]

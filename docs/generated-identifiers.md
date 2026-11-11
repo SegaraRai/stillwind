@@ -31,11 +31,17 @@ a token such as `--blur` would otherwise replace the value that its own utility 
 in `--tw-blur`.
 
 `Identifiers` supplies a generator for each name family. The generator receives the
-family's context and its full hash. Returning the default choice preserves the
-compiler's generator. Host-generated names have no automatically added default prefix.
-Each compilation memoizes the family, identity, and label, including rejections. Hosts
-update `namingRevision` when callback behavior changes so old artifacts cannot reuse
-names from the previous generator.
+family's context and its full hash. The context of a ref marker, anchor name, container
+name, keyframes name, or view-transition class identifies the declaration by its module,
+the names of the enclosing declarations (`path`), an `ordinal` among earlier
+declarations with the same kind, path, and binding name, and the binding name. An edit
+elsewhere in the module that moves the declaration therefore keeps its context and
+hash. The context of a utility class or a view-transition slot identifies the
+`style()` call in the same way, by `path` and an `ordinal` among earlier calls with
+the same path. Returning the default choice preserves the compiler's generator. Host-generated
+names have no automatically added default prefix. Each compilation memoizes the family,
+identity, and label, including rejections. Hosts update `namingRevision` when callback
+behavior changes so old artifacts cannot reuse names from the previous generator.
 
 Naming callbacks run synchronously on their owning JavaScript thread. Sessions retain
 them because stylesheet rendering also allocates names. Moving such a session across
@@ -78,9 +84,9 @@ participate in document-level checks.
 
 ## Development and release
 
-Compiler mode chooses explicit `stillwind/runtime/<output>-development` imports for
-runtime validation. Export conditions and `NODE_ENV` do not choose those helpers.
-Checked helpers share their framework's production symbol keys.
+Compiler mode chooses explicit `stillwind/runtime/development` imports for runtime
+validation. Export conditions and `NODE_ENV` do not choose those helpers. Checked helpers
+use the production export names and symbol keys.
 
 Release generation failures produce compilation diagnostics. Development mode can retain
 default names and records rejected host names for the host to report. Rejected names

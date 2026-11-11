@@ -20,14 +20,15 @@ use oxc::span::Span as OxcSpan;
 use stillwind_diagnostics::{CompileError, LintFinding};
 use stillwind_ir::{
     CssCall, CvaCall, CvaReplacement, KeyframesDefinition, MediaCall, OutputFormat, RefDefinition,
-    StyleCall, ViewTransitionDefinition,
+    StoredVariantDefinition, StyleCall, ViewTransitionDefinition,
 };
 use stillwind_semantic::{
-    AssetKind, AssetMetadata, AssetRecord, CheckedValue, ExportedValue, IdentityId, ImportBinding,
-    ModuleSpecifier, ModuleSummary, ReExport, TypeFact,
+    AssetKind, AssetMetadata, AssetRecord, CheckedValue, DeclarationKey, ExportedValue, IdentityId,
+    ImportBinding, ModuleSpecifier, ModuleSummary, ReExport, TypeFact,
 };
 use stillwind_source::{ModuleId, SourceFile, Span, Spanned};
 
+use crate::keys::{AllocatedKeys, DeclarationScopes, Ordinals};
 use crate::local_span::LocalSpan;
 
 /// Per-module extraction state.
@@ -66,6 +67,8 @@ pub(crate) struct MacroExtractor<'a> {
     pub(crate) view_transition_symbols: HashMap<SymbolId, Spanned<LeanStr>>,
     /// View-transition declarations in declaration order.
     pub(crate) view_transition_declarations: Vec<ViewTransitionDefinition>,
+    /// `style.when()` declarations in declaration order.
+    pub(crate) stored_variants: Vec<StoredVariantDefinition>,
     /// Symbolic value of each local binding the pass could resolve.
     pub(crate) local_values: HashMap<SymbolId, ExportedValue>,
     /// Style call sites in source order.
@@ -116,6 +119,12 @@ pub(crate) struct MacroExtractor<'a> {
     pub(crate) probing_use: Cell<bool>,
     /// Metadata for identities declared in other modules.
     pub(crate) imported_assets: &'a BTreeMap<IdentityId, AssetMetadata>,
+    /// Named declarations that enclose the declarations of this module.
+    pub(crate) scopes: DeclarationScopes,
+    /// Ordinals allocated to the declarations collected so far.
+    pub(crate) ordinals: RefCell<Ordinals>,
+    /// Keys allocated so far.
+    pub(crate) keys: RefCell<AllocatedKeys>,
 }
 
 impl<'a> MacroExtractor<'a> {
@@ -146,6 +155,7 @@ impl<'a> MacroExtractor<'a> {
             consumed_use_spans: BTreeSet::new(),
             view_transition_symbols: HashMap::new(),
             view_transition_declarations: Vec::new(),
+            stored_variants: Vec::new(),
             local_values: HashMap::new(),
             style_calls: Vec::new(),
             cva_calls: Vec::new(),
@@ -170,6 +180,9 @@ impl<'a> MacroExtractor<'a> {
             type_probes: RefCell::default(),
             use_probes: RefCell::default(),
             probing_use: Cell::new(false),
+            scopes: DeclarationScopes::default(),
+            ordinals: RefCell::default(),
+            keys: RefCell::default(),
         }
     }
 
@@ -197,26 +210,29 @@ impl<'a> MacroExtractor<'a> {
 
     /// Creates the declaration-site identity of an asset declared in this module.
     ///
-    /// The span is the declaration's name, so uses elsewhere resolve back to this
-    /// declaration rather than to their own position.
-    pub(crate) fn identity(&self, kind: AssetKind, name: &Spanned<LeanStr>) -> IdentityId {
-        let span = (self.coordinates)(name.span).unwrap_or(self.original.full_span());
+    /// `key` must be the key allocated when the declaration was collected, so uses
+    /// elsewhere resolve back to this declaration rather than to their own position.
+    pub(crate) fn identity(
+        &self,
+        kind: AssetKind,
+        name: &Spanned<LeanStr>,
+        key: &DeclarationKey,
+    ) -> IdentityId {
         IdentityId::new(
             kind,
             self.module_id.clone(),
-            span.start.0,
-            span.end.0,
+            key.clone(),
             name.value.clone(),
         )
     }
 
     /// Builds the module summary from the collected state.
     ///
-    /// Assets are appended in kind order (styles, refs, keyframes, view transitions),
-    /// not source order. Exports are keyed by exported name and only contain bindings
-    /// whose value resolved to a symbolic form; a binding that was reassigned or chosen
-    /// conditionally is absent so that the host checker can answer instead of
-    /// this pass guessing.
+    /// Assets are appended in kind order (styles, refs, keyframes, view transitions,
+    /// stored variants), not source order. Exports are keyed by exported name and only
+    /// contain bindings whose value resolved to a symbolic form; a binding that was
+    /// reassigned or chosen conditionally is absent so that the host checker can answer
+    /// instead of this pass guessing.
     pub(crate) fn module_summary(&self) -> ModuleSummary {
         let mut summary = ModuleSummary::new(self.module_id.clone());
         summary.imports.clone_from(&self.imports);
@@ -226,16 +242,17 @@ impl<'a> MacroExtractor<'a> {
         summary.re_exports.clone_from(&self.re_exports);
 
         for call in &self.style_calls {
-            let span = (self.coordinates)(call.span).unwrap_or(self.original.full_span());
             summary.assets.push(AssetRecord {
                 identity: IdentityId::new(
                     AssetKind::Style,
                     self.module_id.clone(),
-                    span.start.0,
-                    span.end.0,
+                    call.key.clone(),
                     "",
                 ),
-                metadata: AssetMetadata { label: None },
+                metadata: AssetMetadata {
+                    label: None,
+                    stored_variant: None,
+                },
                 call_start: call.span.start.0,
                 call_end: call.span.end.0,
             });
@@ -245,6 +262,7 @@ impl<'a> MacroExtractor<'a> {
                 &mut summary,
                 AssetKind::Ref,
                 &definition.binding,
+                &definition.key,
                 definition.label.as_ref(),
                 definition.call_span,
             );
@@ -254,6 +272,7 @@ impl<'a> MacroExtractor<'a> {
                 &mut summary,
                 AssetKind::Keyframes,
                 &definition.binding,
+                &definition.key,
                 definition.label.as_ref(),
                 definition.call_span,
             );
@@ -263,9 +282,29 @@ impl<'a> MacroExtractor<'a> {
                 &mut summary,
                 AssetKind::ViewTransition,
                 &definition.binding,
+                &definition.key,
                 definition.label.as_ref(),
                 definition.call_span,
             );
+        }
+
+        for definition in &self.stored_variants {
+            summary.assets.push(AssetRecord {
+                identity: self.identity(
+                    AssetKind::StoredVariant,
+                    &definition.binding,
+                    &definition.key,
+                ),
+                metadata: AssetMetadata {
+                    label: None,
+                    stored_variant: definition
+                        .variants
+                        .as_deref()
+                        .map(Self::stored_variant_record),
+                },
+                call_start: definition.call_span.start.0,
+                call_end: definition.call_span.end.0,
+            });
         }
 
         for (symbol, exported) in &self.export_symbols {
@@ -286,13 +325,15 @@ impl<'a> MacroExtractor<'a> {
         summary: &mut ModuleSummary,
         kind: AssetKind,
         binding: &Spanned<LeanStr>,
+        key: &DeclarationKey,
         label: Option<&Spanned<LeanStr>>,
         call_span: Span,
     ) {
         summary.assets.push(AssetRecord {
-            identity: self.identity(kind, binding),
+            identity: self.identity(kind, binding, key),
             metadata: AssetMetadata {
                 label: label.map(|label| label.value.clone()),
+                stored_variant: None,
             },
             call_start: call_span.start.0,
             call_end: call_span.end.0,

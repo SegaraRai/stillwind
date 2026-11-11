@@ -798,6 +798,51 @@ Integration tests separately check real resource owners, URLs, maps, and deliver
 selection. Call it after expanding Stillwind directives, selecting the asset's
 rules, and resolving resource URLs.
 
+After Lightning CSS optimizes the stylesheet, the operation applies these rewrites.
+A rewrite of a common form may change the result in a rare case when the change is
+small. A rewrite of a rare form keeps the meaning of the stylesheet for every browser
+target. The paragraphs after the table list the cases that can change.
+
+| Rewrite                                                          | Example                                                                      |
+| ---------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Remove whitespace next to commas in unparsed values              | `var(--f,Arial, sans-serif)` to `var(--f,Arial,sans-serif)`                  |
+| Remove whitespace next to `*` and `/` in unparsed math functions | `calc(var(--s) * 4)` to `calc(var(--s)*4)`                                   |
+| Fold a numeric `calc()` in an unparsed value                     | `--x:calc(95 * 1%)` to `--x:95%`                                             |
+| Remove whitespace next to commas in `@supports` declarations     | `(color:color-mix(in lab, red, red))` to `(color:color-mix(in lab,red,red))` |
+| Write a media feature in its boolean form                        | `(hover:hover)` to `(hover)`                                                 |
+| Merge a lower and an upper range of one feature                  | `(width>=40rem) and (width<60rem)` to `(40rem<=width<60rem)`                 |
+| Remove a repeated selector from a selector list                  | `.a,.b,.a` to `.a,.b`                                                        |
+| Merge keyframes that have equal declarations                     | `0%{opacity:0}50%{opacity:0}` to `0%,50%{opacity:0}`                         |
+
+Unparsed values are values that Lightning CSS keeps as tokens, such as custom property
+values and values that contain `var()`. A `calc()` call folds only when its arguments
+are numeric. A division folds only when the divisor is a unitless number and the
+quotient is a terminating decimal, so `calc(10px / 4)` becomes `2.5px` but
+`calc(1px / 3)` and `calc(10px / 2px)` stay. Browsers without typed arithmetic reject
+a division by a dimension, so folding it would make an invalid declaration valid
+there. A unitless result must be an integer, because an `<integer>` property rounds
+`calc(1.5)` but rejects `1.5`.
+
+These `calc()` folds can change the result in rare cases:
+
+- A negative result folds. A property such as `width` clamps a negative `calc()`
+  result to zero but rejects the same negative literal.
+- When an operand of a division is not exactly representable in binary, as in
+  `calc(.3 / .1)`, the browser's result can differ from the folded literal in the
+  last place.
+- The value of a custom property that an `@property` rule in the same asset registers
+  with `<number>` as its only data type may fold to a fraction, as in `calc(98 / 100)`
+  to `.98`, because its computed value is already that number. Browsers without
+  `@property` substitute the `calc()` call instead, so an `<integer>` property that
+  reads the value rounds it there. Another stylesheet that registers the same name
+  with another syntax also invalidates this assumption.
+
+A media feature takes its boolean form only when no other value of the feature is true
+in a boolean context, so `(pointer:fine)` stays. Lightning CSS lowers a merged range to
+`min-` and `max-` features while printing for browser targets that do not support
+range syntax. Keyframes merge only when no offset appears in more than one keyframe of
+the rule.
+
 ```rust
 use stillwind_css::{CssMinifyOptions, minify_css};
 
@@ -864,8 +909,8 @@ Embedded `sourceMappingURL` comments are ignored. The host publishes the returne
 map and attaches its URL to the CSS if needed. Neither CSS imports nor map URLs
 are fetched by this API.
 
-Mapping granularity, coordinate behavior, and CSS optimization follow Lightning
-CSS and Parcel Source Map. The wrapper does not repair upstream map coordinates.
+Mapping granularity, coordinate behavior, and the other CSS optimizations follow
+Lightning CSS and Parcel Source Map. The wrapper does not repair upstream map coordinates.
 Merged rules can have coarser source attribution than the compiler's original
 range mappings. The returned map is debugging metadata, not an exact edit map.
 

@@ -11,6 +11,11 @@ export interface CompilerHost {
   /** Requests checker import resolutions. A non-null host resolve result still takes precedence. */
   typeFactsResolution?: boolean;
   /**
+   * Names the resolver that answers `resolve`. Hosts that share a CompilationProject and can
+   * resolve the same import differently must use different domains. Omission is one domain.
+   */
+  resolverDomain?: string;
+  /**
    * Loads source before or after preparation, including its original document and projection.
    *
    * @param id - Full resolver identity. The returned resolverId must equal this value.
@@ -25,6 +30,16 @@ export interface CompilerHost {
    * @returns Whether source traversal can continue. Omission checks for supported JS/TS and SFC extensions.
    */
   supports?(id: string): boolean;
+  /**
+   * Returns the stylesheet modules that the host inserts at the macro import of a source that it
+   * compiles as an entry. A dependency that imports a macro module receives the same imports, so
+   * that the session reuses one compilation of the source in both roles.
+   *
+   * @param id - Full resolver identity of the source.
+   * @returns The imports that the entry options would supply for this source, or undefined when
+   * the host inserts none. Omission inserts none into dependencies.
+   */
+  stylesheetImports?(id: string): string[] | undefined;
   /**
    * Describes one resolved source before it is scanned or compiled.
    *

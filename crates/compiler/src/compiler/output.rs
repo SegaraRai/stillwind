@@ -12,12 +12,15 @@
 //! and rejects failed compilations. This module defines transport values; compilation,
 //! slot assembly, and host resource resolution belong to their respective callers.
 
+use std::collections::BTreeSet;
+
 use lean_string::LeanStr;
 use serde::Serialize;
 
 use stillwind_css::CssBanner;
 use stillwind_diagnostics::{CompileError, LintFinding, LintSettings};
 use stillwind_ir::StyleDependency;
+use stillwind_semantic::IdentityId;
 use stillwind_source::SourceFile;
 
 use super::props::GeneratedClass;
@@ -55,6 +58,10 @@ pub struct CompileResult {
     pub module_css: String,
     /// Classes generated at this module's callsites, with their guard paths.
     pub classes: Vec<GeneratedClass>,
+    /// Keyframes and view transitions declared in other modules whose definition rules
+    /// linking adds to this module's CSS.
+    #[serde(skip)]
+    pub linked_definitions: BTreeSet<IdentityId>,
     /// Generated CSS identifiers with the identities they were allocated from.
     pub symbols: Vec<GeneratedSymbol>,
     /// Names a host generator rejected, which the host may warn about.
@@ -118,13 +125,17 @@ pub struct CssContribution {
     pub banners: Vec<CssBanner>,
     /// Complete generated rule blocks in emission order.
     pub css: LeanStr,
-    /// True when all blocks define a view transition. Each module that uses the
-    /// transition repeats these blocks, and a stylesheet keeps one copy.
+    /// True when all blocks define a view transition. A stylesheet keeps one copy of
+    /// equal blocks from several producers.
     pub definition: bool,
-    /// True when all blocks are generated animation definitions for the keyframes
-    /// slot; false when they belong to the utilities contribution.
+    /// The keyframes or view transition that all blocks define, or `None` for other
+    /// contributions. Linking adds these blocks to the CSS of each module that uses the
+    /// declaration from another module.
+    pub defines: Option<IdentityId>,
+    /// True when all blocks are generated animation definitions for the keyframes slot;
+    /// false when they belong to the utilities contribution.
     pub keyframes: bool,
-    /// Custom-property names requiring registration. Encounter order and duplicates
-    /// are allowed here; artifact construction sorts and deduplicates them.
+    /// Custom-property names requiring registration. Encounter order and duplicates are
+    /// allowed here; artifact construction sorts and deduplicates them.
     pub required_properties: Vec<LeanStr>,
 }

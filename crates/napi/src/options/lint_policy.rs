@@ -3,6 +3,7 @@
 use napi::Error;
 use napi_derive::napi;
 
+use stillwind_css::WritingMode;
 use stillwind_diagnostics::{
     ArbitrarySpacingOverride, CanonicalUtilitiesOverride, ConflictingUtilitiesOverride,
     ImportantOverride, LintSeverity, LogicalPropertiesOverride, MarkerUseOverride,
@@ -104,6 +105,10 @@ pub struct NativeConflictingUtilitiesOptions {
     pub severity: Option<String>,
     /// Allows narrower declarations to override part of a shorthand.
     pub allow_shorthand_overrides: Option<bool>,
+    /// Writing modes in which logical and physical utilities are checked for overlap:
+    /// `horizontal-tb`, `vertical-rl`, or `vertical-lr`. A supplied list replaces the
+    /// previous one.
+    pub writing_modes: Option<Vec<String>>,
 }
 
 impl TryFrom<NativeConflictingUtilitiesOptions> for ConflictingUtilitiesOverride {
@@ -116,6 +121,21 @@ impl TryFrom<NativeConflictingUtilitiesOptions> for ConflictingUtilitiesOverride
                 .map(|value| lint_severity(&value))
                 .transpose()?,
             allow_shorthand_overrides: value.allow_shorthand_overrides,
+            writing_modes: value
+                .writing_modes
+                .map(|modes| {
+                    modes
+                        .iter()
+                        .map(|mode| {
+                            WritingMode::from_name(mode).ok_or_else(|| {
+                                Error::from_reason(
+                                    "writing mode must be horizontal-tb, vertical-rl, or vertical-lr",
+                                )
+                            })
+                        })
+                        .collect()
+                })
+                .transpose()?,
         })
     }
 }

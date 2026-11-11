@@ -95,8 +95,9 @@ The props that the factory returns cannot be passed to `style()` as a base.
 
 ## Generated code
 
-The compiler creates the factory with `stillwindCva` from the framework runtime,
-together with the compiled class names. Factory calls stay ordinary JavaScript.
+The compiler creates the factory with a helper from `stillwind/runtime`, such as
+`stillwindClassNameObjectCva` for React, together with the compiled class names.
+Factory calls stay ordinary JavaScript.
 The development build checks the selected values and the classes from other
 stylesheets.
 

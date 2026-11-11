@@ -1,16 +1,17 @@
 //! Direct utility templates retain each ref substitution as an IR variant.
 //!
-//! A utility template is a whitespace-separated list in which a ref may occupy a
-//! complete variant segment, as in `` `md:${trigger`hover:`}:active:p-4` ``. The
-//! scanner rebuilds those segments into nested variant wrappers, so each utility
-//! keeps its own source span and the substitution stays a ref variant rather than
-//! becoming text.
+//! A utility template is a whitespace-separated list in which a ref variant or a stored
+//! variant may occupy a complete variant segment, as in
+//! `` `md:${trigger`hover:`}:active:p-4` ``. The scanner rebuilds those segments into
+//! nested variant wrappers, so each utility keeps its own source span and the
+//! substitution stays a variant rather than becoming text.
 //!
-//! The accepted grammar is narrow. A substitution must be a direct ref call
-//! or tag, the text after it must begin with `:`, and any text before it must already
-//! be a complete `variant:` prefix; anything else fails with
+//! The accepted grammar is narrow. A substitution must be a direct ref call or tag or
+//! a stored variant, the text after it must begin with `:`, and any text before it must
+//! already be a complete `variant:` prefix; anything else fails with
 //! [`LintDiagnostic::InvalidUtilityTemplate`] instead of guessing how the author meant
-//! to splice a string.
+//! to splice a string. `style.when()` reads its template argument with the same
+//! [`TemplateToken`] rules, without a final utility.
 
 use lean_string::{LeanStr, ToLeanStr};
 use oxc::ast::ast::TemplateLiteral;
@@ -20,13 +21,15 @@ use stillwind_ir::{ClassExpression, RuleExpression, StyleVariant};
 use stillwind_source::{Span, Spanned};
 
 use crate::state::MacroExtractor;
+use crate::stored_variants::StoredVariantUse;
 
 impl<'a> MacroExtractor<'a> {
     /// Lowers a template into one class expression per `variant:utility` segment.
     ///
     /// Returns `None` after pushing a diagnostic when a substitution is not a ref
-    /// variant or a segment is incomplete, so a caller can treat the whole template as
-    /// unusable.
+    /// variant or a stored variant, or a segment is incomplete, so a caller can treat
+    /// the whole template as unusable. A substitution whose own diagnostic was already
+    /// reported adds no template diagnostic.
     pub(crate) fn utility_template_expressions(
         &mut self,
         template: &TemplateLiteral<'a>,
@@ -66,13 +69,22 @@ impl<'a> MacroExtractor<'a> {
                 return None;
             }
             if let Some(expression) = template.expressions.get(index) {
-                let Some(variant) = self.ref_variant(expression) else {
-                    self.lint_findings
-                        .push(template_error(self.source_span(template.span)));
-                    self.omit_input(template.span);
-                    return None;
+                let variants = match self.template_substitution(expression) {
+                    StoredVariantUse::Variants(variants) => variants,
+                    StoredVariantUse::Omitted => {
+                        self.probe_remaining_substitutions(template, index + 1);
+                        self.omit_input(template.span);
+                        return None;
+                    }
+                    StoredVariantUse::NotStored => {
+                        self.probe_remaining_substitutions(template, index + 1);
+                        self.lint_findings
+                            .push(template_error(self.source_span(template.span)));
+                        self.omit_input(template.span);
+                        return None;
+                    }
                 };
-                if let Err(error) = token.reference(variant, span) {
+                if let Err(error) = token.reference(variants, span) {
                     self.lint_findings.push(error);
                     self.omit_input(template.span);
                     return None;
@@ -94,7 +106,7 @@ impl<'a> MacroExtractor<'a> {
 /// start with `:`, which is what keeps `${ref}` from silently gluing onto the
 /// surrounding utility text.
 #[derive(Default)]
-struct TemplateToken {
+pub(crate) struct TemplateToken {
     /// Variants collected for the current segment, outermost first.
     variants: Vec<StyleVariant>,
     /// Literal text still to be assigned to the segment's utility.
@@ -109,7 +121,7 @@ impl TemplateToken {
     /// Text arrives already split on whitespace. When a separator is required, exactly
     /// one leading `:` is consumed and the span is advanced so it still points at the
     /// text the value came from.
-    fn text(&mut self, text: &str, mut span: Span) -> Result<(), LintFinding> {
+    pub(crate) fn text(&mut self, text: &str, mut span: Span) -> Result<(), LintFinding> {
         if text.is_empty() {
             return Ok(());
         }
@@ -129,11 +141,16 @@ impl TemplateToken {
         Ok(())
     }
 
-    /// Ends the current text run and starts a substitution.
+    /// Ends the current text run and starts a substitution of `variants`, from the
+    /// outermost to the innermost.
     ///
     /// The text before a substitution is a variant prefix only when it ends with `:`,
     /// so `` `${trigger`hover:`}x` `` is rejected rather than read as a prefix.
-    fn reference(&mut self, variant: StyleVariant, span: Span) -> Result<(), LintFinding> {
+    pub(crate) fn reference(
+        &mut self,
+        variants: Vec<StyleVariant>,
+        span: Span,
+    ) -> Result<(), LintFinding> {
         if self.needs_separator {
             return Err(template_error(span));
         }
@@ -143,9 +160,22 @@ impl TemplateToken {
             }
             self.variants.push(StyleVariant::Prefix(prefix));
         }
-        self.variants.push(variant);
+        self.variants.extend(variants);
         self.needs_separator = true;
         Ok(())
+    }
+
+    /// Returns the variants of a template that has no utility, such as the argument of
+    /// `style.when()`. Final text becomes a prefix and receives a final `:` when it has
+    /// none.
+    pub(crate) fn into_variants(mut self) -> Option<Vec<StyleVariant>> {
+        if let Some(mut prefix) = self.tail.take() {
+            if !prefix.value.ends_with(':') {
+                prefix.value = format_args!("{}:", prefix.value).to_lean_str();
+            }
+            self.variants.push(StyleVariant::Prefix(prefix));
+        }
+        (!self.variants.is_empty()).then_some(self.variants)
     }
 
     /// Closes the current segment and appends the wrapped expression.

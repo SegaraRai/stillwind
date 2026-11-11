@@ -26,6 +26,7 @@
 //!   or chunk layout.
 //! - [`parser`] shares token traversal, block boundaries, and syntax validation.
 //! - [`resources`] finds URLs without resolving them.
+//! - [`scopes`] normalizes scoped declarations and preserves enclosing selectors.
 //! - [`selectors`] expands nesting selector templates.
 //! - [`structure`] parses the rule tree of authored stylesheets with byte ranges.
 //! - [`values`] validates value grammars and inspects property effects.
@@ -56,6 +57,7 @@ mod normalization;
 mod output;
 mod parser;
 mod resources;
+mod scopes;
 mod selectors;
 mod structure;
 mod values;
@@ -75,7 +77,7 @@ pub use colors::{
 pub use custom_properties::{
     CustomPropertyActivation, CustomPropertyDefinition, CustomPropertyUsage, PropertyUsageError,
     custom_property_references, custom_property_usage, extract_authored_property_names,
-    extract_authored_property_syntaxes, parse_property_definitions,
+    extract_authored_property_syntaxes, parse_property_definitions, var_reference,
 };
 pub use declarations::{
     DeclarationError, ParsedDeclaration, declaration_ranges, declaration_values,
@@ -95,20 +97,23 @@ pub use parser::{
     validate_css_syntax_recovering,
 };
 pub use resources::{CssUrl, relative_css_urls};
+pub use scopes::{ScopePrelude, ScopedCss, normalize_scopes, parse_scope_prelude};
 pub use selectors::{
     SelectorTarget, absolutize_nested_selector, append_element_condition, fold_host_conditions,
-    fold_nested_host_conditions, implicit_nesting_positions, instantiate_selector,
-    selector_cannot_match_host, selector_class_names, selector_is_element_condition,
-    selector_is_subject_condition, selector_is_valid, selector_list_branches,
-    selector_repeats_subject, selector_selects_host, selector_target, selector_uses_subject,
-    subject_as_universal, subject_compound_parts,
+    fold_nested_host_conditions, hoist_pseudo_element_conditions, implicit_nesting_positions,
+    instantiate_selector, instantiate_variant_selector, selector_cannot_match,
+    selector_cannot_match_host, selector_class_names, selector_has_pseudo_element,
+    selector_is_element_condition, selector_is_subject_condition, selector_is_valid,
+    selector_list_branches, selector_repeats_subject, selector_selects_host, selector_target,
+    selector_uses_subject, subject_as_universal, subject_compound_parts, wrapped_subject_condition,
 };
 pub use structure::{CssBlock, CssNode, CssNodeKind, parse_structure};
 pub use values::{
-    CssProperty, ValueDomain, ValueType, arbitrary_value_flags, csswg_formal_syntax,
-    declaration_is_physical, inspect_css_value, is_length_unit, media_has_size_comparison,
-    media_size_comparisons, policy_glob_matches, properties_interfere, property_covers,
-    property_value_domains, repeated_longhands, value_is_well_formed,
+    CssProperty, ValueDomain, ValueType, WritingMode, arbitrary_value_flags, csswg_formal_syntax,
+    declaration_is_physical, horizontal_logical_counterpart, inspect_css_value, is_length_unit,
+    media_has_size_comparison, media_size_comparisons, policy_glob_matches, properties_interfere,
+    properties_interfere_in, property_covers, property_value_domains, reads_written_value,
+    repeated_longhands, value_is_well_formed, writing_mode_group,
 };
 
 #[cfg(feature = "minify")]

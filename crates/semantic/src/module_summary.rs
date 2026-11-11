@@ -96,7 +96,7 @@ pub struct ModuleSummary {
 
 impl ModuleSummary {
     /// Schema version hosts must understand before reading a summary.
-    pub const SCHEMA: u32 = 4;
+    pub const SCHEMA: u32 = 5;
 
     /// Creates an empty summary for [`Self::module_id`], preserving the identity and
     /// stamping the current schema.
@@ -125,7 +125,8 @@ impl ModuleSummary {
                 ExportedValue::Styles(value)
                 | ExportedValue::Refs(value)
                 | ExportedValue::Keyframes(value)
-                | ExportedValue::ViewTransitions(value) => {
+                | ExportedValue::ViewTransitions(value)
+                | ExportedValue::StoredVariants(value) => {
                     if let Some(candidates) = value.finite_candidates() {
                         identities.extend(candidates.iter().cloned());
                     } else {
@@ -147,16 +148,24 @@ impl ModuleSummary {
 mod tests {
     use super::*;
     use crate::assets::{AssetMetadata, AssetRecord};
-    use crate::identity::{AssetKind, IdentityId};
+    use crate::identity::{AssetKind, DeclarationKey, IdentityId};
     use crate::symbolic::SymbolicValue;
 
     #[test]
     fn exported_universe_retains_owned_assets_of_its_kind() {
         let mut summary = ModuleSummary::new("x".into());
-        let animation = IdentityId::new(AssetKind::Keyframes, ModuleId::from("x"), 0, 1, "a");
+        let animation = IdentityId::new(
+            AssetKind::Keyframes,
+            ModuleId::from("x"),
+            DeclarationKey::top(0),
+            "a",
+        );
         summary.assets.push(AssetRecord {
             identity: animation.clone(),
-            metadata: AssetMetadata { label: None },
+            metadata: AssetMetadata {
+                label: None,
+                stored_variant: None,
+            },
             call_start: 2,
             call_end: 8,
         });
@@ -173,13 +182,27 @@ mod tests {
     #[test]
     fn ref_exports_retain_finite_candidates_and_universe_roots() {
         let mut summary = ModuleSummary::new("x".into());
-        let owned_ref = IdentityId::new(AssetKind::Ref, "x".into(), 0, 1, "handle");
-        let imported_ref = IdentityId::new(AssetKind::Ref, "other".into(), 0, 1, "other");
-        let animation = IdentityId::new(AssetKind::Keyframes, "x".into(), 2, 3, "animation");
+        let owned_ref =
+            IdentityId::new(AssetKind::Ref, "x".into(), DeclarationKey::top(0), "handle");
+        let imported_ref = IdentityId::new(
+            AssetKind::Ref,
+            "other".into(),
+            DeclarationKey::top(0),
+            "other",
+        );
+        let animation = IdentityId::new(
+            AssetKind::Keyframes,
+            "x".into(),
+            DeclarationKey::top(2),
+            "animation",
+        );
         for identity in [owned_ref.clone(), animation] {
             summary.assets.push(AssetRecord {
                 identity,
-                metadata: AssetMetadata { label: None },
+                metadata: AssetMetadata {
+                    label: None,
+                    stored_variant: None,
+                },
                 call_start: 4,
                 call_end: 10,
             });

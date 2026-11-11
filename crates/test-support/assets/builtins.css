@@ -9809,25 +9809,25 @@ Preserve that precedence when adding or moving definitions.
 }
 
 @stillwind-variant group-* (value: [variant]) {
-  &:is(:where(.group):--value() *) {
+  :is(:where(.group):--value() &) {
     @slot;
   }
 }
 
 @stillwind-variant group-* (value: [variant], modifier: [class-identifier]) {
-  &:is(:where(:--modifier(".group\/{modifier}")):--value() *) {
+  :is(:where(:--modifier(".group\/{modifier}")):--value() &) {
     @slot;
   }
 }
 
 @stillwind-variant peer-* (value: [variant]) {
-  &:is(:where(.peer):--value() ~ *) {
+  :is(:where(.peer):--value() ~ &) {
     @slot;
   }
 }
 
 @stillwind-variant peer-* (value: [variant], modifier: [class-identifier]) {
-  &:is(:where(:--modifier(".peer\/{modifier}")):--value() ~ *) {
+  :is(:where(:--modifier(".peer\/{modifier}")):--value() ~ &) {
     @slot;
   }
 }
@@ -10353,10 +10353,19 @@ Preserve that precedence when adding or moving definitions.
 }
 
 
-/* Built-in Stillwind conditional variant. */
+/* Built-in Stillwind conditional variants. */
 
 @stillwind-variant if\(*\) (value: [if-condition]) {
   @stillwind-intrinsic builtin-if-variant;
+}
+
+/*
+`or(a,b)` holds when any of its variant sequences holds. The compiler expands a
+candidate into one candidate for each sequence before it resolves variants, so each
+sequence keeps its own position in the stylesheet.
+*/
+@stillwind-variant or\(*\) (value: [variant-list]) {
+  @stillwind-intrinsic builtin-or-variant;
 }
 
 /* Built-in Stillwind variants that select a document-level element. */
@@ -11530,7 +11539,7 @@ reach descendants. Keep this declaration slot inside the selector rule.
 */
 
 @layer properties {
-  @supports (((-webkit-hyphens: none)) and (not (margin-trim: inline))) or
+  @supports (((-webkit-hyphens: none)) and (not (margin-trim: block))) or
     ((-moz-orient: inline) and (not (color: rgb(from red r g b)))) {
     *,
     ::before,

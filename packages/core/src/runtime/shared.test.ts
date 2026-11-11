@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 
 import { expect, test } from "vite-plus/test";
 
-import { stillwindViewTransitionNameChecked } from "./development.ts";
+import { stillwindViewTransitionNameChecked } from "./checked.ts";
 import { stillwindEscapedIdentifier, stillwindViewTransitionName } from "./shared.ts";
 
 test("view transition names pair a class token with a key", () => {

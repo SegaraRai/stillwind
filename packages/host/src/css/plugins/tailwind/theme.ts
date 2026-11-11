@@ -16,7 +16,7 @@ type ThemeFunction = ((path?: string, fallback?: unknown) => unknown) & {
 };
 
 // The tables, `keyPathToCssProperty()`, `themeableValues()`, `readFromCss()`, and the merge
-// rules of `get` follow Tailwind CSS 4.3.3 (compat/apply-config-to-theme.ts and
+// rules of `get` follow Tailwind CSS 4.3.5 (compat/apply-config-to-theme.ts and
 // compat/plugin-functions.ts). Keep them aligned with upstream instead of adding names here:
 // they define which v3 config key reads and writes which CSS theme variable. The v3 config
 // keys whose namespace has another name come from the `@stillwind-legacy-theme-key`
@@ -552,9 +552,9 @@ export class PluginTheme {
       }
       value = copy;
     } else {
-      // Both `--color-foo` and `--color-foo-bar` make `colors.foo` an object; Tailwind returns
-      // its `DEFAULT` to plugins.
-      value = object(css) && "DEFAULT" in css ? css.DEFAULT : css;
+      // A specific key such as `colors.foo` returns its `DEFAULT` when CSS also defines
+      // `--color-foo-bar`. Namespace root lookups keep the whole object.
+      value = keys.length > 1 && object(css) && "DEFAULT" in css ? css.DEFAULT : css;
     }
     if (modifier && typeof value === "string") {
       value = withAlpha(value, modifier);
@@ -634,7 +634,7 @@ export class PluginTheme {
     if (path.at(-1) === "DEFAULT") {
       return [result.DEFAULT ?? null, resultOptions.DEFAULT ?? 0];
     }
-    if ("DEFAULT" in result && Object.keys(result).length === 1) {
+    if (path.length > 1 && "DEFAULT" in result && Object.keys(result).length === 1) {
       return [result.DEFAULT, resultOptions.DEFAULT ?? 0];
     }
     result.__CSS_VALUES__ = resultOptions;

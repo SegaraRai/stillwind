@@ -4,6 +4,7 @@ import type { CssUpstreamMap } from "@stillwind/host";
 
 import { compilationStyles } from "./compilation-styles.ts";
 import { createCompilationHost, type ResolverHost } from "./host.ts";
+import { useProject, type ProjectCompiler } from "./project.ts";
 
 /**
  * A producer and its captured dependencies stored in bundler metadata for CSS reconstruction.
@@ -162,6 +163,8 @@ export interface EmissionContext<
 > extends ResolverHost {
   /** Current compilation, required when recording producers or installing document CSS reconstruction. */
   _compilation?: EmissionCompilation<Module>;
+  /** Compiler whose shared project document CSS reconstruction uses with the producer loaders. */
+  _compiler?: ProjectCompiler;
   /** Current bundler module whose buildInfo retains producer metadata. */
   _module?: Module;
   /**
@@ -201,20 +204,36 @@ export function installEmission<Module extends EmissionModule>(
     if (!carriers.length || !producers.length) {
       return;
     }
-    compilation.__stillwindCss = await compilationStyles(
-      producers,
+    const { config, root } = producers[0];
+    const project = await useProject(
+      {
+        _compiler: context._compiler,
+        _compilation: compilation,
+        addDependency: (id) => compilation.fileDependencies.add(id),
+        addMissingDependency: (id) => compilation.missingDependencies.add(id),
+        addContextDependency: (id) => compilation.contextDependencies.add(id),
+      },
+      compilation.__stillwindConfiguration?.scope,
+      config,
+      root,
+      context.mode === "development" ? "development" : "release",
       io,
-      context.mode,
-      (id) => {
-        compilation.fileDependencies.add(id);
-      },
-      (id) => {
-        compilation.contextDependencies.add(id);
-      },
-      (message) => {
-        compilation.warnings.push(new Error(message));
-      },
     );
+    try {
+      compilation.__stillwindCss = await compilationStyles(
+        producers,
+        io,
+        project.value,
+        (id) => {
+          compilation.fileDependencies.add(id);
+        },
+        (message) => {
+          compilation.warnings.push(new Error(message));
+        },
+      );
+    } finally {
+      project.done();
+    }
     for (const carrier of carriers) {
       await new Promise<void>((resolve, reject) =>
         compilation.rebuildModule(carrier, (error) => (error ? reject(error) : resolve())),

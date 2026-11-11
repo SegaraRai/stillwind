@@ -2,7 +2,7 @@ import { runInNewContext } from "node:vm";
 
 import { expect, test } from "vite-plus/test";
 
-import { stillwindCva } from "../../../core/src/runtime/class-name-object.ts";
+import { stillwindClassNameObjectCva } from "../../../core/src/runtime/formats.ts";
 import { sourceUri, cssInput, oneShotInput } from "./support.ts";
 
 /**
@@ -11,6 +11,140 @@ import { sourceUri, cssInput, oneShotInput } from "./support.ts";
  * @param bindingSpecifier - Absolute URL of the binding module.
  */
 export function registerCompilationContract(bindingSpecifier: string): void {
+  test("scope variants bind roots and limits in previews, authored CSS, and modules", async () => {
+    const {
+      NativeDesignSystemLoader,
+      NativeProjectSession,
+      compileSource,
+      minifyCss,
+      renderStylesheet,
+    } = await import(bindingSpecifier);
+    const definitions =
+      "@utility flex{display:flex;}@custom-variant scoped{@scope (.card) to (& .stop){@slot;}}@custom-variant self{@scope (.card &){@slot;}}";
+    const css = `${definitions}.authored{@variant scoped{display:flex;}}@stillwind-slot utilities;`;
+    const loader = new NativeDesignSystemLoader();
+    expect(loader.provide(0, "root.css", css).kind).toBe("complete");
+    const query = loader.editorQuery();
+    expect(
+      minifyCss(query.previewCandidate("scoped:flex")!.replaceAll("&", ".item"), {
+        include: ["Nesting"],
+      }).css,
+    ).toBe("@scope(.card) to (:where(:scope) .stop){.item{display:flex}}");
+    for (const candidate of ["not-scoped:flex", "group-scoped:flex", "peer-scoped:flex"]) {
+      expect(query.previewCandidate(candidate), candidate).toBeNull();
+    }
+    const code = 'import {style} from "stillwind/react";export const item=style("scoped:flex");';
+    const compiled = compileSource(oneShotInput(code, "scoped.tsx", css));
+    expect(compiled.diagnostics).toEqual([]);
+    expect(compiled.lintFindings).toEqual([]);
+    const result = minifyCss(compiled.css.replaceAll(compiled.classes[0].className, "item"), {
+      include: ["Nesting"],
+    }).css;
+    expect(result).toContain("@scope(.card) to (:where(:scope) .stop){.item{display:flex}}");
+    const authored = minifyCss(renderStylesheet("", css), { include: ["Nesting"] }).css;
+    expect(authored).toContain("@scope(.card) to (:where(:scope) .stop){.authored{display:flex}}");
+    const session = new NativeProjectSession(loader, false);
+    session.compile([
+      {
+        kind: "direct",
+        moduleId: "scoped.tsx",
+        document: {
+          uri: sourceUri("scoped.tsx"),
+          code,
+          format: "jsx",
+          sourceMapSource: "scoped.tsx",
+        },
+        syntax: { language: "tsx", moduleKind: "module" },
+      },
+    ]);
+    const module = minifyCss(session.moduleCss("scoped.tsx").css, { include: ["Nesting"] }).css;
+    expect(module).toContain("@scope(.card) to (:where(:scope) .stop)");
+    expect(module).not.toContain(".authored");
+    const conditional = String.raw`@stillwind-variant if\(*\) (value: [if-condition]) { @stillwind-intrinsic builtin-if-variant; }`;
+    for (const prefix of ["if(--on):scoped", "scoped:if(--on)"]) {
+      const guarded = compileSource(
+        oneShotInput(
+          `import {style} from "stillwind/react";export const item=style("${prefix}:flex");`,
+          "guarded.tsx",
+          `${conditional}${definitions}@stillwind-slot utilities;`,
+        ),
+      );
+      expect(guarded.diagnostics).toEqual([]);
+      expect(guarded.css).toContain("@scope (.card)");
+      expect(guarded.css).toContain("--on");
+    }
+    expect(
+      minifyCss(query.previewCandidate("self:flex")!.replaceAll("&", ".item"), {
+        include: ["Nesting"],
+      }).css,
+    ).toBe("@scope(.card .item){:where(:scope){display:flex}}");
+    for (const candidate of ["[@scope(.card)]:flex", "[@scope(:is(.card,::before))]:flex"]) {
+      const preview = query.previewCandidate(candidate);
+      expect(preview, candidate).not.toBeNull();
+      expect(
+        minifyCss(preview!.replaceAll("&", ".item"), {
+          include: ["Nesting"],
+        }).css,
+      ).toBe("@scope(.card){.item{display:flex}}");
+    }
+  });
+
+  test("authored scopes keep declaration roots and ancestor constraints", async () => {
+    const { renderStylesheet, minifyCss } = await import(bindingSpecifier);
+    const css = ".parent{@scope (.from) to (& .stop){color:red;.item{display:flex}}}";
+    const rendered = renderStylesheet("", `${css} @stillwind-slot utilities;`);
+    expect(rendered).toContain(":where(:scope){color:red;");
+    const result = minifyCss(rendered, { include: ["Nesting"] });
+    expect(result.css).toContain("@scope(.parent .from) to (:where(:scope) .stop)");
+    expect(result.css).toContain(".item{display:flex}");
+    expect(result.warnings).toEqual([]);
+  });
+
+  test("color mixes without an interpolation method retain their authored value", async () => {
+    const { NativeDesignSystemLoader } = await import(bindingSpecifier);
+    for (const value of [
+      "color-mix(currentcolor 50%,transparent)",
+      "color-mix(var(--external),red)",
+      "color-mix(var(--brand))",
+      "color-mix(currentcolor,red,blue)",
+      "color-mix(in)",
+    ]) {
+      const loader = new NativeDesignSystemLoader();
+      loader.provide(
+        0,
+        "root.css",
+        `@utility probe { color:${value}; } @stillwind-slot utilities;`,
+      );
+      expect(loader.editorQuery().previewCandidate("probe"), value).toBe(`&{color:${value};}`);
+    }
+  });
+
+  test("pseudo-element utilities omit impossible nested branches and retain valid selectors", async () => {
+    const { NativeDesignSystemLoader } = await import(bindingSpecifier);
+    const loader = new NativeDesignSystemLoader();
+    loader.provide(
+      0,
+      "root.css",
+      `@stillwind-variant selection { & ::selection, &::selection { @slot; } }
+@stillwind-variant hover { &:hover { @slot; } }
+@stillwind-variant mixed { &::selection, &:hover { @slot; } }
+@utility children { color:blue; & > * { color:red; } }
+@utility branches { & > *, & { color:green; } }
+@utility descendants { & > * { color:red; } }
+@stillwind-slot utilities;`,
+    );
+    const query = loader.editorQuery();
+    for (const [candidate, expected] of [
+      ["selection:children", "& ::selection, &::selection{color:blue;}"],
+      ["selection:descendants", ""],
+      ["selection:branches", "& ::selection,&::selection{color:green;}"],
+      ["mixed:descendants", "&:hover > *{color:red;}"],
+      ["hover:descendants", "&:hover > *{color:red;}"],
+    ]) {
+      expect(query.previewCandidate(candidate), candidate).toBe(expected);
+    }
+  });
+
   test("browser targets retain color fallbacks unless every target supports the value", async () => {
     const { NativeDesignSystemLoader, compileSource } = await import(bindingSpecifier);
     const css =
@@ -390,9 +524,9 @@ export function registerCompilationContract(bindingSpecifier: string): void {
     const { compileSource } = await import(bindingSpecifier);
     const css =
       "@utility a {color:red;} @utility b {color:blue;} @utility c {color:green;} @utility d {color:yellow;} @stillwind-slot utilities;";
-    const evaluate = (code: string): ReturnType<typeof stillwindCva> =>
+    const evaluate = (code: string): ReturnType<typeof stillwindClassNameObjectCva> =>
       runInNewContext(`${code.replace(/^import[^;]+;/gm, "")}\nchoose;`, {
-        stillwindCva,
+        stillwindClassNameObjectCva,
       });
     const selectedColors = (
       code: string,

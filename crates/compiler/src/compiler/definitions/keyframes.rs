@@ -16,7 +16,7 @@ use super::super::lexer::lex_utilities;
 use super::super::style_variants::StyleVariantPlan;
 use super::super::symbols::named_declaration;
 use super::super::utilities::{
-    check, combine_declarations_for_theme, invalid_property_value_finding, resolve_first_target,
+    check, combine_declarations_for_theme, invalid_property_value_finding, resolve_first_targets,
     unresolved_utility_finding,
 };
 use super::super::variants::{OptionCondition, application_condition_paths, wrap_conditions};
@@ -51,6 +51,7 @@ pub(in crate::compiler) fn emit_keyframes_definition(
     let name = match identifiers.keyframes_name(&named_declaration(
         module_id,
         &keyframes.binding,
+        &keyframes.key,
         keyframes.label.as_ref(),
     )) {
         Ok(name) => name,
@@ -109,22 +110,22 @@ fn collect_definitions<'a>(
     definitions: &mut Vec<Definition<'a>>,
     lint_findings: &mut Vec<LintFinding>,
 ) {
-    let Some(plan) =
+    let Some(plans) =
         StyleVariantPlan::resolve(identifiers, wrappers, theme, diagnostics, lint_findings)
     else {
         return;
     };
-    {
+    for plan in plans {
         let Some(paths) = plan
             .applications()
             .iter()
             .map(|applications| application_condition_paths(applications))
             .collect::<Option<Vec<_>>>()
         else {
-            if let Some(variant) = wrappers.last() {
+            if let Some(span) = wrappers.last().and_then(variant_span) {
                 lint_findings.push(LintFinding::new(
                     LintDiagnostic::InvalidKeyframesVariant,
-                    variant_span(variant),
+                    span,
                 ));
             }
             return;
@@ -149,11 +150,12 @@ fn collect_definitions<'a>(
     }
 }
 
-fn variant_span(variant: &StyleVariant) -> Span {
+fn variant_span(variant: &StyleVariant) -> Option<Span> {
     match variant {
-        StyleVariant::Prefix(prefix) => prefix.span,
-        StyleVariant::Ref { condition, .. } => condition.prefix.span,
-        StyleVariant::Container { query, .. } => query.span,
+        StyleVariant::Prefix(prefix) => Some(prefix.span),
+        StyleVariant::Ref { condition, .. } => Some(condition.prefix.span),
+        StyleVariant::Container { query, .. } => Some(query.span),
+        StyleVariant::Alternatives(sequences) => sequences.iter().flatten().find_map(variant_span),
     }
 }
 
@@ -207,8 +209,9 @@ pub(crate) fn resolve_frame(
     let mut utilities = Vec::new();
     for utility in lex_utilities(input, diagnostics) {
         let raw = &utility.value.raw;
-        match resolve_first_target(raw, theme) {
-            Ok(Ok(resolved)) if resolved.variants.is_empty() => {
+        match resolve_first_targets(raw, theme) {
+            Ok(Ok(mut resolved)) if resolved.len() == 1 && resolved[0].variants.is_empty() => {
+                let resolved = resolved.swap_remove(0);
                 if let Some(value) = &resolved.diagnostic_data.invalid_value {
                     lint_findings.push(invalid_property_value_finding(
                         raw,

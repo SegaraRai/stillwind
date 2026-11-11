@@ -1,29 +1,29 @@
-import { stillwindClassKey, stillwindClsx, stillwindMerge, stillwindToFragment, stillwindViewTransitionName } from "stillwind/runtime/class-name-object";
+import { stillwindClsx, stillwindViewTransitionName, stillwindClassNameObjectClassKey, stillwindClassNameObjectMerge, stillwindClassNameObjectToFragment } from "stillwind/runtime";
 
-export const pageTitle = {v:"sw-vt-page-title-56mrr"};
-export const pageCard = {v:"sw-vt-9jm9s"};
+export const pageTitle = {v:"sw-vt-page-title-0b9dx"};
+export const pageCard = {v:"sw-vt-hl4nk"};
 
 export const compact = Date.now() % 2 === 0;
 export const transitionKey = "fixture-product";
 export const selectedTransition = compact ? pageTitle : pageCard;
 
 // Static and conditional identities, each used with and without a key.
-export const staticTransition = {className:"sw_ib2y3"};
-export const staticKeyedTransition = {className:"sw_dsj5u",style:{"view-transition-name":stillwindViewTransitionName("sw-vt-page-title-56mrr",transitionKey)}};
-export const staticLiteralKey = {className:"sw_49cip"};
-export const conditionalTransition = {className:stillwindClsx("sw_07l45",({"sw-vt-page-title-56mrr":"sw_b9mfe","sw-vt-9jm9s":"sw_xivv8"})[(selectedTransition).v])};
-export const conditionalKeyedTransition = {className:stillwindClsx("sw_eg4yn",({"sw-vt-page-title-56mrr":"sw_4qjib","sw-vt-9jm9s":"sw_yq1jw"})[(selectedTransition).v]),style:{"view-transition-name":stillwindViewTransitionName(selectedTransition,transitionKey)}};
-export const conditionalLiteralKey = {className:stillwindClsx("sw_wg0m9",({"sw-vt-page-title-56mrr":"sw_w8eru","sw-vt-9jm9s":"sw_54tbn"})[(selectedTransition).v])};
+export const staticTransition = {className:"sw_sjay2"};
+export const staticKeyedTransition = {className:"sw_v7488",style:{"view-transition-name":stillwindViewTransitionName("sw-vt-page-title-0b9dx",transitionKey)}};
+export const staticLiteralKey = {className:"sw_fh23y"};
+export const conditionalTransition = {className:stillwindClsx("sw_ot9ws",({"sw-vt-hl4nk":"sw_oy2xo","sw-vt-page-title-0b9dx":"sw_x1ckt"})[(selectedTransition).v])};
+export const conditionalKeyedTransition = {className:stillwindClsx("sw_dsmy7",({"sw-vt-hl4nk":"sw_8vx9d","sw-vt-page-title-0b9dx":"sw_hb6d1"})[(selectedTransition).v]),style:{"view-transition-name":stillwindViewTransitionName(selectedTransition,transitionKey)}};
+export const conditionalLiteralKey = {className:stillwindClsx("sw_u10oq",({"sw-vt-hl4nk":"sw_5arxl","sw-vt-page-title-0b9dx":"sw_81l10"})[(selectedTransition).v])};
 
 // Completed props can be reused; ordinary data retains a transition and its key.
-export const keyedProps = {className:"sw_zu69b"};
+export const keyedProps = {className:"sw_fdm03"};
 export const transitionData = { transition: pageCard, key: transitionKey };
-export const usesTransitionData = {className:"sw_y96tt",style:{"view-transition-name":stillwindViewTransitionName("sw-vt-9jm9s",transitionData.key)}};
-export const usesKeyedProps = stillwindMerge({[stillwindClassKey]:"sw_2ce4i"},stillwindToFragment((keyedProps)));
+export const usesTransitionData = {className:"sw_ipk4z",style:{"view-transition-name":stillwindViewTransitionName("sw-vt-hl4nk",transitionData.key)}};
+export const usesKeyedProps = stillwindClassNameObjectMerge({[stillwindClassNameObjectClassKey]:"sw_eqgu5"},stillwindClassNameObjectToFragment((keyedProps)));
 
 // A name another declaration states, and several transitions in one call.
-export const namedExplicitly = {className:"sw_a2388"};
-export const unioned = {className:"sw_gpk2a"};
+export const namedExplicitly = {className:"sw_sqk0k"};
+export const unioned = {className:"sw_6azb7"};
 
 // A guarded use fills a slot its own class carries, beside the unconditional classes.
-export const guarded = {className:stillwindClsx("sw_dud2z",(compact) && ("sw_jpu0d"))};
+export const guarded = {className:stillwindClsx("sw_mteqs",(compact) && ("sw_xymwq"))};

@@ -131,7 +131,16 @@
     },
     {
       "input": ["[color:theme(colors.red.500/.12345)]"],
-      "expected": ["text-red-500/1234.5"],
+      "expected": ["text-red-500/[12.345%]"],
+      "options": {
+        "rem": 16,
+        "collapse": true,
+        "logicalToPhysical": true
+      }
+    },
+    {
+      "input": ["[color:theme(colors.red.500/.29)]"],
+      "expected": ["text-red-500/29"],
       "options": {
         "rem": 16,
         "collapse": true,

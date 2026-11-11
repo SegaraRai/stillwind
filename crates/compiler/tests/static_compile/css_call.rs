@@ -9,6 +9,23 @@ use stillwind_test_support::css_source;
 
 use super::*;
 
+#[test]
+fn document_scopes_keep_the_selected_element_inside_the_scope() {
+    let (css, result) = compile(
+        r#"export const sheet = style.css({ "scoped:": { "[.item]:": "flex" } });"#,
+        "@custom-variant scoped { @scope (.card) to (.stop) { @slot; } }",
+    );
+    assert!(
+        result.lint_findings.is_empty(),
+        "{:?}",
+        result.lint_findings
+    );
+    assert!(
+        css.contains("@scope(.card) to (.stop){.item{display:flex}}"),
+        "{css}"
+    );
+}
+
 /// Compiles `body` after a React macro import against the standard package followed by
 /// `css`, and returns the stylesheet string of `export const sheet = ...`.
 fn compile(body: &str, css: &str) -> (String, CompileResult) {
@@ -66,9 +83,9 @@ fn the_default_template_places_used_support_before_the_rules() {
         "--color-red-500:",
         "--spacing:.25rem",
         "display:block",
-        "padding:calc(var(--spacing) * 4)",
+        "padding:calc(var(--spacing)*4)",
         "button:hover{background-color:var(--color-red-500)}",
-        "button{--tw-translate-x:calc(var(--spacing) * 2);",
+        "button{--tw-translate-x:calc(var(--spacing)*2);",
     ] {
         assert!(css.contains(expected), "{expected}: {css}");
     }
@@ -97,7 +114,7 @@ fn the_selector_option_targets_utilities_that_select_no_element() {
     assert_eq!(kinds(&result), [LintKind::MissingDocumentTarget]);
     assert_eq!(
         css,
-        ":where(:root,:host){--spacing:.25rem}button{margin:calc(var(--spacing) * 2)}"
+        ":where(:root,:host){--spacing:.25rem}button{margin:calc(var(--spacing)*2)}"
     );
 }
 
@@ -111,7 +128,7 @@ fn named_templates_choose_placement_and_omit_missing_slots() {
           .note { color: gray; } \
         }";
     let (css, _) = compile(r#"export const sheet = style.css("host:p-4");"#, templates);
-    assert_eq!(css, ":host{padding:calc(var(--spacing) * 4)}");
+    assert_eq!(css, ":host{padding:calc(var(--spacing)*4)}");
     let (css, _) = compile(
         r#"export const sheet = style.css("host:p-4", { template: "shadow" });"#,
         templates,

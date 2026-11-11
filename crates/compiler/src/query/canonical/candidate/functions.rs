@@ -193,7 +193,7 @@ fn theme_value(
                 && modifier_count == 1
                 && let Some(value) = alpha
             {
-                extracted = Some(opacity_modifier(value));
+                extracted = Some(opacity_modifier(value, theme));
                 alpha = None;
             }
             let fallback = fallback
@@ -237,24 +237,22 @@ fn theme_value(
 /// Returns the opacity `value` written as a candidate modifier, including its leading
 /// `/`.
 ///
-/// A whole percentage such as `50%` becomes `/50`. A fraction such as `.5` becomes
-/// `/50`, or an arbitrary modifier when the percentage is not whole. `var(--x)` becomes
-/// `/(--x)`. Any other value becomes an arbitrary modifier such as `/[calc(...)]`.
-fn opacity_modifier(value: &str) -> String {
-    if let Some(number) = value
-        .strip_suffix('%')
-        .filter(|number| number.bytes().all(|byte| byte.is_ascii_digit()))
-    {
-        return format!("/{number}");
-    }
-    if (value.starts_with('.') || value.starts_with("0."))
-        && let Ok(number) = value.parse::<f64>()
-    {
-        let number = number * 100.0;
-        if number.fract() == 0.0 {
-            return format!("/{number}");
+/// A percentage on a quarter step becomes a bare modifier when no opacity token has
+/// that key. Other percentages keep their unit in an arbitrary modifier, so the
+/// equivalence search can check named replacements against the utility's definitions.
+/// Fractions are converted to percentages. `var(--x)` becomes `/(--x)`; other
+/// expressions, including signed and exponent numbers, become arbitrary modifiers such
+/// as `/[calc(...)]`.
+fn opacity_modifier(value: &str, theme: &ThemeIndex) -> String {
+    if let Some(key) = percentage_key(value) {
+        let quarter_step = matches!(
+            key.split_once('.').map(|(_, fraction)| fraction),
+            None | Some("25" | "5" | "75")
+        );
+        if quarter_step && theme.namespace_token("opacity", &key).is_none() {
+            return format!("/{key}");
         }
-        return format!("/[{number}]");
+        return format!("/[{key}%]");
     }
     if let Some(value) = value
         .strip_prefix("var(")
@@ -263,6 +261,43 @@ fn opacity_modifier(value: &str) -> String {
         return format!("/({value})");
     }
     format!("/[{}]", print_arbitrary_value(value))
+}
+
+/// Returns the percentage that an unsigned decimal `value` denotes, such as `12.5` for
+/// `12.5%` or `.125`, without leading zeros in the integer part or trailing zeros in the
+/// fraction. Returns `None` for other values.
+///
+/// The decimal point moves in the text, because `f64` multiplication changes digits:
+/// `.0145 * 100` is `1.4500000000000002`.
+fn percentage_key(value: &str) -> Option<String> {
+    let (number, shift) = match value.strip_suffix('%') {
+        Some(number) => (number, 0),
+        None if value.starts_with('.') || value.starts_with("0.") => (value, 2),
+        None => return None,
+    };
+    let (integer, fraction) = number.split_once('.').unwrap_or((number, ""));
+    if (integer.is_empty() && fraction.is_empty())
+        || !integer
+            .bytes()
+            .chain(fraction.bytes())
+            .all(|byte| byte.is_ascii_digit())
+    {
+        return None;
+    }
+    let mut digits = format!("{integer}{fraction}");
+    let point = integer.len() + shift;
+    while digits.len() < point {
+        digits.push('0');
+    }
+    let (integer, fraction) = digits.split_at(point);
+    let integer = match integer.trim_start_matches('0') {
+        "" => "0",
+        integer => integer,
+    };
+    Some(match fraction.trim_end_matches('0') {
+        "" => integer.to_owned(),
+        fraction => format!("{integer}.{fraction}"),
+    })
 }
 
 /// Returns the custom property of the active token that the legacy theme `path` names,

@@ -208,6 +208,10 @@ export type StyleRef<RefId extends string = string> = {
  */
 export type RefScope<RefId extends string = string> = StyleRef<RefId> | RefVariant<RefId>;
 
+/**
+ * A variant that `style()` accepts as a computed key or a utility template
+ * substitution, such as a ref variant or a stored variant.
+ */
 export type StyleVariantKey = string & {
   readonly [refProjection]: true;
   readonly at: never;
@@ -219,7 +223,8 @@ export type StyleVariantKey = string & {
  * Without `.in()`, the referenced element must be an ancestor of the styled target.
  * Use the complete call, tag, or `.in()` chain directly as a computed variant key or a
  * variant segment followed by `:` in a utility template inside `style()`.
- * This syntax cannot be stored, exported, passed, or returned for later use.
+ * This syntax cannot be stored, exported, passed, or returned for later use. Wrap it
+ * in `style.when()` to reuse it.
  * `RefId` preserves the possible identities of the referenced element.
  */
 export type RefVariant<RefId extends string = string> = StyleVariantKey & {
@@ -254,7 +259,8 @@ export type RefVariant<RefId extends string = string> = StyleVariantKey & {
  * times. Use the complete chain directly as a computed key or a variant segment
  * followed by `:` in a utility template inside `style()`.
  *
- * This syntax cannot be stored, exported, passed, or returned for later use.
+ * This syntax cannot be stored, exported, passed, or returned for later use. Wrap it
+ * in `style.when()` to reuse it.
  * `RefId` preserves the referenced identities. `ScopeIds` preserves each scope's
  * possible identities in the order of the `.in()` calls.
  */
@@ -293,7 +299,8 @@ export type ScopedRefVariant<
  *
  * Use the call or tag directly as a computed key or a variant segment followed by
  * `:` in a utility template inside `style()`. This syntax cannot be stored,
- * exported, passed, or returned for later use. It accepts no further macro methods.
+ * exported, passed, or returned for later use. Wrap it in `style.when()` to reuse it.
+ * It accepts no further macro methods.
  * `RefId` preserves the possible identities of the container provider.
  */
 export type ContainerVariant<RefId extends string = string> = StyleVariantKey & {

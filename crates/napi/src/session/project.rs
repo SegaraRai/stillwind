@@ -2,6 +2,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;
+use std::sync::Arc;
 
 use napi::Error;
 use napi::bindgen_prelude::Env;
@@ -12,13 +13,15 @@ use stillwind_compiler::{
     ModuleCompiler, StylesheetPlacement, StylesheetRenderer,
 };
 use stillwind_diagnostics::{CompileError, DiagnosticBatch, LintSettings, Reporter};
-use stillwind_ir::{ModuleAnalysis, SourceAnalyzer, TypeScriptFactsProvider};
+use stillwind_ir::{
+    ModuleAnalysis, ModuleScan, SourceAnalyzer, SourceInput, TypeScriptFactsProvider,
+};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_project::{
     ProjectSession, SessionMode, StylesheetCoverage, StylesheetPlanError, StylesheetSelection,
 };
 
-use stillwind_source::{ModuleId, SourceRegistry};
+use stillwind_source::{ModuleId, SourceFile, SourceRegistry};
 
 use crate::api::{SourceScan, binding_output_with_batch, scan_prepared};
 use crate::module_editor::NativeModuleEditor;
@@ -604,33 +607,29 @@ impl NativeProjectSession {
             )));
         }
         let mut transaction = self.session.clone();
-        let analyzer = OxcSourceAnalyzer::with_lint(self.source_lint);
-        let scans: Vec<_> = sources
-            .iter()
-            .map(|source| {
-                Ok::<_, Error>(analyzer.scan_input(source.input(transaction.sources_mut())?))
-            })
-            .collect::<Result<_, _>>()?;
-        let facts = ProvidedTypeScriptFacts::new(&sources).update(&scans);
-        let analyses: Vec<_> = scans
-            .iter()
-            .map(|scan| analyzer.finalize(scan.clone(), facts.modules.get(&scan.module_id)))
-            .collect();
+        let analyses = self.analyze_sources(&mut transaction, &sources)?;
         let mut modules = Vec::new();
         let mut attempted = Vec::new();
+        // Modules whose stored analysis still applies, with no output built yet.
+        let mut unchanged = Vec::new();
         let diagnostic_sources = transaction
             .diagnostic_sources()
             .map_err(|error| Error::from_reason(error.to_string()))?;
-        for module_analysis in ModuleAnalysis::attach_asset_support_batch(&analyses) {
+        for module_analysis in ModuleAnalysis::validate_composition_batch(&analyses) {
             let module_id = module_analysis.module_id.clone();
             let source = module_analysis.source.clone();
+            if same_analysis(&self.session, &module_analysis) {
+                attempted.push(module_analysis);
+                unchanged.push((module_id, source));
+                continue;
+            }
             let update = transaction.update_module(module_analysis.clone());
             attempted.push(module_analysis);
             let result = if update.diagnostics.is_empty() {
                 transaction
                     .artifacts()
                     .get(&module_id)
-                    .map(|artifact| artifact.to_module_output())
+                    .map(|artifact| transaction.linked_output(artifact))
                     .unwrap_or_default()
             } else {
                 CompileResult {
@@ -644,31 +643,27 @@ impl NativeProjectSession {
             modules.push(ProjectModuleOutput::new(module_id, output));
         }
         if modules.iter().all(|module| module.diagnostics.is_empty()) {
-            Self::refresh_batches(&mut transaction)?;
+            Self::refresh_batches_since(&mut transaction, Some(&self.session))?;
             let final_sources = transaction
                 .diagnostic_sources()
                 .map_err(|error| Error::from_reason(error.to_string()))?;
-            modules = attempted
+            let selected = attempted
                 .iter()
-                .map(|analysis| {
-                    let artifact = transaction
-                        .current_artifact(&analysis.module_id)
-                        .ok_or_else(|| {
-                            Error::from_reason("Successful compilation has no current artifact")
-                        })?;
-                    let (output, _) = binding_output_with_batch(
-                        artifact.to_module_output(),
-                        &analysis.source,
-                        &final_sources,
-                    )?;
-                    Ok(ProjectModuleOutput::new(analysis.module_id.clone(), output))
+                .filter(|analysis| {
+                    producer
+                        .as_ref()
+                        .is_none_or(|producer| *producer == analysis.module_id)
                 })
-                .collect::<napi::Result<Vec<_>>>()?;
+                .map(|analysis| (analysis.module_id.clone(), analysis.source.clone()))
+                .collect();
+            modules = Self::linked_outputs(&transaction, selected, &final_sources)?;
             self.session = transaction;
-            if let Some(producer) = &producer {
-                modules.retain(|module| module.module_id == producer.as_str());
-            }
         } else {
+            modules.extend(Self::linked_outputs(
+                &transaction,
+                unchanged,
+                &diagnostic_sources,
+            )?);
             self.session.reject_updates(attempted);
             self.session.retain_attempted_sources(&transaction);
             self.session.retain_attempted_diagnostics(&transaction);
@@ -678,7 +673,174 @@ impl NativeProjectSession {
     }
 }
 
+/// Returns whether `session` holds a successful analysis that is interchangeable with
+/// `analysis`, so its artifact and published diagnostic batch still apply.
+///
+/// The analyses match when they share the source buffer, the input revision, and the
+/// facts revision, and report the same errors and lint findings. Analysis derives the IR
+/// from these inputs, so an update would compute the same artifact key. Composition
+/// checks can change the reports without changing the inputs.
+fn same_analysis(session: &ProjectSession, analysis: &ModuleAnalysis) -> bool {
+    let Some(previous) = session.analyses().get(&analysis.module_id) else {
+        return false;
+    };
+    session.current_artifact(&analysis.module_id).is_some()
+        && Arc::ptr_eq(&previous.source, &analysis.source)
+        && previous.semantic_revision == analysis.semantic_revision
+        && previous.diagnostics == analysis.diagnostics
+        && previous.integration_diagnostics == analysis.integration_diagnostics
+        && previous.lint_findings == analysis.lint_findings
+        && same_input(&previous.input, &analysis.input)
+}
+
+/// Returns whether two inputs from one source ID scope have equal revisions.
+///
+/// Buffers with equal IDs in one scope are the same buffers, and a projected input that
+/// keeps its document and parser buffer was copied with its whole projection (see
+/// [`HostPreparedSource::input_after`]). Comparing the buffers by identity therefore
+/// gives the result of comparing [`SourceInput::revision`] without formatting both
+/// inputs.
+fn same_input(previous: &SourceInput, input: &SourceInput) -> bool {
+    let same_projection = match (previous.projection(), input.projection()) {
+        (None, None) => true,
+        (Some(previous), Some(input)) => previous.analysis_id() == input.analysis_id(),
+        _ => false,
+    };
+    same_projection
+        && previous.module_id == input.module_id
+        && Arc::ptr_eq(previous.document().file(), input.document().file())
+        && Arc::ptr_eq(previous.parser_source(), input.parser_source())
+        && previous.syntax() == input.syntax()
+        && previous.document().format() == input.document().format()
+        && previous.document().upstream_map() == input.document().upstream_map()
+        && previous.framework == input.framework
+        && previous.stylesheet_imports == input.stylesheet_imports
+        && previous.module_css_import == input.module_css_import
+}
+
+/// A source of a compile transaction before its facts are applied.
+enum PendingAnalysis {
+    /// A scan of a new or changed input.
+    Scanned(Box<ModuleScan>),
+    /// The successful latest analysis of an unchanged input. It applies when the
+    /// facts of the module have its semantic revision.
+    Stored(Arc<ModuleAnalysis>),
+}
+
 impl NativeProjectSession {
+    /// Builds outputs from the published artifacts of `modules` in `transaction`.
+    /// A module without an artifact gets an empty output.
+    ///
+    /// # Errors
+    ///
+    /// Returns the errors of [`binding_output_with_batch`].
+    fn linked_outputs(
+        transaction: &ProjectSession,
+        modules: Vec<(ModuleId, Arc<SourceFile>)>,
+        diagnostic_sources: &SourceRegistry,
+    ) -> napi::Result<Vec<ProjectModuleOutput>> {
+        modules
+            .into_iter()
+            .map(|(module_id, source)| {
+                let result = transaction
+                    .artifacts()
+                    .get(&module_id)
+                    .map(|artifact| transaction.linked_output(artifact))
+                    .unwrap_or_default();
+                let (output, _) = binding_output_with_batch(result, &source, diagnostic_sources)?;
+                Ok(ProjectModuleOutput::new(module_id, output))
+            })
+            .collect()
+    }
+
+    /// Analyzes `sources` for a compile transaction, in source order.
+    ///
+    /// A source with an unchanged input and unchanged facts receives a copy of its
+    /// module's latest analysis in `transaction`, because analysis of the same input
+    /// with the same facts gives the same result. Other sources are scanned and
+    /// finalized with the host facts.
+    ///
+    /// # Errors
+    ///
+    /// Returns the errors of [`Self::scan_sources`].
+    fn analyze_sources(
+        &self,
+        transaction: &mut ProjectSession,
+        sources: &[HostPreparedSource],
+    ) -> napi::Result<Vec<ModuleAnalysis>> {
+        let analyzer = OxcSourceAnalyzer::with_lint(self.source_lint);
+        let pending = Self::scan_sources(&analyzer, transaction, sources)?;
+        let facts =
+            ProvidedTypeScriptFacts::new(sources).modules(pending.iter().map(
+                |pending| match pending {
+                    PendingAnalysis::Scanned(scan) => {
+                        (&scan.module_id, &scan.source_revision, &scan.summary)
+                    }
+                    PendingAnalysis::Stored(analysis) => (
+                        &analysis.module_id,
+                        &analysis.source_revision,
+                        &analysis.summary,
+                    ),
+                },
+            ));
+        Ok(pending
+            .into_iter()
+            .map(|pending| match pending {
+                PendingAnalysis::Scanned(scan) => {
+                    let facts = facts.get(&scan.module_id);
+                    analyzer.finalize(*scan, facts)
+                }
+                PendingAnalysis::Stored(analysis) => {
+                    let facts = facts.get(&analysis.module_id);
+                    if analysis.semantic_revision.as_ref()
+                        == facts.map(|facts| &facts.semantic_revision)
+                    {
+                        analysis.as_ref().clone()
+                    } else {
+                        analyzer.finalize(analyzer.scan_input(analysis.input.clone()), facts)
+                    }
+                }
+            })
+            .collect())
+    }
+
+    /// Prepares `sources` for a compile transaction.
+    ///
+    /// A source keeps the buffers of its module's latest analysis in `transaction` when
+    /// the document is unchanged, so an unchanged module keeps its artifact key. A
+    /// source whose input equals the input of a successful latest analysis is not
+    /// scanned, because scanning the same input gives the same scan. The caller decides
+    /// whether that analysis applies after it computes the facts of the module.
+    ///
+    /// # Errors
+    ///
+    /// Returns the errors of [`HostPreparedSource::input_after`].
+    fn scan_sources(
+        analyzer: &impl SourceAnalyzer,
+        transaction: &mut ProjectSession,
+        sources: &[HostPreparedSource],
+    ) -> napi::Result<Vec<PendingAnalysis>> {
+        sources
+            .iter()
+            .map(|source| {
+                let previous = transaction.analyses().get(source.module_id()).cloned();
+                let input = source.input_after(
+                    transaction.sources_mut(),
+                    previous.as_ref().map(|analysis| &analysis.input),
+                )?;
+                Ok(match previous {
+                    Some(previous)
+                        if transaction.current_artifact(source.module_id()).is_some()
+                            && same_input(&previous.input, &input) =>
+                    {
+                        PendingAnalysis::Stored(previous)
+                    }
+                    _ => PendingAnalysis::Scanned(Box::new(analyzer.scan_input(input))),
+                })
+            })
+            .collect()
+    }
+
     /// Updates diagnostic batches for artifacts that match the latest analyses in
     /// `session`. The caller must update the graph and composition findings first.
     /// Output kept after a watch failure is skipped if its analysis changed, keeping
@@ -694,9 +856,42 @@ impl NativeProjectSession {
     /// Returns an error when a required source snapshot or diagnostic span cannot be
     /// resolved, or source pruning fails. Batches published before an error remain.
     fn refresh_batches(session: &mut ProjectSession) -> napi::Result<()> {
+        Self::refresh_batches_since(session, None)
+    }
+
+    /// Updates diagnostic batches like [`Self::refresh_batches`], skipping modules that
+    /// `previous` already reported.
+    ///
+    /// `previous` must be the session that `session` was cloned from, with current
+    /// batches. A module is skipped when it shares its artifact and source buffer with
+    /// `previous`, because its batch inputs are then unchanged. Artifact updates
+    /// replace the shared [`Arc`], so a changed artifact is never skipped. With
+    /// `None`, every module is updated.
+    ///
+    /// # Errors
+    ///
+    /// Returns the errors of [`Self::refresh_batches`].
+    fn refresh_batches_since(
+        session: &mut ProjectSession,
+        previous: Option<&ProjectSession>,
+    ) -> napi::Result<()> {
+        let reported = |module: &ModuleId, analysis: &ModuleAnalysis| {
+            previous.is_some_and(|previous| {
+                previous
+                    .analyses()
+                    .get(module)
+                    .is_some_and(|reported| Arc::ptr_eq(&reported.source, &analysis.source))
+                    && previous
+                        .artifacts()
+                        .get(module)
+                        .zip(session.artifacts().get(module))
+                        .is_some_and(|(reported, current)| Arc::ptr_eq(reported, current))
+            })
+        };
         let refreshed = session
             .analyses()
             .iter()
+            .filter(|(module, analysis)| !reported(module, analysis))
             .filter_map(|(module, analysis)| {
                 session.current_artifact(module).map(|artifact| {
                     (

@@ -116,5 +116,9 @@ impl<'a> MacroExtractor<'a> {
                 .view_transition_declarations
                 .iter()
                 .any(|definition| contains(definition.call_span))
+            || self
+                .stored_variants
+                .iter()
+                .any(|definition| contains(definition.call_span))
     }
 }

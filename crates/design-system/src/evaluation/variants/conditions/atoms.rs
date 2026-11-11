@@ -130,6 +130,7 @@ pub(super) fn application_branches(
         display: display.to_lean_str(),
     };
     let branches = match application {
+        VariantApplication::Scope(_) => return None,
         VariantApplication::Compound(children) => {
             let mut branches = Vec::new();
             for child in children {

@@ -1,17 +1,19 @@
 <h1 align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="tools/brand/output/logo-outlined-dark.svg" />
-    <img src="tools/brand/output/logo-outlined-light.svg" alt="Stillwind" width="360" />
-  </picture>
+  <a href="https://stillwind.dev/">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="tools/brand/output/logo-outlined-dark.svg" />
+      <img src="tools/brand/output/logo-outlined-light.svg" alt="Stillwind" width="360" />
+    </picture>
+  </a>
 </h1>
 
 <p align="center"><strong>Familiar utilities. Enforced rules.</strong></p>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/stillwind"><img src="https://img.shields.io/npm/v/stillwind?style=flat-square&color=354fa2" alt="npm version" /></a>
-  <a href="https://github.com/SegaraRai/stillwind/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/SegaraRai/stillwind/ci.yml?branch=main&style=flat-square&label=CI" alt="CI status" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-354fa2?style=flat-square" alt="MIT License" /></a>
   <a href="https://marketplace.visualstudio.com/items?itemName=stillwind.stillwind"><img src="https://img.shields.io/open-vsx/v/stillwind/stillwind?style=flat-square&label=VS%20Code&color=d9725b" alt="VS Code extension version" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-354fa2?style=flat-square" alt="MIT License" /></a>
+  <a href="https://github.com/SegaraRai/stillwind/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/SegaraRai/stillwind/ci.yml?branch=main&style=flat-square&label=CI" alt="CI status" /></a>
 </p>
 
 <p align="center">

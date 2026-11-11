@@ -1,46 +1,69 @@
-import * as react from "stillwind/runtime/class-name-object";
-import * as reactDevelopment from "stillwind/runtime/class-name-object-development";
-import * as classObject from "stillwind/runtime/class-object";
-import * as svelte from "stillwind/runtime/class-string";
-import * as svelteDevelopment from "stillwind/runtime/class-string-development";
+import * as runtime from "stillwind/runtime";
+import * as development from "stillwind/runtime/development";
 import { expect, test } from "vite-plus/test";
+
+const outputs = [
+  {
+    merge: runtime.stillwindClassNameObjectMerge,
+    toFragment: runtime.stillwindClassNameObjectToFragment,
+    styleKey: runtime.stillwindClassNameObjectStyleKey,
+    customPropertiesKey: runtime.stillwindClassNameObjectCustomPropertiesKey,
+    stringStyle: false,
+  },
+  {
+    merge: runtime.stillwindClassObjectMerge,
+    toFragment: runtime.stillwindClassObjectToFragment,
+    styleKey: runtime.stillwindClassObjectStyleKey,
+    customPropertiesKey: runtime.stillwindClassObjectCustomPropertiesKey,
+    stringStyle: false,
+  },
+  {
+    merge: runtime.stillwindClassStringMerge,
+    toFragment: runtime.stillwindClassStringToFragment,
+    styleKey: runtime.stillwindClassStringStyleKey,
+    customPropertiesKey: runtime.stillwindClassStringCustomPropertiesKey,
+    stringStyle: true,
+  },
+] as const;
 
 test("react merges fragments, arrays, and falsy values in argument order", () => {
   const frozenBase = Object.freeze({ className: "a" });
   const frozenNext = Object.freeze({ className: "b" });
   const delta = Object.freeze({
-    [react.stillwindClassKey]: "own",
+    [runtime.stillwindClassNameObjectClassKey]: "own",
   });
   expect(
-    react.stillwindMerge(
-      react.stillwindToFragment(frozenBase),
-      react.stillwindToFragment(frozenNext),
+    runtime.stillwindClassNameObjectMerge(
+      runtime.stillwindClassNameObjectToFragment(frozenBase),
+      runtime.stillwindClassNameObjectToFragment(frozenNext),
       delta,
     ),
   ).toStrictEqual({
     className: "a b own",
   });
   expect(
-    react.stillwindMerge(
-      react.stillwindToFragment(frozenBase),
-      react.stillwindToFragment(frozenNext),
+    runtime.stillwindClassNameObjectMerge(
+      runtime.stillwindClassNameObjectToFragment(frozenBase),
+      runtime.stillwindClassNameObjectToFragment(frozenNext),
     ),
   ).toStrictEqual({
     className: "a b",
   });
   expect(
-    Object.getOwnPropertySymbols(react.stillwindMerge(react.stillwindToFragment(frozenBase))),
+    Object.getOwnPropertySymbols(
+      runtime.stillwindClassNameObjectMerge(runtime.stillwindClassNameObjectToFragment(frozenBase)),
+    ),
   ).toStrictEqual([]);
-  const first = { [react.stillwindClassKey]: "_a" };
-  const second = { [react.stillwindClassKey]: "_b" };
+  const first = { [runtime.stillwindClassNameObjectClassKey]: "_a" };
+  const second = { [runtime.stillwindClassNameObjectClassKey]: "_b" };
   expect(
-    react.stillwindMerge(first, null, [
+    runtime.stillwindClassNameObjectMerge(first, null, [
       second,
       false,
       [
         [
           {
-            [react.stillwindClassKey]: "_c",
+            [runtime.stillwindClassNameObjectClassKey]: "_c",
           },
         ],
       ],
@@ -48,18 +71,18 @@ test("react merges fragments, arrays, and falsy values in argument order", () =>
   ).toStrictEqual({
     className: "_a _b _c",
   });
-  expect(react.stillwindMerge()).toStrictEqual({});
-  expect(react.stillwindMerge(undefined, false)).toStrictEqual({});
+  expect(runtime.stillwindClassNameObjectMerge()).toStrictEqual({});
+  expect(runtime.stillwindClassNameObjectMerge(undefined, false)).toStrictEqual({});
 });
 
 test("later style payloads win without leaking symbol keys", () => {
-  const merged = react.stillwindMerge(
+  const merged = runtime.stillwindClassNameObjectMerge(
     {
-      [react.stillwindClassKey]: "_a",
-      [react.stillwindStyleKey]: { "--x": "1", "--y": "1" },
+      [runtime.stillwindClassNameObjectClassKey]: "_a",
+      [runtime.stillwindClassNameObjectStyleKey]: { "--x": "1", "--y": "1" },
     },
     {
-      [react.stillwindStyleKey]: { "--y": "2" },
+      [runtime.stillwindClassNameObjectStyleKey]: { "--y": "2" },
     },
   );
   expect(merged).toStrictEqual({
@@ -71,13 +94,13 @@ test("later style payloads win without leaking symbol keys", () => {
 
 test("string-style frameworks serialize the payload and pass strings through", () => {
   expect(
-    svelte.stillwindMerge(
+    runtime.stillwindClassStringMerge(
       {
-        [svelte.stillwindClassKey]: "_a",
-        [svelte.stillwindStyleKey]: { "--x": "1", "--y": "2" },
+        [runtime.stillwindClassStringClassKey]: "_a",
+        [runtime.stillwindClassStringStyleKey]: { "--x": "1", "--y": "2" },
       },
       {
-        [svelte.stillwindStyleKey]: "--y:3",
+        [runtime.stillwindClassStringStyleKey]: "--y:3",
       },
     ),
   ).toStrictEqual({
@@ -85,9 +108,9 @@ test("string-style frameworks serialize the payload and pass strings through", (
     style: "--y:3",
   });
   expect(
-    svelte.stillwindMerge({
-      [svelte.stillwindClassKey]: "_z",
-      [svelte.stillwindStyleKey]: { "--x": "1" },
+    runtime.stillwindClassStringMerge({
+      [runtime.stillwindClassStringClassKey]: "_z",
+      [runtime.stillwindClassStringStyleKey]: { "--x": "1" },
     }),
   ).toStrictEqual({
     class: "_z",
@@ -96,34 +119,34 @@ test("string-style frameworks serialize the payload and pass strings through", (
 });
 
 test("toFragment keeps only the class of a composition base", () => {
-  const fragment = react.stillwindToFragment({
+  const fragment = runtime.stillwindClassNameObjectToFragment({
     className: "_base",
     style: {
       "--x": "1",
     },
   });
   expect(fragment).toStrictEqual({
-    [react.stillwindClassKey]: "_base",
+    [runtime.stillwindClassNameObjectClassKey]: "_base",
   });
-  expect(react.stillwindToFragment(fragment)).toStrictEqual(fragment);
+  expect(runtime.stillwindClassNameObjectToFragment(fragment)).toStrictEqual(fragment);
   expect(
-    react.stillwindMerge(fragment, {
-      [react.stillwindClassKey]: "_own",
+    runtime.stillwindClassNameObjectMerge(fragment, {
+      [runtime.stillwindClassNameObjectClassKey]: "_own",
     }),
   ).toStrictEqual({
     className: "_base _own",
   });
   expect(
-    svelte.stillwindToFragment({
+    runtime.stillwindClassStringToFragment({
       class: "_base",
       style: "--x:1",
     }),
   ).toStrictEqual({
-    [svelte.stillwindClassKey]: "_base",
+    [runtime.stillwindClassStringClassKey]: "_base",
   });
   expect(
-    react.stillwindMerge(
-      react.stillwindToFragment({
+    runtime.stillwindClassNameObjectMerge(
+      runtime.stillwindClassNameObjectToFragment({
         class: "_vue",
       }),
     ),
@@ -134,38 +157,40 @@ test("toFragment keeps only the class of a composition base", () => {
 
 test("development checks reject foreign fragments and unconverted props objects", () => {
   expect(() =>
-    reactDevelopment.stillwindMergeChecked({
-      [svelte.stillwindClassKey]: "_x",
+    development.stillwindClassNameObjectMerge({
+      [runtime.stillwindClassStringClassKey]: "_x",
     }),
   ).toThrow(/different runtime instance/);
-  for (const runtime of [reactDevelopment, svelteDevelopment]) {
+  for (const merge of [
+    development.stillwindClassNameObjectMerge,
+    development.stillwindClassStringMerge,
+  ]) {
     for (const key of ["class", "className"]) {
       expect(() =>
-        runtime.stillwindMergeChecked({
+        merge({
           [key]: "_x",
         }),
-      ).toThrow(/stillwindToFragment/);
+      ).toThrow(/ToFragment helper/);
     }
   }
 });
 
 test("class concatenation keeps falsy and non-string fragments empty", () => {
   expect(
-    react.stillwindMerge(
+    runtime.stillwindClassNameObjectMerge(
       {
-        [react.stillwindClassKey]: "",
+        [runtime.stillwindClassNameObjectClassKey]: "",
       },
       {
-        [react.stillwindClassKey]: undefined,
+        [runtime.stillwindClassNameObjectClassKey]: undefined,
       },
     ),
   ).toStrictEqual({});
 });
 
 test("custom properties merge independently and coexist with generated styles", () => {
-  for (const runtime of [react, classObject, svelte]) {
-    const key = runtime.stillwindCustomPropertiesKey;
-    const result = runtime.stillwindMerge(
+  for (const { merge, toFragment, styleKey, customPropertiesKey: key, stringStyle } of outputs) {
+    const result = merge(
       {
         [key]: {
           "--progress": "0",
@@ -181,13 +206,13 @@ test("custom properties merge independently and coexist with generated styles", 
         },
       ],
       {
-        [runtime.stillwindStyleKey]: {
+        [styleKey]: {
           "view-transition-name": "card",
         },
       },
     );
     expect(result.style).toStrictEqual(
-      runtime !== svelte
+      !stringStyle
         ? {
             "view-transition-name": "card",
             "--progress": "0.5",
@@ -197,8 +222,8 @@ test("custom properties merge independently and coexist with generated styles", 
     );
     expect(Object.getOwnPropertySymbols(result)).toStrictEqual([]);
     expect(
-      runtime.stillwindMerge(
-        runtime.stillwindToFragment({
+      merge(
+        toFragment({
           [key]: {
             "--x": "1",
           },
@@ -209,26 +234,26 @@ test("custom properties merge independently and coexist with generated styles", 
 });
 
 test("CSS values preserve strings and zero, encode boolean switches and quote URL objects", () => {
-  expect(react.stillwindCssValue(0)).toBe("0");
-  expect(react.stillwindCssValue(false)).toBe("initial");
-  expect(react.stillwindCssValue(true)).toBe(" ");
-  expect(react.stillwindCssValue("calc(1px + 2px)")).toBe("calc(1px + 2px)");
-  expect(react.stillwindCssValue(new URL("https://example.com/image.png"))).toBe(
+  expect(runtime.stillwindCssValue(0)).toBe("0");
+  expect(runtime.stillwindCssValue(false)).toBe("initial");
+  expect(runtime.stillwindCssValue(true)).toBe(" ");
+  expect(runtime.stillwindCssValue("calc(1px + 2px)")).toBe("calc(1px + 2px)");
+  expect(runtime.stillwindCssValue(new URL("https://example.com/image.png"))).toBe(
     'url("https://example.com/image.png")',
   );
 });
 
 test("boolean switches retain whitespace and initial in framework style props", () => {
-  for (const runtime of [react, classObject, svelte]) {
+  for (const { merge, customPropertiesKey, stringStyle } of outputs) {
     for (const enabled of [true, false]) {
       const value = runtime.stillwindCssValue(enabled);
-      const props = runtime.stillwindMerge({
-        [runtime.stillwindCustomPropertiesKey]: {
+      const props = merge({
+        [customPropertiesKey]: {
           "--enabled": value,
         },
       });
       expect(props.style).toStrictEqual(
-        runtime !== svelte
+        !stringStyle
           ? {
               "--enabled": enabled ? " " : "initial",
             }

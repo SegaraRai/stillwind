@@ -9,11 +9,11 @@
     "stillwind": "workspace:*"
   },
   "devDependencies": {
-    "@rspack/core": "2.3.0",
+    "@rspack/core": "2.3.1",
     "@rspack/dev-server": "2.2.2",
     "@stillwind-internal/e2e-harness": "workspace:*",
     "@stillwind/integration": "workspace:*",
-    "@swc/core": "1.16.20",
+    "@swc/core": "1.16.22",
     "@types/node": "catalog:",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",

@@ -1,11 +1,11 @@
+import { stillwindClassObjectCva } from "stillwind/runtime";
 
-import { stillwindCva } from "stillwind/runtime/class-object";
 
-export const base = {className:"sw_y93br"};
-export const choose = stillwindCva("sw_whric", {
+export const base = {className:"sw_i24y6"};
+export const choose = stillwindClassObjectCva("sw_n0jq1", {
   variants: {
     active: {
-      true: "sw_yl8kn",
+      true: "sw_vqt8l",
       false: "",
     },
   },

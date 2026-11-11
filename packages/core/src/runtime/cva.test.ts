@@ -1,14 +1,37 @@
 import { expect, test } from "vite-plus/test";
 
-import * as reactDevelopment from "./class-name-object-development.ts";
-import * as react from "./class-name-object.ts";
-import * as preactDevelopment from "./class-object-development.ts";
-import * as preact from "./class-object.ts";
-import * as svelteDevelopment from "./class-string-development.ts";
-import * as svelte from "./class-string.ts";
+import * as checked from "./checked.ts";
+import * as formats from "./formats.ts";
+
+const outputs = [
+  {
+    cva: formats.stillwindClassNameObjectCva,
+    cvaChecked: checked.stillwindClassNameObjectCvaChecked,
+    classKey: formats.stillwindClassNameObjectClassKey,
+    customPropertiesKey: formats.stillwindClassNameObjectCustomPropertiesKey,
+    classProperty: "className",
+    stringStyle: false,
+  },
+  {
+    cva: formats.stillwindClassObjectCva,
+    cvaChecked: checked.stillwindClassObjectCvaChecked,
+    classKey: formats.stillwindClassObjectClassKey,
+    customPropertiesKey: formats.stillwindClassObjectCustomPropertiesKey,
+    classProperty: "class",
+    stringStyle: false,
+  },
+  {
+    cva: formats.stillwindClassStringCva,
+    cvaChecked: checked.stillwindClassStringCvaChecked,
+    classKey: formats.stillwindClassStringClassKey,
+    customPropertiesKey: formats.stillwindClassStringCustomPropertiesKey,
+    classProperty: "class",
+    stringStyle: true,
+  },
+] as const;
 
 test("CVA selects defaults, boolean and numeric options, and every matching compound", () => {
-  const choose = react.stillwindCva("base", {
+  const choose = formats.stillwindClassNameObjectCva("base", {
     variants: {
       size: {
         small: "small",
@@ -75,29 +98,29 @@ test("CVA ignores inherited options and supports base-only and empty factories",
       own: "right",
     },
   );
-  const choose = react.stillwindCva(undefined, {
+  const choose = formats.stillwindClassNameObjectCva(undefined, {
     variants: {
       kind: options,
     },
   });
   expect(choose({ kind: "inherited" })).toEqual({});
   expect(choose({ kind: "own" })).toEqual({ className: "right" });
-  expect(react.stillwindCva()()).toEqual({});
-  expect(react.stillwindCva("base")({ className: "extra" })).toEqual({ className: "base extra" });
-  expect(react.stillwindCva("base", { compoundVariants: [{ class: "unused" }] })()).toEqual({
+  expect(formats.stillwindClassNameObjectCva()()).toEqual({});
+  expect(formats.stillwindClassNameObjectCva("base")({ className: "extra" })).toEqual({
+    className: "base extra",
+  });
+  expect(
+    formats.stillwindClassNameObjectCva("base", { compoundVariants: [{ class: "unused" }] })(),
+  ).toEqual({
     className: "base",
   });
 });
 
 test("checked CVA factories share production channels and validate selected inputs", () => {
-  for (const [production, development] of [
-    [react, reactDevelopment],
-    [preact, preactDevelopment],
-    [svelte, svelteDevelopment],
-  ] as const) {
+  for (const { cva, cvaChecked, classKey, customPropertiesKey } of outputs) {
     const base = {
-      [production.stillwindClassKey]: "base",
-      [production.stillwindCustomPropertiesKey]: {
+      [classKey]: "base",
+      [customPropertiesKey]: {
         "--size": "4",
       },
     };
@@ -108,11 +131,11 @@ test("checked CVA factories share production channels and validate selected inpu
       variants: {
         kind: {
           valid: {
-            [production.stillwindClassKey]: "selected",
+            [classKey]: "selected",
           },
           foreign,
           malformed: {
-            [production.stillwindClassKey]: 7,
+            [classKey]: 7,
           },
         },
       },
@@ -123,12 +146,12 @@ test("checked CVA factories share production channels and validate selected inpu
         {
           kind: "valid",
           class: {
-            [production.stillwindCustomPropertiesKey]: { "--tone": "red" },
+            [customPropertiesKey]: { "--tone": "red" },
           },
         },
       ],
     };
-    const choose = development.stillwindCvaChecked(base, config);
+    const choose = cvaChecked(base, config);
     const props = {
       kind: undefined,
       class: ["extra", false],
@@ -136,7 +159,7 @@ test("checked CVA factories share production channels and validate selected inpu
         active: true,
       },
     };
-    expect(choose(props)).toEqual(production.stillwindCva(base, config)(props));
+    expect(choose(props)).toEqual(cva(base, config)(props));
     expect(() => choose({ kind: "foreign" })).toThrow(/different runtime/);
     expect(() => choose({ kind: "malformed" })).toThrow(/non-string class/);
     for (const invalidProps of [
@@ -150,7 +173,7 @@ test("checked CVA factories share production channels and validate selected inpu
       expect(() => choose(invalidProps)).toThrow(/unsupported class value/);
     }
     expect(() =>
-      development.stillwindCvaChecked(undefined, {
+      cvaChecked(undefined, {
         variants: {},
         compoundVariants: [
           {
@@ -163,22 +186,18 @@ test("checked CVA factories share production channels and validate selected inpu
 });
 
 test("CVA merges custom properties without mutating saved fragments or leaking channels", () => {
-  for (const [runtime, classProperty, stringStyle] of [
-    [react, "className", false],
-    [preact, "class", false],
-    [svelte, "class", true],
-  ] as const) {
+  for (const { cva, classKey, customPropertiesKey, classProperty, stringStyle } of outputs) {
     const baseStyle = { "--tone": "blue", "--size": "4" };
     const optionStyle = { "--tone": "red" };
     const base = {
-      [runtime.stillwindClassKey]: "base",
-      [runtime.stillwindCustomPropertiesKey]: baseStyle,
+      [classKey]: "base",
+      [customPropertiesKey]: baseStyle,
     };
     const option = {
-      [runtime.stillwindClassKey]: "option",
-      [runtime.stillwindCustomPropertiesKey]: optionStyle,
+      [classKey]: "option",
+      [customPropertiesKey]: optionStyle,
     };
-    const choose = runtime.stillwindCva(base, {
+    const choose = cva(base, {
       variants: {
         kind: {
           plain: null,

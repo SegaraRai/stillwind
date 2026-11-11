@@ -18,7 +18,7 @@
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer theme {
   :root, :host {
     --color-red-500: oklch(63.7% 0.237 25.331);
@@ -40,16 +40,16 @@
     }
   }
   @media (hover: hover) {
-    .group-hover\:bg-red-500:is(:where(.group):hover *) {
+    :is(:where(.group):hover .group-hover\:bg-red-500) {
       background-color: var(--color-red-500);
     }
-    .group-hover\/menu\:bg-red-500:is(:where(.group\/menu):hover *) {
+    :is(:where(.group\/menu):hover .group-hover\/menu\:bg-red-500) {
       background-color: var(--color-red-500);
     }
-    .peer-hover\:bg-red-500:is(:where(.peer):hover ~ *) {
+    :is(:where(.peer):hover ~ .peer-hover\:bg-red-500) {
       background-color: var(--color-red-500);
     }
-    .peer-hover\/field\:bg-red-500:is(:where(.peer\/field):hover ~ *) {
+    :is(:where(.peer\/field):hover ~ .peer-hover\/field\:bg-red-500) {
       background-color: var(--color-red-500);
     }
   }
@@ -133,7 +133,7 @@
   }
   @media (prefers-color-scheme: dark) {
     @media (hover: hover) {
-      .dark\:group-hover\:bg-red-500:is(:where(.group):hover *) {
+      :is(:where(.group):hover .dark\:group-hover\:bg-red-500) {
         background-color: var(--color-red-500);
       }
     }
@@ -162,7 +162,7 @@ aria-busy:bg-red-500 aria-checked:bg-red-500 aria-disabled:bg-red-500 aria-expan
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer theme {
   :root, :host {
     --color-red-500: oklch(63.7% 0.237 25.331);
@@ -307,7 +307,7 @@ supports-grid:flex supports-display:flex supports-backdrop-filter:flex supports-
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer utilities {
   @supports not (grid: var(--tw)) {
     .not-supports-grid\:flex {
@@ -359,7 +359,7 @@ min-[calc(100px+1rem)]:flex max-[calc(100px-1rem)]:flex min-[theme(--breakpoint-
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer utilities {
   @media (width < calc(100px - 1rem)) {
     .max-\[calc\(100px-1rem\)\]\:flex {

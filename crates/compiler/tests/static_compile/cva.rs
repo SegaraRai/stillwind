@@ -44,11 +44,8 @@ fn cva_compiles_values_and_preserves_selection_configuration() {
     );
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
     let output = render_transforms(&source, &result.transforms).unwrap().code;
-    assert!(output.contains("stillwindCva"), "{output}");
-    assert!(
-        output.contains("stillwind/runtime/class-name-object"),
-        "{output}"
-    );
+    assert!(output.contains("stillwindClassNameObjectCva"), "{output}");
+    assert!(output.contains("from \"stillwind/runtime\""), "{output}");
     assert!(
         output.contains("defaultVariants: { size: 'small', enabled: false, count: 0 }"),
         "{output}"
@@ -84,7 +81,10 @@ fn cva_keeps_literal_and_dynamic_custom_properties_in_fragments() {
     );
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
     let output = render_transforms(&source, &result.transforms).unwrap().code;
-    assert!(output.contains("stillwindCustomPropertiesKey"), "{output}");
+    assert!(
+        output.contains("stillwindClassStringCustomPropertiesKey"),
+        "{output}"
+    );
     assert!(output.contains("stillwindCssValue(tone)"), "{output}");
     assert!(output.contains("\"red\""), "{output}");
     assert!(output.contains("enabled ? 'black' : 'white'"), "{output}");
@@ -186,7 +186,10 @@ fn cva_omits_unsupported_values_and_preserves_valid_configuration() {
         );
         assert!(result.diagnostics.is_empty(), "{body}: {result:#?}");
         let output = render_transforms(&source, &result.transforms).unwrap().code;
-        assert!(output.contains("stillwindCva"), "{body}: {output}");
+        assert!(
+            output.contains("stillwindClassNameObjectCva"),
+            "{body}: {output}"
+        );
         assert!(!output.contains("style.cva"), "{body}: {output}");
         if body.contains("small:") {
             assert!(
@@ -243,6 +246,6 @@ fn cva_empty_calls_and_shadowed_members_remain_valid_javascript() {
     );
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
     let output = render_transforms(&source, &result.transforms).unwrap().code;
-    assert!(output.contains("stillwindCva()"), "{output}");
+    assert!(output.contains("stillwindClassNameObjectCva()"), "{output}");
     assert!(output.contains("return style.cva('external')"), "{output}");
 }

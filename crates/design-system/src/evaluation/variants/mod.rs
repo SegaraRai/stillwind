@@ -44,7 +44,7 @@ pub use conditions::{
 pub use order::{VariantSequenceOrder, compare_variant_sequences, compound_variant_inner};
 pub use resolve::{
     ConditionContext, VariantFailure, VariantFailureReason, exact_variant_definition_resolves,
-    resolve_variant,
+    resolve_variant, variant_alternatives,
 };
 pub use usage::{
     ResolvedVariant, VariantDiagnosticData, VariantMediaValue, VariantValueSource,

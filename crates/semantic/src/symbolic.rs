@@ -157,6 +157,8 @@ pub enum ExportedValue {
     Keyframes(SymbolicValue),
     /// Candidate set of view-transition identities.
     ViewTransitions(SymbolicValue),
+    /// Candidate set of stored-variant identities.
+    StoredVariants(SymbolicValue),
 }
 
 impl ExportedValue {
@@ -170,7 +172,8 @@ impl ExportedValue {
             Self::Styles(value)
             | Self::Refs(value)
             | Self::Keyframes(value)
-            | Self::ViewTransitions(value) => {
+            | Self::ViewTransitions(value)
+            | Self::StoredVariants(value) => {
                 if value.kind != self.kind() {
                     return Err(SymbolicError::KindMismatch {
                         expected: self.kind(),
@@ -192,6 +195,7 @@ impl ExportedValue {
             Self::Refs(_) => AssetKind::Ref,
             Self::Keyframes(_) => AssetKind::Keyframes,
             Self::ViewTransitions(_) => AssetKind::ViewTransition,
+            Self::StoredVariants(_) => AssetKind::StoredVariant,
         }
     }
 }
@@ -201,13 +205,13 @@ mod tests {
     use stillwind_source::ModuleId;
 
     use super::*;
+    use crate::identity::DeclarationKey;
 
     fn identity(kind: AssetKind, start: u32) -> IdentityId {
         IdentityId::new(
             kind,
             ModuleId::from(r"src\Menu.tsx"),
-            start,
-            start + 1,
+            DeclarationKey::top(start),
             "asset",
         )
     }
@@ -259,10 +263,20 @@ mod tests {
 
     #[test]
     fn finite_values_deduplicate_and_reject_mixed_asset_kinds() {
-        let id = IdentityId::new(AssetKind::Ref, ModuleId::from("x"), 0, 1, "boundary");
+        let id = IdentityId::new(
+            AssetKind::Ref,
+            ModuleId::from("x"),
+            DeclarationKey::top(0),
+            "boundary",
+        );
         let value = SymbolicValue::finite(AssetKind::Ref, [id.clone(), id]).unwrap();
         assert_eq!(value.finite_candidates().unwrap().len(), 1);
-        let wrong = IdentityId::new(AssetKind::Keyframes, ModuleId::from("x"), 0, 1, "animation");
+        let wrong = IdentityId::new(
+            AssetKind::Keyframes,
+            ModuleId::from("x"),
+            DeclarationKey::top(0),
+            "animation",
+        );
         assert!(SymbolicValue::finite(AssetKind::Ref, [wrong.clone()]).is_err());
     }
 
@@ -272,8 +286,7 @@ mod tests {
             let identities = offsets.iter().map(|&start| IdentityId::new(
                 AssetKind::Ref,
                 ModuleId::from("x"),
-                start,
-                start + 1,
+                DeclarationKey::top(start),
                 "r"
             )).collect::<Vec<_>>();
             let forward = SymbolicValue::finite(AssetKind::Ref, identities.clone()).unwrap();

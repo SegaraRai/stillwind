@@ -12,7 +12,7 @@
 //! selectors that style another element, and results with more than [`MAX_BRANCHES`]
 //! branches.
 
-use cssparser::{Parser, Token};
+use cssparser::{ParseError, Parser, Token};
 use lean_string::{LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_css::{
@@ -71,6 +71,7 @@ fn part_obstacle(application: &VariantApplication) -> Option<VariantObstacle> {
             Some(selector_obstacle(selector).unwrap_or(VariantObstacle::Declarations))
         }
         VariantApplication::StartingStyle => Some(VariantObstacle::StartingStyle),
+        VariantApplication::Scope(_) => Some(VariantObstacle::AtRule),
         VariantApplication::SelectorCondition(_) => Some(VariantObstacle::Unsupported),
         VariantApplication::Media(_)
         | VariantApplication::Container(_)
@@ -155,7 +156,8 @@ fn negated_branches(application: &VariantApplication) -> Option<Vec<Branch>> {
         VariantApplication::SelectorCondition(_)
         | VariantApplication::SelectorRule { .. }
         | VariantApplication::SelectorMediaRule { .. }
-        | VariantApplication::StartingStyle => None,
+        | VariantApplication::StartingStyle
+        | VariantApplication::Scope(_) => None,
     }
 }
 
@@ -281,7 +283,7 @@ fn negated_selector_list(template: &str) -> Option<&str> {
     let end = parser
         .parse_nested_block(|inner| {
             while inner.next_including_whitespace_and_comments().is_ok() {}
-            Ok::<_, cssparser::ParseError<()>>(inner.position().byte_index())
+            Ok::<_, ParseError<()>>(inner.position().byte_index())
         })
         .ok()?;
     parser.is_exhausted().then(|| &template[start..end])

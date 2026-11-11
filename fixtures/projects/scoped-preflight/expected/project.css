@@ -1,5 +1,5 @@
 /*! stillwind | MIT License | https://stillwind.dev */
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer properties, theme, base, components, utilities;
 @layer theme {
   /*
@@ -28,7 +28,7 @@ Keep both selectors so the same theme values are available in either scope.
   }
 }
 @layer utilities {
-  .sw_5h54z {
+  .sw_en7ne {
     padding-inline: calc(var(--spacing) * 4);
     padding-block: calc(var(--spacing) * 2);
     border-radius: var(--radius-md);
@@ -41,7 +41,7 @@ reach descendants. Keep this declaration slot inside the selector rule.
 */
 
 @layer properties {
-  @supports (((-webkit-hyphens: none)) and (not (margin-trim: inline))) or
+  @supports (((-webkit-hyphens: none)) and (not (margin-trim: block))) or
     ((-moz-orient: inline) and (not (color: rgb(from red r g b)))) {
   }
 } /* The host page keeps its own base styles, and only the widget subtree is reset. */

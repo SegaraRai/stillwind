@@ -15,7 +15,7 @@ use super::super::emission::collect_declarations;
 use super::super::lexer::lex_utilities;
 use super::super::symbols::named_declaration;
 use super::super::utilities::{
-    check, combine_declarations_for_theme, invalid_property_value_finding, resolve_first_target,
+    check, combine_declarations_for_theme, invalid_property_value_finding, resolve_first_targets,
     unresolved_utility_finding,
 };
 use super::super::variants::{condition_paths, wrap_conditions};
@@ -40,6 +40,7 @@ pub(in crate::compiler) fn emit_view_transition_definition(
     let class = match identifiers.view_transition_class(&named_declaration(
         module_id,
         &transition.binding,
+        &transition.key,
         transition.label.as_ref(),
     )) {
         Ok(class) => class,
@@ -95,7 +96,7 @@ pub(crate) fn emit_view_transition_utilities(
     let mut conditional = LeanString::new();
     for utility in lex_utilities(input, diagnostics) {
         let raw = &utility.value.raw;
-        let resolved = match resolve_first_target(raw, theme) {
+        let targets = match resolve_first_targets(raw, theme) {
             Ok(Ok(resolved)) => resolved,
             Ok(Err(failure)) => {
                 lint_findings.push(unresolved_utility_finding(
@@ -118,36 +119,38 @@ pub(crate) fn emit_view_transition_utilities(
                 continue;
             }
         };
-        if let Some(value) = &resolved.diagnostic_data.invalid_value {
-            lint_findings.push(invalid_property_value_finding(
-                raw,
-                raw.len(),
-                value,
-                utility.span,
-            ));
-        }
-        let mut supplies = Vec::new();
-        collect_declarations(&resolved.declaration, "&", &[], false, None, &mut supplies);
-        lint_findings.extend(check(&resolved, &supplies, theme, settings, utility.span));
-        if resolved.variants.is_empty() {
-            plain.push(resolved);
-            continue;
-        }
-        let Some(paths) = condition_paths(&resolved.variants, theme) else {
-            lint_findings.push(LintFinding::new(
-                LintDiagnostic::InvalidViewTransitionVariant,
-                utility.span,
-            ));
-            continue;
-        };
-        contribution
-            .required_properties
-            .extend(resolved.required_properties.clone());
-        contribution.banners.extend(resolved.banners.clone());
-        let declaration = combine_declarations_for_theme(&[&resolved], theme);
-        for path in paths {
-            let rule = format_args!("{selector}{{ {declaration}}}").to_lean_string();
-            conditional.push_str(&wrap_conditions(&rule, &path));
+        for resolved in targets {
+            if let Some(value) = &resolved.diagnostic_data.invalid_value {
+                lint_findings.push(invalid_property_value_finding(
+                    raw,
+                    raw.len(),
+                    value,
+                    utility.span,
+                ));
+            }
+            let mut supplies = Vec::new();
+            collect_declarations(&resolved.declaration, "&", &[], false, None, &mut supplies);
+            lint_findings.extend(check(&resolved, &supplies, theme, settings, utility.span));
+            if resolved.variants.is_empty() {
+                plain.push(resolved);
+                continue;
+            }
+            let Some(paths) = condition_paths(&resolved.variants, theme) else {
+                lint_findings.push(LintFinding::new(
+                    LintDiagnostic::InvalidViewTransitionVariant,
+                    utility.span,
+                ));
+                continue;
+            };
+            contribution
+                .required_properties
+                .extend(resolved.required_properties.clone());
+            contribution.banners.extend(resolved.banners.clone());
+            let declaration = combine_declarations_for_theme(&[&resolved], theme);
+            for path in paths {
+                let rule = format_args!("{selector}{{ {declaration}}}").to_lean_string();
+                conditional.push_str(&wrap_conditions(&rule, &path));
+            }
         }
     }
     if !plain.is_empty() {

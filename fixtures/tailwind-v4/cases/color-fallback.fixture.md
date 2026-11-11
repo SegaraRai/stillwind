@@ -1,5 +1,57 @@
 # Color fallbacks
 
+## `color-fallback.omitted-interpolation`
+
+### Input CSS
+
+```css
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+
+@utility mix-current { color: color-mix(currentcolor 50%, transparent); }
+@utility mix-unknown { color: color-mix(var(--external), red); }
+@utility mix-theme { color: color-mix(var(--color-red-500) 50%, transparent); }
+@utility mix-single { color: color-mix(var(--color-red-500)); }
+@utility mix-explicit { --tint: color-mix(/* tint, blue */ in oklab, currentcolor 50%, transparent); }
+```
+
+### Candidates
+
+```text
+mix-current mix-unknown mix-theme mix-single mix-explicit
+```
+
+### Expected CSS
+
+```css
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
+@layer theme {
+  :root, :host {
+    --color-red-500: oklch(63.7% 0.237 25.331);
+  }
+}
+@layer utilities {
+  .mix-current {
+    color: color-mix(currentcolor 50%, transparent);
+  }
+  .mix-single {
+    color: color-mix(var(--color-red-500));
+  }
+  .mix-theme {
+    color: color-mix(var(--color-red-500) 50%, transparent);
+  }
+  .mix-unknown {
+    color: color-mix(var(--external), red);
+  }
+  .mix-explicit {
+    --tint: currentcolor;
+    @supports (color: color-mix(in lab, red, red)) {
+      --tint: color-mix(/* tint, blue */ in oklab, currentcolor 50%, transparent);
+    }
+  }
+}
+```
+
 ## `color-fallback.opacity-boundaries`
 
 ### Input CSS
@@ -18,7 +70,7 @@ bg-red-500 bg-red-500/0 bg-red-500/50 bg-red-500/100 bg-current/0 bg-current/50 
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer theme {
   :root, :host {
     --color-red-500: oklch(63.7% 0.237 25.331);
@@ -79,7 +131,7 @@ bg-[red]/50 bg-[#ff0000]/50 bg-transparent/50 bg-[var(--color-red-500)]/50
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer theme {
   :root, :host {
     --color-red-500: oklch(63.7% 0.237 25.331);
@@ -122,7 +174,7 @@ bg-(--brand)/50 bg-(--brand)/100 bg-red-500/(--opacity) bg-[red]/(--opacity) bg-
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer theme {
   :root, :host {
     --color-red-500: oklch(63.7% 0.237 25.331);
@@ -189,7 +241,7 @@ bg-linked/50 bg-alias/50 bg-nested/50
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer theme {
   :root, :host {
     --color-red-500: oklch(63.7% 0.237 25.331);
@@ -241,7 +293,7 @@ shadow-red-500/50 shadow-[color:red]/50 shadow-(color:--brand)/50 ring-red-500/5
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer properties;
 @layer theme {
   :root, :host {
@@ -409,7 +461,7 @@ shadow-red-500/50 shadow-[color:red]/50 shadow-(color:--brand)/50 ring-red-500/5
   initial-value: 0 0 #0000;
 }
 @layer properties {
-  @supports ((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
+  @supports ((-webkit-hyphens: none) and (not (margin-trim: block))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b)))) {
     *, ::before, ::after, ::backdrop {
       --tw-gradient-position: initial;
       --tw-gradient-from: #0000;
@@ -457,7 +509,7 @@ shadow-red-500/50 shadow-[color:red]/50 shadow-(color:--brand)/50 ring-red-500/5
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer utilities {
   .\[color\:color-mix\(in_oklab\,color-mix\(in_oklab\,red_50\%\,blue\)_50\%\,var\(--external\)\)\] {
     color: color-mix(in srgb,red 50%,blue);
@@ -504,7 +556,7 @@ tone-media
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer theme {
   :root, :host {
     --color-red-500: oklch(63.7% 0.237 25.331);
@@ -548,7 +600,7 @@ tone-media!
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer theme {
   :root, :host {
     --color-red-500: oklch(63.7% 0.237 25.331);
@@ -592,7 +644,7 @@ tone-supports
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer theme {
   :root, :host {
     --color-red-500: oklch(63.7% 0.237 25.331);
@@ -637,7 +689,7 @@ tone-parent
 ### Expected CSS
 
 ```css
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer theme {
   :root, :host {
     --color-red-500: oklch(63.7% 0.237 25.331);

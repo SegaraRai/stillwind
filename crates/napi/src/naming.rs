@@ -35,8 +35,12 @@ pub struct NativeClassContext {
     pub module: String,
     /// The caller's class namespace.
     pub namespace: String,
-    /// Byte offset of the call.
-    pub call: u32,
+    /// Names of the declarations that enclose the `style()` call, from the outermost to
+    /// the innermost.
+    pub path: Vec<String>,
+    /// Zero-based position among earlier `style()` calls of the module with the same
+    /// path.
+    pub ordinal: u32,
     /// Branch discriminator and canonical spelling of the contribution.
     pub branch: String,
 }
@@ -46,10 +50,12 @@ pub struct NativeClassContext {
 pub struct NativeDeclarationContext {
     /// Module identity of the declaring module.
     pub module: String,
-    /// Byte offset of the first character of the declaration's name.
-    pub start: u32,
-    /// Byte offset just past the declaration's name.
-    pub end: u32,
+    /// Names of the declarations that enclose the declaration, from the outermost to
+    /// the innermost.
+    pub path: Vec<String>,
+    /// Zero-based position among earlier declarations of the module with the same
+    /// kind, path, and binding name.
+    pub ordinal: u32,
     /// Binding name the declaration is assigned to.
     pub binding: String,
     /// Authored label, when the declaration has one.
@@ -61,10 +67,12 @@ pub struct NativeDeclarationContext {
 pub struct NativeLocatorContext {
     /// Module identity of the declaration that owns the name.
     pub module: String,
-    /// Byte offset of the first character of the declaration's name.
-    pub start: u32,
-    /// Byte offset just past the declaration's name.
-    pub end: u32,
+    /// Names of the declarations that enclose the owning declaration, from the
+    /// outermost to the innermost.
+    pub path: Vec<String>,
+    /// Zero-based position of the owning declaration among earlier declarations of the
+    /// module with the same kind, path, and binding name.
+    pub ordinal: u32,
     /// Binding name of the declaration that owns the name.
     pub binding: String,
     /// Projection the name is written for, when the writer has one.
@@ -229,7 +237,8 @@ impl IdentifierGenerator for NativeNaming {
                 NativeClassContext {
                     module: context.module.as_str().to_owned(),
                     namespace: (context.namespace.clone()).into(),
-                    call: context.call,
+                    path: context.key.path.iter().map(ToString::to_string).collect(),
+                    ordinal: context.key.ordinal,
                     branch: (context.branch.clone()).into(),
                 },
                 digest(hash),
@@ -339,7 +348,8 @@ impl IdentifierGenerator for NativeNaming {
                 NativeClassContext {
                     module: context.module.as_str().to_owned(),
                     namespace: (context.namespace.clone()).into(),
-                    call: context.call,
+                    path: context.key.path.iter().map(ToString::to_string).collect(),
+                    ordinal: context.key.ordinal,
                     branch: (context.branch.clone()).into(),
                 },
                 digest(hash),
@@ -444,8 +454,8 @@ where
 fn declaration(context: &DeclarationContext) -> NativeDeclarationContext {
     NativeDeclarationContext {
         module: context.module.as_str().to_owned(),
-        start: context.start,
-        end: context.end,
+        path: context.key.path.iter().map(ToString::to_string).collect(),
+        ordinal: context.key.ordinal,
         binding: context.binding.to_string(),
         label: context
             .label
@@ -458,8 +468,8 @@ fn declaration(context: &DeclarationContext) -> NativeDeclarationContext {
 fn locator(context: &LocatorContext) -> NativeLocatorContext {
     NativeLocatorContext {
         module: context.module.as_str().to_owned(),
-        start: context.start,
-        end: context.end,
+        path: context.key.path.iter().map(ToString::to_string).collect(),
+        ordinal: context.key.ordinal,
         binding: context.binding.to_string(),
         projection: context
             .projection

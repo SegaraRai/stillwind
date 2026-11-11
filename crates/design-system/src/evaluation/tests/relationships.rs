@@ -122,7 +122,7 @@ fn resolves_tailwind_relationship_compatibility_primitives() {
             &theme
         ),
         Ok(VariantApplication::SelectorMedia {
-            selector: "&:is(:where(.group):hover *)".to_lean_str(),
+            selector: ":is(:where(.group):hover &)".to_lean_str(),
             condition: "(hover: hover)".to_lean_str(),
         })
     );
@@ -132,7 +132,7 @@ fn resolves_tailwind_relationship_compatibility_primitives() {
             &theme
         ),
         Ok(VariantApplication::SelectorTemplate(
-            "&:is(:where(.peer):checked ~ *)".to_lean_str()
+            ":is(:where(.peer):checked ~ &)".to_lean_str()
         ))
     );
     assert_eq!(
@@ -143,7 +143,7 @@ fn resolves_tailwind_relationship_compatibility_primitives() {
             &theme
         ),
         Ok(VariantApplication::SelectorTemplate(
-            "&:is(:where(.group)[data-open] *)".to_lean_str()
+            ":is(:where(.group)[data-open] &)".to_lean_str()
         ))
     );
     assert_eq!(
@@ -154,7 +154,7 @@ fn resolves_tailwind_relationship_compatibility_primitives() {
             &theme
         ),
         Ok(VariantApplication::SelectorMedia {
-            selector: r"&:is(:where(.group\/menu\:open):hover *)".to_lean_str(),
+            selector: r":is(:where(.group\/menu\:open):hover &)".to_lean_str(),
             condition: "(hover: hover)".to_lean_str(),
         })
     );

@@ -23,3 +23,22 @@ export function lintReports(results: readonly WorkspaceResult[]) {
     }),
   );
 }
+
+/**
+ * Returns the website page that explains a report code.
+ * @param code - Compiler code, such as `SW01001`, or lint rule name, such as `unknown-utility`.
+ * @returns The page URL, or undefined for codes without a page, such as `SW_UNVERIFIED`.
+ */
+export function documentationUrl(code: string): string | undefined {
+  const section = documentationSection(code);
+  return section && `https://stillwind.dev/docs/${section}/${code}`;
+}
+
+/**
+ * Returns the documentation section of a report code.
+ * @param code - Report code of a diagnostic.
+ * @returns `errors` for compiler codes, `lints` for lint rule names, and otherwise undefined.
+ */
+export function documentationSection(code: string): "errors" | "lints" | undefined {
+  return /^SW\d+$/.test(code) ? "errors" : /^[a-z][a-z-]*$/.test(code) ? "lints" : undefined;
+}

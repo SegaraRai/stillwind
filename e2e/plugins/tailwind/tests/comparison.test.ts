@@ -168,6 +168,53 @@ const sized = plugin((api) =>
 );
 
 const cases: ComparisonCase[] = [
+  ...(
+    [
+      ["scoped:flex", false, "flex"],
+      ["scoped:flex", true, "block"],
+      ["scope-root:flex", true, "flex"],
+    ] as const
+  ).map(([candidate, limited, display]): ComparisonCase => ({
+    name: `plugin scope variants: ${candidate} with limit ${limited}`,
+    extension: plugin((api) => {
+      api.addVariant("scoped", "@scope (.card) to (.stop)");
+      api.addVariant("scope-root", "@scope (.card &) to (.stop)");
+    }),
+    candidates: [candidate],
+    html: (classes) =>
+      `<section class="card"><div id="target" class="${classes}${limited ? " stop" : ""}"></div></section>`,
+    properties: ["display"],
+    expected: [display],
+  })),
+  ...["10cap", "10rex", "10dvmin", "10svi"].map((value): ComparisonCase => ({
+    name: `typed plugin lengths: ${value}`,
+    extension: sized,
+    preflight: true,
+    candidates: [`probe-[${value}]`],
+    properties: ["width"],
+  })),
+  {
+    name: "theme namespace roots: CSS DEFAULT values can be spread into plugin values",
+    extension: plugin((api) =>
+      api.matchUtilities(
+        {
+          shade: (value) => ({
+            boxShadow: value,
+          }),
+        },
+        {
+          values: {
+            ...api.theme("boxShadow"),
+          },
+        },
+      ),
+    ),
+    themeless: true,
+    after: "@theme { --shadow:0 1px 2px #000; }",
+    candidates: ["shade"],
+    properties: ["box-shadow"],
+    expected: ["rgb(0, 0, 0) 0px 1px 2px 0px"],
+  },
   {
     name: "diff 1: a stylesheet utility after @plugin overrides the plugin",
     extension: red,
@@ -652,6 +699,15 @@ const packageCases: ComparisonCase[] = [
     html: (_, [card, badge, secondary]) =>
       `<div class="${card}"><span id="target" class="${badge} ${secondary}">x</span></div>`,
     properties: ["background-color", "color", "height", "border-start-start-radius"],
+  },
+  {
+    name: "daisyUI: join keeps the outer radius of its first item from @scope (&)",
+    extension: daisyui,
+    separate: true,
+    candidates: ["join", "btn", "join-item"],
+    html: (_, [join, button, item]) =>
+      `<div class="${join}"><button id="target" class="${button} ${item}">x</button><button class="${button} ${item}">y</button></div>`,
+    properties: ["border-start-start-radius", "border-end-start-radius", "border-start-end-radius"],
   },
   {
     name: "daisyUI: the theme plugin defines a custom theme",

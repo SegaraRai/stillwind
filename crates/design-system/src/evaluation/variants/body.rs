@@ -2,8 +2,9 @@
 //!
 //! A body must contain `@slot`, which marks where the utility's declarations go; a body
 //! without a slot cannot produce a rule and is not a variant. The body is then
-//! classified by its outermost construct: a media, container, or support condition, a
-//! starting-style block, or a selector rule, in that priority order.
+//! classified by its outermost construct: a media, container, or support condition,
+//! a scope, a starting-style block, or a selector rule. Nested wrappers retain their
+//! authored order.
 //!
 //! A selector rule is a nested style rule, so a selector without `&` is relative to the
 //! styled element as in CSS Nesting: `:hover { @slot; }` styles hovered descendants in
@@ -20,8 +21,8 @@ use cssparser::Parser;
 use lean_string::{LeanStr, ToLeanStr};
 
 use stillwind_css::{
-    CssNode, CssNodeKind, absolutize_nested_selector, parse_structure, selector_is_valid,
-    selector_uses_subject, validate_css_syntax,
+    CssNode, CssNodeKind, absolutize_nested_selector, parse_scope_prelude, parse_structure,
+    selector_is_valid, selector_uses_subject, validate_css_syntax,
 };
 
 use super::application::{VariantApplication, VariantDeclaration};
@@ -83,6 +84,9 @@ pub(in crate::evaluation) fn resolve_scoped_variant_body(
                 VariantApplication::Supports(condition.to_lean_str())
             }
             "starting-style" if condition.is_empty() => VariantApplication::StartingStyle,
+            "scope" if parse_scope_prelude(condition).is_some() => {
+                VariantApplication::Scope(condition.to_lean_str())
+            }
             _ => return None,
         };
         let inner = body[block.contents.clone()].trim();
@@ -115,6 +119,9 @@ pub(in crate::evaluation) fn resolve_scoped_variant_body(
         }
         return Some(VariantApplication::Sequence(vec![wrapper, nested]));
     }
+    if let Some(application) = nested_selector_body(body, &nodes, scope) {
+        return Some(application);
+    }
     let rule = selector_rule_from_variant_body(body, scope)?;
     if rule.declarations.is_empty() {
         Some(match rule.top_level {
@@ -130,6 +137,31 @@ pub(in crate::evaluation) fn resolve_scoped_variant_body(
             declarations: rule.declarations,
         })
     }
+}
+
+fn nested_selector_body(
+    body: &str,
+    nodes: &[CssNode],
+    scope: VariantScope,
+) -> Option<VariantApplication> {
+    if let [
+        CssNode {
+            kind: CssNodeKind::StyleRule { selector, block },
+            ..
+        },
+    ] = nodes
+        && !block
+            .children
+            .iter()
+            .any(|child| matches!(child.kind, CssNodeKind::Declaration { .. }))
+        && !is_slot(&block.children)
+    {
+        let outer =
+            resolve_scoped_variant_body(&format!("{}{{@slot;}}", &body[selector.clone()]), scope)?;
+        let inner = resolve_scoped_variant_body(&body[block.contents.clone()], scope)?;
+        return Some(VariantApplication::Sequence(vec![outer, inner]));
+    }
+    None
 }
 
 fn has_slot(nodes: &[CssNode]) -> bool {

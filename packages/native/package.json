@@ -1,6 +1,6 @@
 {
   "name": "@stillwind/native",
-  "version": "0.6.0",
+  "version": "0.8.0",
   "description": "Node-API and WASM bindings for the Stillwind compiler",
   "keywords": [
     "stillwind"
@@ -18,7 +18,9 @@
   "files": [
     "dist/index.js",
     "dist/wasm/browser.js",
-    "binding.d.ts"
+    "binding.d.ts",
+    "README.md",
+    "CHANGELOG.md"
   ],
   "type": "module",
   "main": "./dist/index.js",

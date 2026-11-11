@@ -9,8 +9,8 @@
 //! Two rules apply:
 //!
 //! - An identity is created at the declaration site from the module identity and the
-//!   declaration span, so an asset keeps one identity however it is imported or
-//!   re-exported.
+//!   declaration's enclosing path and ordinal, so an asset keeps one identity however
+//!   it is imported or re-exported, and edits elsewhere in its module keep it.
 //! - Symbolic values stay sound. A value becomes finite only when the frontend has
 //!   proved its candidates, because a wrongly finite set pins CSS that may never apply.
 //!
@@ -44,8 +44,10 @@ mod module_summary;
 mod symbolic;
 mod type_facts;
 
-pub use assets::{AssetMetadata, AssetRecord};
-pub use identity::{AssetKind, IdentityId};
+pub use assets::{
+    AssetMetadata, AssetRecord, StoredRefCondition, StoredVariantRecord, StoredVariantSegment,
+};
+pub use identity::{AssetKind, DeclarationKey, IdentityId};
 pub use module::{IntegrationDiagnostic, TypeFacts, TypeFactsUpdate};
 pub use module_summary::{ImportBinding, ModuleSpecifier, ModuleSummary, ReExport};
 pub use symbolic::{Candidates, ExportedValue, SymbolicError, SymbolicValue};

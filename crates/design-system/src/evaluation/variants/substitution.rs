@@ -12,7 +12,9 @@ use std::sync::Arc;
 use cssparser::Token;
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
-use stillwind_css::{find_css_functions, selector_is_element_condition, split_top_level};
+use stillwind_css::{
+    find_css_functions, selector_is_element_condition, split_top_level, wrapped_subject_condition,
+};
 use stillwind_source::ReplaceText;
 
 use super::super::context::EvaluationContext;
@@ -76,6 +78,9 @@ pub(in crate::evaluation) fn apply_nested_variant(
     body: &str,
     inner: &VariantApplication,
 ) -> Option<VariantApplication> {
+    if contains_scope(inner) {
+        return None;
+    }
     match inner {
         VariantApplication::Compound(applications) => applications
             .iter()
@@ -126,7 +131,8 @@ pub(in crate::evaluation) fn apply_nested_variant(
         | VariantApplication::Media(_)
         | VariantApplication::Container(_)
         | VariantApplication::Supports(_)
-        | VariantApplication::StartingStyle => None,
+        | VariantApplication::StartingStyle
+        | VariantApplication::Scope(_) => None,
     }
 }
 
@@ -136,6 +142,9 @@ pub(in crate::evaluation) fn apply_nested_variant(
 /// The first such part is reported, in the order the application lists its parts. A
 /// sequence that styles more than one element reports the second one.
 pub(in crate::evaluation) fn nesting_obstacle(inner: &VariantApplication) -> VariantObstacle {
+    if contains_scope(inner) {
+        return VariantObstacle::AtRule;
+    }
     match inner {
         VariantApplication::Compound(applications) => applications
             .iter()
@@ -168,23 +177,39 @@ pub(in crate::evaluation) fn nesting_obstacle(inner: &VariantApplication) -> Var
         VariantApplication::Media(_)
         | VariantApplication::Container(_)
         | VariantApplication::Supports(_)
-        | VariantApplication::StartingStyle => VariantObstacle::AtRule,
+        | VariantApplication::StartingStyle
+        | VariantApplication::Scope(_) => VariantObstacle::AtRule,
+    }
+}
+
+fn contains_scope(application: &VariantApplication) -> bool {
+    match application {
+        VariantApplication::Scope(_) => true,
+        VariantApplication::Sequence(children) | VariantApplication::Compound(children) => {
+            children.iter().any(contains_scope)
+        }
+        _ => false,
     }
 }
 
 /// Folds an inner selector into the definition body at its `:--value()` slot.
 ///
-/// The selector must be relative to the utility, so it starts with `&`, and the
-/// fragment after `&` is what replaces the slot. A selector with a pseudo-element, such
-/// as `&::before`, returns `None` for every body, as in Tailwind. The package
-/// relationship variants place the slot inside `:is()`, `:where()`, or `:has()`, and
-/// those functions cannot contain pseudo-elements.
+/// A selector starts with `&`, or wraps a relationship ending in `&` in `:is()`.
+/// The leading `&` is removed; the wrapped subject becomes `*` so the fragment tests the
+/// element at the slot. A selector with a pseudo-element, such as `&::before`, returns
+/// `None` for every body, as in Tailwind. The package relationship variants place the
+/// slot inside `:is()`, `:where()`, or `:has()`, and those functions cannot contain
+/// pseudo-elements.
 fn apply_nested_selector(body: &str, selector: &str) -> Option<VariantApplication> {
     if !selector_is_element_condition(selector, false) {
         return None;
     }
-    let fragment = selector.strip_prefix('&')?;
-    resolve_variant_body(&body.replace_text(":--value()", fragment))
+    let fragment = if let Some(fragment) = selector.strip_prefix('&') {
+        fragment.to_lean_string()
+    } else {
+        wrapped_subject_condition(selector)?
+    };
+    resolve_variant_body(&body.replace_text(":--value()", &fragment))
 }
 
 /// Folds a relative selector, such as `>img`, into the definition body.
@@ -492,6 +517,32 @@ mod tests {
             None
         );
         assert_eq!(apply_nested_selector("&:--value() { @slot; }", "div"), None);
+    }
+
+    #[test]
+    fn nested_relationships_test_the_wrapped_subject() {
+        for (selector, fragment) in [
+            (":is(:where(.group):hover &)", ":is(:where(.group):hover *)"),
+            (
+                ":is(:where(.peer):checked ~ &)",
+                ":is(:where(.peer):checked ~ *)",
+            ),
+        ] {
+            assert_eq!(
+                apply_nested_selector("&:has(:--value()) { @slot; }", selector),
+                Some(VariantApplication::SelectorTemplate(
+                    format!("&:has({fragment})").into()
+                ))
+            );
+        }
+        for selector in [
+            ":is(& > *)",
+            ":is(& + &)",
+            ":is(.group &)::before",
+            ":is(.other, .group &)",
+        ] {
+            assert!(apply_nested_selector("&:has(:--value()) { @slot; }", selector).is_none());
+        }
     }
 
     #[test]

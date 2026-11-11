@@ -8,9 +8,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, OnceLock};
 
 use stillwind_compiler::{
-    CompiledModule, CompilerOptions, GeneratedSymbol, Identifiers, ModuleArtifactKey,
-    ModuleCompiler, RenderedStylesheet, StyleResolver, StylesheetRenderError, StylesheetRenderer,
-    check_style, stylesheet_banners,
+    CompiledModule, CompilerOptions, DesignSystemQuery, GeneratedSymbol, Identifiers,
+    ModuleArtifactKey, ModuleCompiler, RenderedStylesheet, StyleResolver, StylesheetRenderError,
+    StylesheetRenderer, check_style, stylesheet_banners,
 };
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemSnapshot};
 use stillwind_diagnostics::{
@@ -20,6 +20,7 @@ use stillwind_ir::ModuleAnalysis;
 use stillwind_source::{FileId, ModuleId, SourceFile, SourceRegistry, SourceRegistryError, Span};
 
 use super::{CompositionConsumers, DiagnosticState, DocumentNames, ModuleNames, SymbolIndex};
+use crate::stylesheet_plan::StylesheetCache;
 use crate::{DependencyIndex, ProjectStylesheet, ReservedNames};
 
 /// Why a design-system reload could not be applied.
@@ -120,6 +121,8 @@ pub struct ProjectSession {
     /// Most recent rejected load, or None when the active configuration loaded
     /// successfully.
     load_error: Option<DesignSystemLoadError>,
+    /// Render of the latest stylesheet plan, shared between session clones.
+    stylesheet_cache: StylesheetCache,
 }
 
 impl ProjectSession {
@@ -172,6 +175,7 @@ impl ProjectSession {
             stylesheet: ProjectStylesheet::default(),
             dependencies: Arc::default(),
             load_error: None,
+            stylesheet_cache: StylesheetCache::default(),
         }
     }
 
@@ -353,6 +357,11 @@ impl ProjectSession {
         let key = self.analysis_keys.get(module)?;
         let artifact = self.artifacts.get(module)?;
         (artifact.key() == key.as_ref()).then_some(artifact.as_ref())
+    }
+
+    /// Render of the latest stylesheet plan.
+    pub(crate) fn stylesheet_cache(&self) -> &StylesheetCache {
+        &self.stylesheet_cache
     }
 
     /// Analyses by module, including ones whose compilation failed.
@@ -553,6 +562,7 @@ impl ProjectSession {
                 }
             }
         }
+        let query = DesignSystemQuery::new(self.current.clone(), self.options.clone());
         let mut resolver = StyleResolver::new(
             required
                 .iter()
@@ -565,14 +575,14 @@ impl ProjectSession {
                 let analysis = self.analyses.get(&module)?;
                 let artifact = self.current_artifact(&module)?;
                 let mut findings = artifact.source_lint_findings.clone();
-                findings.extend(
-                    artifact
-                        .style_effects
-                        .iter()
-                        .filter_map(|effects| resolver.resolve(effects.identity()))
-                        .flat_map(|style| check_style(&style))
-                        .collect::<Vec<_>>(),
-                );
+                let mut style_findings = artifact
+                    .style_effects
+                    .iter()
+                    .filter_map(|effects| resolver.resolve(effects.identity()))
+                    .flat_map(|style| check_style(&style))
+                    .collect::<Vec<_>>();
+                query.explain_conflicts(&mut style_findings);
+                findings.extend(style_findings);
                 finish_lint_findings(
                     &analysis.source,
                     LintSurface::Script,

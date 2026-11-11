@@ -13,12 +13,12 @@ use stillwind_css::{CssMinifyOptions, minify_css};
 use stillwind_design_system::ThemeIndex;
 use stillwind_diagnostics::{CompileError, LintDiagnostic, LintFinding};
 use stillwind_ir::CssCall;
-use stillwind_source::ModuleId;
+use stillwind_source::{ModuleId, Spanned};
 
 use super::RuleBoundaries;
 use super::conditionals::{lower, report_skipped_conditionals};
 use super::document::{DocumentInput, emit_document_rules};
-use super::style_variants::collect_variant_and_applications;
+use super::style_variants::{collect_variant_and_applications, expand_spanned_prefix};
 use super::stylesheet::{prefix_theme_variables, render_css_template, rewrite_generated_css};
 use crate::identifiers::IdentifierContext;
 use crate::{CompilerOptions, MappedStylesheet};
@@ -63,19 +63,11 @@ pub(crate) fn css_call_text(
     lint_findings: &mut Vec<LintFinding>,
 ) -> LeanString {
     let lint_settings = &options.lint_settings();
-    let mut prefixes = Vec::with_capacity(call.inputs.len());
-    for input in &call.inputs {
-        let resolved = input.variants.iter().all(|variant| {
-            collect_variant_and_applications(theme, variant, lint_findings).is_some()
-        });
-        prefixes.push(resolved.then(|| {
-            input
-                .variants
-                .iter()
-                .map(|variant| variant.value.as_str())
-                .collect::<LeanString>()
-        }));
-    }
+    let prefixes = call
+        .inputs
+        .iter()
+        .map(|input| input_prefix(&input.variants, theme, lint_findings))
+        .collect::<Vec<_>>();
     let inputs = call
         .inputs
         .iter()
@@ -160,6 +152,31 @@ pub(crate) fn css_call_text(
             LeanString::new()
         }
     }
+}
+
+/// Joins the variant keys of one input into the prefix of its candidates.
+///
+/// Returns [`None`] after it reports a key that does not resolve. Document resolution
+/// expands `or(...)` in the joined prefix, so each expanded key is checked here and
+/// the written key is kept.
+fn input_prefix(
+    variants: &[Spanned<LeanStr>],
+    theme: &ThemeIndex,
+    lint_findings: &mut Vec<LintFinding>,
+) -> Option<LeanString> {
+    let resolved = variants.iter().all(|variant| {
+        expand_spanned_prefix(variant, theme, lint_findings).is_some_and(|prefixes| {
+            prefixes.iter().all(|prefix| {
+                collect_variant_and_applications(theme, prefix, lint_findings).is_some()
+            })
+        })
+    });
+    resolved.then(|| {
+        variants
+            .iter()
+            .map(|variant| variant.value.as_str())
+            .collect()
+    })
 }
 
 /// Returns `text` from [`css_call_text`] in minified form.

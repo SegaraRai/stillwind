@@ -1,142 +1,38 @@
-/** Runtime validation selected explicitly by development compilations. */
-
-import { createCva, type CompiledCvaConfig, type CvaValue } from "./cva.ts";
-import { isObject, mergeFragments, toFragment, type FragmentRuntimeOptions } from "./fragment.ts";
-import { stillwindClsx, stillwindViewTransitionName } from "./shared.ts";
-
 /**
- * Reads a compiled ref's class token once.
+ * Development runtime imported by code that the compiler generates in development mode.
  *
- * @param value - A ref record whose `.c` property contains a nonempty string.
- * @returns The class token.
- * @throws TypeError if the record or token is missing, or the token is empty or not a string.
+ * It exports every name of `stillwind/runtime` with the same fragment keys. Operations that
+ * merge, convert, concatenate classes, or name view transitions validate their inputs and keep
+ * the production export names, so generated calls do not depend on the mode.
+ * `stillwindRefClassChecked` exists only here, because production code reads `ref.c` directly.
  */
-export function stillwindRefClassChecked(value: unknown): string {
-  const token = isObject(value) ? value.c : undefined;
-  if (typeof token !== "string" || !token) {
-    throw new TypeError("Stillwind received a ref without a class token in .c.");
-  }
-  return token;
-}
 
-/**
- * Validates external class inputs before concatenating them.
- *
- * @param values - Strings, numbers, bigints, nested arrays, or objects whose truthy entries enable their keys.
- * Booleans, null, and undefined add no text.
- * @returns Class text in contribution order without deduplication.
- * @throws TypeError when an input or nested array contains a function or symbol.
- */
-export function stillwindClsxChecked(...values: readonly unknown[]): string {
-  function check(value: unknown): void {
-    if (value == null || ["string", "number", "bigint", "boolean"].includes(typeof value)) {
-      return;
-    }
-    if (Array.isArray(value)) {
-      value.forEach(check);
-      return;
-    }
-    if (isObject(value)) {
-      return;
-    }
-    throw new TypeError(`Stillwind received an unsupported class value: ${typeof value}.`);
-  }
-  values.forEach(check);
-  return stillwindClsx(...values);
-}
-
-/**
- * Creates a CVA selector that validates external classes and selected fragment channels.
- * The selector throws TypeError for inputs rejected by `stillwindClsxChecked` or `mergeFragmentsChecked`.
- *
- * @param options - Framework conventions and the keys of the runtime that created the fragments.
- * @param base - Compiled styles included in every selection.
- * @param config - Immutable compiled option maps, defaults, and compound conditions.
- * @returns A selector with the same selection and props behavior as `createCva`.
- */
-export function createCvaChecked(
-  options: FragmentRuntimeOptions,
-  base?: CvaValue,
-  config?: CompiledCvaConfig,
-) {
-  return createCva(options, base, config, stillwindClsxChecked, mergeFragmentsChecked);
-}
-
-/**
- * Validates fragment channels before materializing framework props.
- *
- * @param options - The receiving framework's conventions and distinct fragment keys.
- * @param values - Inputs accepted by `mergeFragments`.
- * @returns The same props as `mergeFragments` for valid inputs.
- * @throws TypeError for foreign symbol keys, unconverted class props, or a non-null class channel that is not a string.
- */
-export function mergeFragmentsChecked(
-  options: FragmentRuntimeOptions,
-  values: readonly unknown[],
-): Record<string, unknown> {
-  const [, , stillwindClassKey, stillwindStyleKey, stillwindCustomPropertiesKey] = options;
-  const keys = [stillwindClassKey, stillwindStyleKey, stillwindCustomPropertiesKey];
-
-  function check(value: unknown): void {
-    if (Array.isArray(value)) {
-      value.forEach(check);
-      return;
-    }
-    if (!isObject(value)) {
-      return;
-    }
-    const symbols = Object.getOwnPropertySymbols(value);
-    if (symbols.some((key) => !keys.includes(key))) {
-      throw new TypeError("Stillwind received a fragment from a different runtime instance.");
-    }
-    if (
-      !symbols.some((key) => keys.includes(key)) &&
-      (Object.hasOwn(value, "class") || Object.hasOwn(value, "className"))
-    ) {
-      throw new TypeError(
-        "Stillwind received a materialized props object; convert it with stillwindToFragment() first.",
-      );
-    }
-    const classes = value[stillwindClassKey];
-    if (classes != null && typeof classes !== "string") {
-      throw new TypeError("Stillwind received a fragment with a non-string class value.");
-    }
-  }
-
-  values.forEach(check);
-  return mergeFragments(options, values);
-}
-
-/**
- * Validates a composition base before converting it to a class-only fragment.
- *
- * @param options - The receiving framework's conventions and distinct fragment keys.
- * @param value - A non-null props object or a fragment belonging to this runtime.
- * @returns The result of `toFragment` for the object.
- * @throws TypeError when the value is null or is not an object.
- */
-export function toFragmentChecked(
-  options: FragmentRuntimeOptions,
-  value: unknown,
-): Record<PropertyKey, unknown> {
-  if (!isObject(value)) {
-    throw new TypeError("Stillwind expected a materialized props object.");
-  }
-  return toFragment(options, value);
-}
-
-/**
- * Names a keyed view transition after reading its token once.
- *
- * @param value - A nonempty class token or a record whose `.v` contains that token.
- * @param key - A key appended after a hyphen using `String`.
- * @returns The token and key escaped as one CSS identifier.
- * @throws TypeError when the token is missing, empty, or not a string.
- */
-export function stillwindViewTransitionNameChecked(value: unknown, key: string | number): string {
-  const token = typeof value === "string" ? value : isObject(value) ? value.v : undefined;
-  if (typeof token !== "string" || !token) {
-    throw new TypeError("Stillwind received a view transition without a class token.");
-  }
-  return stillwindViewTransitionName(token, key);
-}
+export {
+  stillwindClassNameObjectCvaChecked as stillwindClassNameObjectCva,
+  stillwindClassNameObjectMergeChecked as stillwindClassNameObjectMerge,
+  stillwindClassNameObjectToFragmentChecked as stillwindClassNameObjectToFragment,
+  stillwindClassObjectCvaChecked as stillwindClassObjectCva,
+  stillwindClassObjectMergeChecked as stillwindClassObjectMerge,
+  stillwindClassObjectToFragmentChecked as stillwindClassObjectToFragment,
+  stillwindClassStringCvaChecked as stillwindClassStringCva,
+  stillwindClassStringMergeChecked as stillwindClassStringMerge,
+  stillwindClassStringToFragmentChecked as stillwindClassStringToFragment,
+  stillwindClsxChecked as stillwindClsx,
+  stillwindRefClassChecked,
+  stillwindViewTransitionNameChecked as stillwindViewTransitionName,
+} from "./checked.ts";
+export {
+  stillwindClassNameObjectClassKey,
+  stillwindClassNameObjectCustomPropertiesKey,
+  stillwindClassNameObjectStyleKey,
+  stillwindClassNameObjectStyleValue,
+  stillwindClassObjectClassKey,
+  stillwindClassObjectCustomPropertiesKey,
+  stillwindClassObjectStyleKey,
+  stillwindClassObjectStyleValue,
+  stillwindClassStringClassKey,
+  stillwindClassStringCustomPropertiesKey,
+  stillwindClassStringStyleKey,
+  stillwindClassStringStyleValue,
+} from "./formats.ts";
+export { stillwindCssValue, stillwindEscapedIdentifier } from "./shared.ts";

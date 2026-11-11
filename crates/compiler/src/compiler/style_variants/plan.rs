@@ -14,6 +14,7 @@ use stillwind_syntax::Variant;
 
 use super::super::symbols::ref_container_name;
 use super::super::utilities::CompiledUtility;
+use super::alternatives::expand_wrappers;
 use super::prefix::{collect_variant_and_applications, parse_prefix};
 use super::reference::element_conditions;
 use crate::identifiers::IdentifierContext;
@@ -23,6 +24,10 @@ pub(in crate::compiler) struct StyleVariantPlan {
     /// Only ordinary prefixes enter the string-based utility resolver.
     pub(in crate::compiler) prefix: LeanString,
     /// Identity-aware spelling for class hashing; independent of source syntax.
+    ///
+    /// A ref or container wrapper spells the declaration keys and labels of its refs
+    /// instead of their generated names, so the spelling stays the same when only the
+    /// naming of the declaring module changes.
     pub(in crate::compiler) canonical: LeanString,
     /// Whether any wrapper uses ref identity and requires lowered selector
     /// applications.
@@ -51,7 +56,33 @@ impl StyleVariantPlan {
         &self.paths
     }
 
-    /// Resolves the wrappers of one utility literal.
+    /// Resolves the wrappers of one contribution into one plan for each combination of
+    /// its variant alternatives, in the order that
+    /// [`expand_wrappers`](super::alternatives::expand_wrappers) describes. Wrappers
+    /// without alternatives produce exactly one plan.
+    ///
+    /// Returns `None` when an alternative is malformed or when any expanded sequence
+    /// fails as [`Self::resolve_sequence`] describes, and the caller must lower the
+    /// contribution as empty. One failing sequence omits the whole contribution, as one
+    /// failing variant omits a utility.
+    pub fn resolve(
+        context: &IdentifierContext,
+        wrappers: &[StyleVariant],
+        theme: &ThemeIndex,
+        diagnostics: &mut Vec<CompileError>,
+        lint_findings: &mut Vec<LintFinding>,
+    ) -> Option<Vec<Self>> {
+        let sequences = expand_wrappers(wrappers, theme, lint_findings)?;
+        let plans = sequences
+            .iter()
+            .map(|wrappers| {
+                Self::resolve_sequence(context, wrappers, theme, diagnostics, lint_findings)
+            })
+            .collect::<Vec<_>>();
+        plans.into_iter().collect()
+    }
+
+    /// Resolves wrappers without alternatives.
     ///
     /// Returns `None` when a wrapper condition is false or cannot be generated, and the
     /// caller must lower the contribution as empty. A malformed or unknown prefix, a
@@ -59,7 +90,7 @@ impl StyleVariantPlan {
     /// referenced element add lint findings. A ref condition never falls back to an
     /// unrelated selector, because that would apply the rules to the wrong element. A
     /// failure to generate a ref marker name adds a fatal diagnostic.
-    pub fn resolve(
+    fn resolve_sequence(
         context: &IdentifierContext,
         wrappers: &[StyleVariant],
         theme: &ThemeIndex,
@@ -105,6 +136,8 @@ impl StyleVariantPlan {
                         lint_findings,
                     )?;
                 }
+                // `Self::resolve` expands alternatives before it calls this function.
+                StyleVariant::Alternatives(_) => return None,
             }
         }
         Some(plan)
@@ -193,12 +226,15 @@ impl StyleVariantPlan {
             }
             alternatives.extend(paths);
         }
-        let mut canonical = alternatives
+        let scope_keys = ordered_scopes
             .iter()
-            .map(|path| format_args!("{path:?}").to_lean_string())
+            .map(|scope| condition_key(scope))
             .collect::<Vec<_>>();
-        canonical.sort();
-        let _ = write!(self.canonical, "ref({canonical:?})\0");
+        let _ = write!(
+            self.canonical,
+            "ref({:?},{scope_keys:?})\0",
+            condition_key(condition)
+        );
         self.paths = self
             .paths
             .iter()
@@ -256,7 +292,12 @@ impl StyleVariantPlan {
                 return None;
             }
         };
-        let _ = write!(self.canonical, "container({conditions:?}):");
+        let _ = write!(
+            self.canonical,
+            "container({:?},{:?}):",
+            ref_keys(refs),
+            query.value
+        );
         self.paths = std::mem::take(&mut self.paths)
             .into_iter()
             .flat_map(|path| {
@@ -325,8 +366,8 @@ impl StyleVariantPlan {
     }
 }
 
-/// Orders independent target conditions using declaration identities and decoded
-/// predicate text. Source use spans do not change the generated condition order.
+/// Orders independent target conditions using declaration keys and decoded predicate
+/// text. Source use spans do not change the generated condition order.
 fn independent_variant_key(variant: &StyleVariant) -> LeanString {
     match variant {
         StyleVariant::Ref { condition, scopes } => {
@@ -338,9 +379,17 @@ fn independent_variant_key(variant: &StyleVariant) -> LeanString {
             format_args!("container({:?},{:?})", ref_keys(refs), query.value).to_lean_string()
         }
         StyleVariant::Prefix(prefix) => format_args!("prefix({:?})", prefix.value).to_lean_string(),
+        StyleVariant::Alternatives(sequences) => {
+            let sequences = sequences
+                .iter()
+                .map(|sequence| sequence.iter().map(independent_variant_key).collect())
+                .collect::<Vec<Vec<_>>>();
+            format_args!("alternatives({sequences:?})").to_lean_string()
+        }
     }
 }
 
+/// Spells the refs and the authored prefix of `condition`.
 fn condition_key(condition: &RefCondition) -> LeanString {
     format_args!(
         "({:?},{:?})",
@@ -350,6 +399,7 @@ fn condition_key(condition: &RefCondition) -> LeanString {
     .to_lean_string()
 }
 
+/// Spells the declaration identity and label of each ref in `refs`, in sorted order.
 fn ref_keys(refs: &[RefDefinition]) -> Vec<LeanStr> {
     let mut identities = refs
         .iter()
@@ -358,8 +408,8 @@ fn ref_keys(refs: &[RefDefinition]) -> Vec<LeanStr> {
                 "{:?}",
                 (
                     &definition.module_id,
+                    &definition.key,
                     &definition.binding.value,
-                    definition.binding.span,
                     definition.label.as_ref().map(|label| &label.value),
                 )
             )
@@ -375,6 +425,7 @@ mod add_ref_tests {
     use std::rc::Rc;
 
     use stillwind_diagnostics::CompileDiagnostic;
+    use stillwind_semantic::DeclarationKey;
     use stillwind_source::{FileId, Span};
 
     use super::super::super::symbols::ref_marker_name;
@@ -407,6 +458,7 @@ mod add_ref_tests {
         RefDefinition {
             module_id: module.into(),
             binding: Spanned::new(binding.to_lean_str(), Span::new(FileId(1), 0, 3)),
+            key: DeclarationKey::top(0),
             label: None,
             call_span: Span::new(FileId(1), call_start, call_start + 4),
         }

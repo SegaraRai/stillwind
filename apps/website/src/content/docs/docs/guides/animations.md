@@ -15,12 +15,11 @@ stays next to the code that uses it.
 ```tsx
 import { style } from "stillwind/react";
 
-const enter = style.keyframes({
-  from: "opacity-0 translate-y-2",
-  to: "opacity-100 translate-y-0",
-});
-
 export function Notice() {
+  const enter = style.keyframes({
+    from: "opacity-0 translate-y-2",
+    to: "opacity-100 translate-y-0",
+  });
   return (
     <aside {...style({ "motion-safe:": enter("duration-300 ease-out both") })}>
       Your changes are saved.

@@ -1,5 +1,7 @@
 //! Checks semantic identities and facts at original document coordinates.
 
+use stillwind_semantic::DeclarationKey;
+
 use super::*;
 
 /// Finalized projected analyses speak in original coordinates.
@@ -32,14 +34,8 @@ fn projected_analysis_preserves_original_source_and_semantic_identity() {
         .find(|asset| asset.identity.kind() == AssetKind::Ref)
         .unwrap();
     assert_eq!(asset.identity.module_id().as_str(), "Component.svelte");
-    assert_eq!(
-        &original.text()[asset.identity.start() as usize..asset.identity.end() as usize],
-        "target"
-    );
-    assert_eq!(
-        asset.identity.start(),
-        scan.local_ir.ref_definitions[0].binding.span.start.0
-    );
+    assert_eq!(asset.identity.binding_name(), "target");
+    assert_eq!(asset.identity.key(), &scan.local_ir.ref_definitions[0].key);
     let analysis = OxcSourceAnalyzer.finalize(scan, None);
     assert_eq!(
         analysis.ir.style_calls[0].output,
@@ -104,10 +100,7 @@ fn projected_facts_resolve_composition_at_original_unicode_offsets() {
     };
     assert_eq!(*value, probe);
     assert_eq!(candidates, std::slice::from_ref(&identity));
-    assert_eq!(
-        &analysis.source.text()[identity.start() as usize..identity.end() as usize],
-        "style('flex')"
-    );
+    assert_eq!(identity.key(), &DeclarationKey::new(vec!["base".into()], 0));
     assert!(
         analysis
             .provenance
@@ -214,4 +207,41 @@ fn projected_forward_ref_scopes_match_later_attachments_in_original_coordinates(
             definition.binding.value
         );
     }
+}
+
+#[test]
+fn projected_declaration_keys_ignore_generated_wrappers() {
+    let import = "import {style} from 'stillwind/svelte';";
+    let body = "const base=style('flex');";
+    let wrapper = "function $$render(){";
+    let input = projected_script(&format!("{import}{body}"));
+    let generated = format!("{import}{wrapper}{body}}}");
+    let utf16 = |text: &str| u32::try_from(text.encode_utf16().count()).unwrap();
+    let projection = input.projection().unwrap();
+    let input = rebuild_projection(
+        &input,
+        Arc::new(SourceFile::new(FileId(2), None, None, generated).unwrap()),
+        projection.syntax(),
+        ProjectionMap::Volar {
+            mappings: vec![VolarMapping {
+                source_offsets: vec![8, 8 + utf16(import)],
+                generated_offsets: vec![0, utf16(import) + utf16(wrapper)],
+                lengths: vec![utf16(import), utf16(body)],
+                generated_lengths: None,
+            }],
+        },
+        projection.converter().clone(),
+    );
+    let scan = OxcSourceAnalyzer.scan_input(input);
+    assert!(scan.diagnostics.is_empty(), "{:?}", scan.diagnostics);
+    let asset = scan
+        .summary
+        .assets
+        .iter()
+        .find(|asset| asset.identity.kind() == AssetKind::Style)
+        .unwrap();
+    assert_eq!(
+        asset.identity.key(),
+        &DeclarationKey::new(vec!["base".into()], 0)
+    );
 }

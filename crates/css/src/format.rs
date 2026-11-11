@@ -3,6 +3,8 @@
 use lean_string::{LeanStr, LeanString, ToLeanStr};
 use lightningcss::stylesheet::{ParserOptions, PrinterOptions, StyleSheet};
 
+use crate::normalize_scopes;
+
 /// CSS could not be parsed or printed for display.
 #[derive(Debug, thiserror::Error)]
 pub enum CssFormatError {
@@ -23,6 +25,8 @@ pub enum CssFormatError {
 ///
 /// Returns an error if the stylesheet cannot be parsed or printed.
 pub fn format_css(css: &str) -> Result<LeanString, CssFormatError> {
+    let normalized = normalize_scopes(css);
+    let css = normalized.css.as_str();
     let stylesheet = StyleSheet::parse(css, ParserOptions::default())
         .map_err(|error| CssFormatError::Parse(error.to_lean_str()))?;
     stylesheet
@@ -34,6 +38,13 @@ pub fn format_css(css: &str) -> Result<LeanString, CssFormatError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn scoped_declarations_are_printed_as_zero_specificity_rules() {
+        let output = format_css("@scope (.card) {color:red;}").unwrap();
+        assert!(output.contains(":where(:scope)"));
+        assert!(output.contains("color: red"));
+    }
 
     #[test]
     fn formats_nested_rules_without_optimizing_fallbacks() {

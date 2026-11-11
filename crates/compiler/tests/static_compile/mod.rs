@@ -6,6 +6,7 @@
 //! Modules:
 //!
 //! - [`acceptance`] checks the acceptance cases of the compatibility slice.
+//! - [`alternatives`] checks `or(...)` variants.
 //! - [`conditional_flow`] checks the structure-preserving lowering of conditional class
 //!   expressions.
 //! - [`css_call`] checks `style.css()` lowering.
@@ -19,6 +20,7 @@
 //! - [`ref_variants`] checks ref variants in selectors and templates.
 //! - [`refs`] checks ref projections and selector scopes.
 //! - [`runtime_if`] checks experimental computed-value conditions.
+//! - [`stored_variants`] checks `style.when()` declarations and their uses.
 //! - [`support`] compiles cases and compares stylesheets for the other modules.
 //! - [`table_lookup`] checks lookups in array and object literals.
 //! - [`theme`] checks theme emission and token gating.
@@ -39,6 +41,7 @@ mod support;
 use support::*;
 
 mod acceptance;
+mod alternatives;
 mod conditional_flow;
 mod css_call;
 mod cva;
@@ -51,6 +54,7 @@ mod react;
 mod ref_variants;
 mod refs;
 mod runtime_if;
+mod stored_variants;
 mod table_lookup;
 mod theme;
 mod utilities;

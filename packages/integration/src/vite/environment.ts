@@ -1,5 +1,6 @@
 import { cleanModuleId, compilerModuleId } from "@stillwind/host";
 
+import type { SharedTypeFacts } from "../session.ts";
 import type { BrowserCssSources } from "./browser-css.ts";
 import type { BuildOutput } from "./build.ts";
 import { compileProducer, type CompileContext, type ProducerInput } from "./compile.ts";
@@ -57,14 +58,16 @@ export class ViteEnvironment {
    * @param config - Compiler options shared by the project.
    * @param invalidate - Invalidates Vite source identities whose JavaScript changes after a
    * design-system reload.
+   * @param shared - Returns type facts shared with the other environments of the project.
    */
   constructor(
     readonly name: string,
     private readonly settings: ProjectSettings,
     private readonly config: IntegrationConfig,
     private readonly invalidate: (ids: readonly string[]) => void,
+    shared?: () => SharedTypeFacts,
   ) {
-    this.#designSystem = new DesignSystem(settings, config);
+    this.#designSystem = new DesignSystem(settings, config, name, shared);
   }
 
   /**
@@ -121,6 +124,20 @@ export class ViteEnvironment {
   }
 
   /**
+   * Tests whether a changed file exposes the same exports to other producers as before the change.
+   *
+   * @param file - Resolver identity of a file that {@link changed} received with `entry` false and
+   * that a producer compilation prepared again since then.
+   * @returns False when the compiler is not initialized, no producer imports the file, or the
+   * exports cannot be compared. True means that compiling the importing producers again gives the
+   * same JavaScript and CSS.
+   * @throws If checker input installation fails.
+   */
+  keepsInterface(file: string): boolean {
+    return this.#designSystem.initialized && this.#designSystem.compiler.keepsInterface(file);
+  }
+
+  /**
    * Closes the environment's type-facts service while retaining native compiler state and producer
    * inputs.
    */
@@ -156,6 +173,10 @@ export class ViteEnvironment {
       await this.#designSystem.ensure(context, () => {
         this.revision++;
       });
+      // The checker process loads TypeScript while the server waits for its first request.
+      if (this.settings.watching) {
+        this.#designSystem.compiler.startChecker();
+      }
     });
   }
 
@@ -377,6 +398,17 @@ export class ViteEnvironment {
       await this.#refresh(context);
       return this.#snapshot(await this.#plan(this.#documentModules(), context));
     });
+  }
+
+  /**
+   * Advances the publication revision without planning a stylesheet.
+   *
+   * A producer module embeds the revision when it loads and requests a snapshot when its document
+   * holds an older one. Call this after a compilation whose snapshot is delivered later, so that
+   * producers loaded in between request a snapshot that includes the compilation.
+   */
+  advance(): void {
+    this.revision++;
   }
 
   /**

@@ -1,5 +1,5 @@
 /*! stillwind | MIT License | https://stillwind.dev */
-/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
 @layer properties, theme, base, components, utilities;
 @layer theme {
   /*
@@ -427,131 +427,131 @@ Keep both selectors so the same theme values are available in either scope.
   }
 }
 @layer utilities {
-  ::view-transition-old(.sw-vt-page-title-56mrr) {
+  ::view-transition-old(.sw-vt-page-title-0b9dx) {
     opacity: calc(0 * 1%);
   }
-  ::view-transition-new(.sw-vt-page-title-56mrr) {
+  ::view-transition-new(.sw-vt-page-title-0b9dx) {
     opacity: calc(100 * 1%);
   }
-  ::view-transition-old(.sw-vt-9jm9s) {
+  ::view-transition-old(.sw-vt-hl4nk) {
     opacity: calc(100 * 1%);
   }
   @media (prefers-reduced-motion: reduce) {
-    ::view-transition-old(.sw-vt-9jm9s) {
+    ::view-transition-old(.sw-vt-hl4nk) {
       opacity: calc(75 * 1%);
     }
   }
-  ::view-transition-new(.sw-vt-9jm9s) {
+  ::view-transition-new(.sw-vt-hl4nk) {
     opacity: calc(0 * 1%);
   }
-  ::view-transition-image-pair(.sw-vt-9jm9s) {
+  ::view-transition-image-pair(.sw-vt-hl4nk) {
     isolation: auto;
   }
-  .sw_ib2y3 {
-    view-transition-class: sw-vt-page-title-56mrr;
+  .sw_sjay2 {
+    view-transition-class: sw-vt-page-title-0b9dx;
   }
-  .sw_dsj5u {
-    view-transition-class: sw-vt-page-title-56mrr;
+  .sw_v7488 {
+    view-transition-class: sw-vt-page-title-0b9dx;
   }
-  .sw_49cip {
+  .sw_fh23y {
     display: block;
   }
-  .sw_49cip {
-    view-transition-class: sw-vt-page-title-56mrr;
+  .sw_fh23y {
+    view-transition-class: sw-vt-page-title-0b9dx;
   }
-  .sw_49cip {
-    view-transition-name: sw-vt-page-title-56mrr-hero;
+  .sw_fh23y {
+    view-transition-name: sw-vt-page-title-0b9dx-hero;
   }
-  .sw_07l45 {
-    view-transition-class: var(--sw-vtc-bat1w,) var(--sw-vtc-0es8n,);
+  .sw_ot9ws {
+    view-transition-class: var(--sw-vtc-17l2y,) var(--sw-vtc-523cx,);
   }
-  .sw_b9mfe {
-    --sw-vtc-bat1w: sw-vt-page-title-56mrr;
+  .sw_oy2xo {
+    --sw-vtc-17l2y: sw-vt-hl4nk;
   }
-  .sw_xivv8 {
-    --sw-vtc-0es8n: sw-vt-9jm9s;
+  .sw_x1ckt {
+    --sw-vtc-523cx: sw-vt-page-title-0b9dx;
   }
-  .sw_eg4yn {
-    view-transition-class: var(--sw-vtc-v7plm,) var(--sw-vtc-jr7gd,);
+  .sw_dsmy7 {
+    view-transition-class: var(--sw-vtc-qsxm5,) var(--sw-vtc-gp0ny,);
   }
-  .sw_4qjib {
-    --sw-vtc-v7plm: sw-vt-page-title-56mrr;
+  .sw_8vx9d {
+    --sw-vtc-qsxm5: sw-vt-hl4nk;
   }
-  .sw_yq1jw {
-    --sw-vtc-jr7gd: sw-vt-9jm9s;
+  .sw_hb6d1 {
+    --sw-vtc-gp0ny: sw-vt-page-title-0b9dx;
   }
-  .sw_wg0m9 {
+  .sw_u10oq {
     display: block;
   }
-  .sw_wg0m9 {
-    view-transition-class: var(--sw-vtc-9os4x,) var(--sw-vtc-fmi0t,);
+  .sw_u10oq {
+    view-transition-class: var(--sw-vtc-0jqmt,) var(--sw-vtc-2jfpl,);
   }
-  .sw_w8eru {
-    --sw-vtc-9os4x: sw-vt-page-title-56mrr;
-    view-transition-name: sw-vt-page-title-56mrr-hero;
+  .sw_5arxl {
+    --sw-vtc-0jqmt: sw-vt-hl4nk;
+    view-transition-name: sw-vt-hl4nk-hero;
   }
-  .sw_54tbn {
-    --sw-vtc-fmi0t: sw-vt-9jm9s;
-    view-transition-name: sw-vt-9jm9s-hero;
+  .sw_81l10 {
+    --sw-vtc-2jfpl: sw-vt-page-title-0b9dx;
+    view-transition-name: sw-vt-page-title-0b9dx-hero;
   }
-  .sw_zu69b {
-    view-transition-class: sw-vt-page-title-56mrr;
+  .sw_fdm03 {
+    view-transition-class: sw-vt-page-title-0b9dx;
   }
-  .sw_zu69b {
-    view-transition-name: sw-vt-page-title-56mrr-outside;
+  .sw_fdm03 {
+    view-transition-name: sw-vt-page-title-0b9dx-outside;
   }
-  .sw_y96tt {
+  .sw_ipk4z {
     display: block;
   }
-  .sw_y96tt {
-    view-transition-class: sw-vt-9jm9s;
+  .sw_ipk4z {
+    view-transition-class: sw-vt-hl4nk;
   }
-  .sw_2ce4i {
+  .sw_eqgu5 {
     display: block;
   }
-  .sw_a2388 {
+  .sw_sqk0k {
     display: block;
     view-transition-name: hero;
   }
-  .sw_a2388 {
-    view-transition-class: sw-vt-page-title-56mrr;
+  .sw_sqk0k {
+    view-transition-class: sw-vt-page-title-0b9dx;
   }
-  .sw_gpk2a {
+  .sw_6azb7 {
     display: block;
   }
-  .sw_gpk2a {
-    view-transition-class: sw-vt-page-title-56mrr sw-vt-9jm9s;
+  .sw_6azb7 {
+    view-transition-class: sw-vt-page-title-0b9dx sw-vt-hl4nk;
   }
-  .sw_gpk2a {
-    view-transition-name: sw-vt-page-title-56mrr-one;
+  .sw_6azb7 {
+    view-transition-name: sw-vt-page-title-0b9dx-one;
   }
-  .sw_gpk2a {
-    view-transition-name: sw-vt-9jm9s-two;
+  .sw_6azb7 {
+    view-transition-name: sw-vt-hl4nk-two;
   }
-  .sw_dud2z {
+  .sw_mteqs {
     display: block;
   }
-  .sw_dud2z {
-    view-transition-class: sw-vt-page-title-56mrr var(--sw-vtc-htsqo,);
+  .sw_mteqs {
+    view-transition-class: sw-vt-page-title-0b9dx var(--sw-vtc-guw0u,);
   }
-  .sw_dud2z {
-    view-transition-name: sw-vt-page-title-56mrr-base;
+  .sw_mteqs {
+    view-transition-name: sw-vt-page-title-0b9dx-base;
   }
-  .sw_jpu0d {
-    --sw-vtc-htsqo: sw-vt-9jm9s;
-    view-transition-name: sw-vt-9jm9s-guarded;
+  .sw_xymwq {
+    --sw-vtc-guw0u: sw-vt-hl4nk;
+    view-transition-name: sw-vt-hl4nk-guarded;
   }
-  .sw_yieb3 {
-    view-transition-class: sw-vt-page-title-56mrr;
+  .sw_o4bpk {
+    view-transition-class: sw-vt-page-title-0b9dx;
   }
-  .sw_m1ewp {
-    view-transition-class: var(--sw-vtc-4wcp5,) var(--sw-vtc-ssrq9,);
+  .sw_q7qur {
+    view-transition-class: var(--sw-vtc-3fy92,) var(--sw-vtc-pnki5,);
   }
-  .sw_x2sz9 {
-    --sw-vtc-4wcp5: sw-vt-page-title-56mrr;
+  .sw_dbpdn {
+    --sw-vtc-3fy92: sw-vt-hl4nk;
   }
-  .sw_pyfzj {
-    --sw-vtc-ssrq9: sw-vt-9jm9s;
+  .sw_kbhc0 {
+    --sw-vtc-pnki5: sw-vt-page-title-0b9dx;
   }
 } /*
 The property-initials slot inserts declarations for selected builtin registrations.
@@ -561,7 +561,7 @@ reach descendants. Keep this declaration slot inside the selector rule.
 */
 
 @layer properties {
-  @supports (((-webkit-hyphens: none)) and (not (margin-trim: inline))) or
+  @supports (((-webkit-hyphens: none)) and (not (margin-trim: block))) or
     ((-moz-orient: inline) and (not (color: rgb(from red r g b)))) {
   }
 }

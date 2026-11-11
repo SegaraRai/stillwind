@@ -1,17 +1,17 @@
 import {  type VariantProps } from "stillwind/react";
-import { stillwindCva } from "stillwind/runtime/class-name-object";
+import { stillwindClassNameObjectCva } from "stillwind/runtime";
 
-export const button = stillwindCva(
-  "sw_5z9t1",
+export const button = stillwindClassNameObjectCva(
+  "sw_m4jpd",
   {
     variants: {
       size: {
-        small: "sw_jy94h",
-        large: "sw_riolb",
+        small: "sw_2jols",
+        large: "sw_0id4f",
       },
       disabled: {
         false: "",
-        true: "sw_1agbk",
+        true: "sw_tgtx6",
       },
     },
     defaultVariants: {
@@ -22,7 +22,7 @@ export const button = stillwindCva(
       {
         size: ["small", "large"],
         disabled: false,
-        className: "sw_9fmy7",
+        className: "sw_aoat0",
       },
     ],
   },

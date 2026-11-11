@@ -14,116 +14,108 @@ use std::collections::{BTreeMap, BTreeSet};
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_diagnostics::{CompileDiagnostic, CompileError, SourceFailureContext};
-use stillwind_ir::{AttributeQuote, ModuleAnalysis, OutputFormat, ProjectionRegion};
+use stillwind_ir::{
+    AttributeQuote, ModuleAnalysis, OutputFormat, ProjectionRegion, RUNTIME_IMPORT,
+    RUNTIME_IMPORT_DEV,
+};
 use stillwind_source::{JoinText, ReplaceText, Span};
 
 use crate::{IdentifierMode, SourceTransform, plan_macro_import_removals};
 
-/// One compiler helper exported by a framework runtime or its development module.
+/// One compiler helper exported by the runtime.
+///
+/// The development runtime exports every helper under the same name, and its versions of
+/// [`Self::Clsx`], [`Self::Cva`], [`Self::Merge`], [`Self::ToFragment`], and
+/// [`Self::ViewTransitionName`] validate their inputs.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub(crate) enum RuntimeHelper {
-    /// The `stillwindClassKey` runtime export.
+    /// The fragment key for class text of one output format.
     ClassKey,
-    /// The `stillwindClsx` runtime export.
+    /// The `stillwindClsx` export.
     Clsx,
-    /// The `stillwindClsxChecked` export of the development runtime module.
-    ClsxChecked,
-    /// The `stillwindCssValue` runtime export.
+    /// The `stillwindCssValue` export.
     CssValue,
-    /// The `stillwindCustomPropertiesKey` runtime export.
+    /// The fragment key for generated custom properties of one output format.
     CustomPropertiesKey,
-    /// Selects compiled CVA values and materializes framework props.
+    /// Selects compiled CVA values and materializes props of one output format.
     Cva,
-    /// The checked CVA selector exported by the development module.
-    CvaChecked,
-    /// The `stillwindMerge` runtime export.
+    /// Materializes fragments as props of one output format.
     Merge,
-    /// The checked fragment merge exported by the development module.
-    MergeChecked,
-    /// The checked ref class reader exported by the development module.
+    /// The `stillwindRefClassChecked` export, which only the development runtime
+    /// provides.
     RefClassChecked,
-    /// The `stillwindStyleKey` runtime export.
+    /// The fragment key for authored style payloads of one output format.
     StyleKey,
-    /// The `stillwindStyleValue` runtime export.
+    /// Converts a style payload for one output format.
     StyleValue,
-    /// The `stillwindToFragment` runtime export.
+    /// Converts a composition base to a fragment of one output format.
     ToFragment,
-    /// The checked props converter exported by the development module.
-    ToFragmentChecked,
-    /// The `stillwindViewTransitionName` runtime export.
+    /// The `stillwindViewTransitionName` export.
     ViewTransitionName,
-    /// The checked keyed transition namer exported by the development module.
-    ViewTransitionNameChecked,
 }
 
 impl RuntimeHelper {
-    /// The export name in the runtime module, before local renaming.
-    fn exported(self) -> &'static str {
+    /// Returns the output format whose export this helper uses, or `None` when every
+    /// output format shares one export.
+    fn scope(self, output: OutputFormat) -> Option<OutputFormat> {
         match self {
-            Self::ClassKey => "stillwindClassKey",
-            Self::Clsx => "stillwindClsx",
-            Self::ClsxChecked => "stillwindClsxChecked",
-            Self::CssValue => "stillwindCssValue",
-            Self::CustomPropertiesKey => "stillwindCustomPropertiesKey",
-            Self::Cva => "stillwindCva",
-            Self::CvaChecked => "stillwindCvaChecked",
-            Self::Merge => "stillwindMerge",
-            Self::MergeChecked => "stillwindMergeChecked",
-            Self::RefClassChecked => "stillwindRefClassChecked",
-            Self::StyleKey => "stillwindStyleKey",
-            Self::StyleValue => "stillwindStyleValue",
-            Self::ToFragment => "stillwindToFragment",
-            Self::ToFragmentChecked => "stillwindToFragmentChecked",
-            Self::ViewTransitionName => "stillwindViewTransitionName",
-            Self::ViewTransitionNameChecked => "stillwindViewTransitionNameChecked",
+            Self::Clsx | Self::CssValue | Self::RefClassChecked | Self::ViewTransitionName => None,
+            Self::ClassKey
+            | Self::CustomPropertiesKey
+            | Self::Cva
+            | Self::Merge
+            | Self::StyleKey
+            | Self::StyleValue
+            | Self::ToFragment => Some(output),
         }
     }
 
-    /// The development-only export that replaces this helper, when one exists.
+    /// Returns the export name in the runtime for a scope from [`Self::scope`].
     ///
-    /// The checked helper keeps the release helper's call shape, so only the import
-    /// changes between modes.
-    fn development_variant(self) -> Option<Self> {
-        match self {
-            Self::Clsx => Some(Self::ClsxChecked),
-            Self::Cva => Some(Self::CvaChecked),
-            Self::Merge => Some(Self::MergeChecked),
-            Self::RefClassChecked => Some(Self::RefClassChecked),
-            Self::ToFragment => Some(Self::ToFragmentChecked),
-            Self::ViewTransitionName => Some(Self::ViewTransitionNameChecked),
-            _ => None,
+    /// A format-specific export name starts with the format's
+    /// [`runtime_export_prefix`](stillwind_ir::OutputSpec::runtime_export_prefix).
+    fn exported(self, scope: Option<OutputFormat>) -> LeanString {
+        let name = match self {
+            Self::ClassKey => "ClassKey",
+            Self::Clsx => "stillwindClsx",
+            Self::CssValue => "stillwindCssValue",
+            Self::CustomPropertiesKey => "CustomPropertiesKey",
+            Self::Cva => "Cva",
+            Self::Merge => "Merge",
+            Self::RefClassChecked => "stillwindRefClassChecked",
+            Self::StyleKey => "StyleKey",
+            Self::StyleValue => "StyleValue",
+            Self::ToFragment => "ToFragment",
+            Self::ViewTransitionName => "stillwindViewTransitionName",
+        };
+        match scope {
+            Some(output) => {
+                format_args!("{}{name}", output.spec().runtime_export_prefix).to_lean_string()
+            }
+            None => name.to_lean_string(),
         }
     }
 }
 
-/// One macro import and the module its helpers are imported from.
-///
-/// A helper with a development variant is imported from the development module, which
-/// has no export condition; the generated call itself does not change between modes.
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-struct ImportAnchor {
-    /// Prop representation whose runtime supplies these helpers.
-    output: OutputFormat,
-    /// Index of the macro import whose replacement carries the import statement.
-    index: usize,
-    /// Whether this group's helpers come from the development module.
-    development: bool,
-}
+/// One helper binding: its scope from [`RuntimeHelper::scope`], the helper, and the
+/// import realm of its uses.
+type HelperKey = (Option<OutputFormat>, RuntimeHelper, Option<u32>);
 
 /// Allocates local helper names and plans their imports for one module.
 ///
-/// Uses are keyed by output format, helper, and import realm, so a module that renders
-/// in several realms (a Svelte markup region and its script, for example) gets one
-/// import per realm and never one import per use.
+/// Uses are keyed by scope, helper, and import realm, so a module that renders in
+/// several realms (a Svelte markup region and its script, for example) gets one binding
+/// per realm and never one binding per use. Output formats share the bindings of helpers
+/// that do not depend on the format.
 pub(crate) struct RuntimeBindings<'a> {
     /// Projection regions of the module, which decide the import realm of each use.
     regions: &'a [ProjectionRegion],
     /// Names already bound in the module; never handed out as a local helper name.
     reserved: BTreeSet<LeanStr>,
-    /// One local name per output format, helper, and realm, allocated on first use.
-    names: BTreeMap<(OutputFormat, RuntimeHelper, Option<u32>), LeanStr>,
-    /// Every recorded use, in the order it was requested.
-    uses: Vec<(OutputFormat, RuntimeHelper, Span, Option<u32>)>,
+    /// One local name per helper binding, allocated on first use.
+    names: BTreeMap<HelperKey, LeanStr>,
+    /// Every recorded use with its binding, in the order it was requested.
+    uses: Vec<(HelperKey, Span)>,
     /// Output format of the call currently being rendered.
     output: OutputFormat,
     /// Whether the compilation runs in development mode.
@@ -151,9 +143,8 @@ impl<'a> RuntimeBindings<'a> {
 
     /// Returns the same bindings for a compilation in `mode`.
     ///
-    /// The mode selects the module a helper is imported from and, for a helper with a
-    /// development variant, the export itself. The generated call is the same in both
-    /// modes, because only the import differs.
+    /// The mode selects the module that helpers are imported from. The generated calls
+    /// and export names are the same in both modes.
     pub(crate) fn in_mode(mut self, mode: IdentifierMode) -> Self {
         self.development = mode == IdentifierMode::Development;
         self
@@ -171,23 +162,24 @@ impl<'a> RuntimeBindings<'a> {
 
     /// Records a use of `helper` at `at` and returns the local name to call it with.
     ///
-    /// Repeated uses of one helper for one output format and realm share a single name
-    /// and a single import. The name is the export name unless it collides with a
-    /// reserved name, in which case a numeric suffix is appended until it is free.
-    /// Allocation is deterministic for a fixed use order. All output formats and realms
-    /// share one reserved set.
+    /// Repeated uses of one helper binding share a single name and a single import. The
+    /// name is the export name unless it collides with a reserved name, in which case a
+    /// numeric suffix is appended until it is free. Allocation is deterministic for a
+    /// fixed use order. All bindings share one reserved set.
     pub(crate) fn require(&mut self, helper: RuntimeHelper, at: Span) -> LeanStr {
         let realm = self
             .regions
             .iter()
             .find(|region| contains(region.source, at))
             .map(|region| region.import_realm);
-        self.uses.push((self.output, helper, at, realm));
+        let scope = helper.scope(self.output);
+        let key = (scope, helper, realm);
+        self.uses.push((key, at));
         self.names
-            .entry((self.output, helper, realm))
+            .entry(key)
             .or_insert_with(|| {
-                let base = helper.exported();
-                let mut name = base.to_lean_string();
+                let base = helper.exported(scope);
+                let mut name = base.clone();
                 let mut suffix = 0_u64;
                 while !self.reserved.insert((name.clone()).into()) {
                     suffix += 1;
@@ -198,61 +190,35 @@ impl<'a> RuntimeBindings<'a> {
             .clone()
     }
 
-    /// Builds one import statement for a group of helpers sharing a module and anchor.
-    ///
-    /// A helper with a development variant is imported under its development export name
-    /// and bound to the release name, so the generated call sites are mode independent.
-    fn import_statement(
-        &self,
-        anchor: ImportAnchor,
-        helpers: BTreeSet<(RuntimeHelper, Option<u32>)>,
-    ) -> LeanStr {
+    /// Builds one import statement for the helper bindings anchored at one macro import.
+    fn import_statement(&self, helpers: &BTreeSet<HelperKey>) -> LeanStr {
         let names = helpers
-            .into_iter()
-            .map(|(helper, realm_id)| {
-                let local = self
-                    .local_name(anchor.output, helper, realm_id)
-                    .unwrap_or_else(|| helper.exported().to_lean_string());
-                let exported = match helper.development_variant() {
-                    Some(development) if anchor.development => development.exported(),
-                    _ => helper.exported(),
-                };
-                if local == exported {
-                    local
-                } else {
-                    format_args!("{exported} as {local}").to_lean_string()
+            .iter()
+            .map(|key| {
+                let exported = key.1.exported(key.0);
+                match self.names.get(key) {
+                    Some(local) if **local != *exported => {
+                        format_args!("{exported} as {local}").to_lean_string()
+                    }
+                    _ => exported,
                 }
             })
             .collect::<Vec<_>>()
             .join_text(", ");
-        let spec = anchor.output.spec();
-        let runtime_module = if anchor.development {
-            spec.runtime_import_dev
+        let runtime_module = if self.development {
+            RUNTIME_IMPORT_DEV
         } else {
-            spec.runtime_import
+            RUNTIME_IMPORT
         };
         format_args!("import {{ {names} }} from \"{runtime_module}\";").to_lean_str()
     }
 
-    ///
-    /// A helper whose development variant has a different export name is bound under
-    /// the release name in both modes, so the generated call sites do not depend on the
-    /// mode.
-    fn local_name(
-        &self,
-        output: OutputFormat,
-        helper: RuntimeHelper,
-        realm: Option<u32>,
-    ) -> Option<LeanString> {
-        (self.names.get(&(output, helper, realm)).cloned()).map(Into::into)
-    }
-
     /// Returns the import edits and macro-removal edits for the recorded uses.
     ///
-    /// Each realm's helpers are appended to the replacement of the macro import that
-    /// anchors it, so imports appear next to the code that used the macro. An anchor is
-    /// only selected when this compilation lowered a macro inside it; otherwise the
-    /// plan fails rather than dropping the import.
+    /// Each binding is imported once, in the replacement of the macro import that
+    /// anchors its first use, so imports appear next to the code that used the macro. An
+    /// anchor is a macro import that this compilation removes or rewrites; when a use
+    /// has none, the plan fails rather than dropping the import.
     ///
     /// # Errors
     ///
@@ -264,22 +230,17 @@ impl<'a> RuntimeBindings<'a> {
         lowered: &[SourceTransform],
     ) -> Result<Vec<SourceTransform>, CompileError> {
         let mut edits = plan_macro_import_removals(&module.source, &module.ir.imports, lowered)?;
-        let mut anchors: BTreeMap<ImportAnchor, BTreeSet<(RuntimeHelper, Option<u32>)>> =
-            BTreeMap::new();
-        for &(output, helper, at, realm_id) in &self.uses {
-            let anchor = runtime_anchor(module, at, output)?;
-            anchors
-                .entry(ImportAnchor {
-                    output,
-                    index: anchor,
-                    development: self.development && helper.development_variant().is_some(),
-                })
-                .or_default()
-                .insert((helper, realm_id));
+        let mut anchored = BTreeSet::new();
+        let mut anchors: BTreeMap<usize, BTreeSet<HelperKey>> = BTreeMap::new();
+        for &(key, at) in &self.uses {
+            if anchored.insert(key) {
+                let anchor = runtime_anchor(module, at, &edits)?;
+                anchors.entry(anchor).or_default().insert(key);
+            }
         }
         for (anchor, helpers) in anchors {
-            let span = module.ir.imports.macros[anchor.index].span;
-            let import = self.import_statement(anchor, helpers);
+            let span = module.ir.imports.macros[anchor].span;
+            let import = self.import_statement(&helpers);
             if let Some(edit) = edits.iter_mut().find(|edit| edit.call_span == span) {
                 if !edit.replacement.is_empty() {
                     edit.replacement.push('\n');
@@ -357,24 +318,26 @@ fn contains(outer: Span, inner: Span) -> bool {
     outer.file == inner.file && outer.start <= inner.start && inner.end <= outer.end
 }
 
-/// Finds the macro import statement that owns `at`'s import realm.
+/// Finds the macro import statement whose replacement receives the import for `at`.
 ///
-/// Follows parent realms when a realm contains no macro import. Returns
-/// [`CompileDiagnostic::EditOutsideEditableRegion`] when no editable region contains
-/// `at`, and [`CompileDiagnostic::MissingRuntimeAnchor`] when no realm in its chain
-/// contains a macro import.
+/// The anchor is the first macro import with an entry in `edits` in `at`'s import realm,
+/// following parent realms when a realm contains none. Direct input has one realm.
+/// Returns [`CompileDiagnostic::EditOutsideEditableRegion`] when no editable region
+/// contains `at`, and [`CompileDiagnostic::MissingRuntimeAnchor`] when no realm in its
+/// chain contains such an import.
 fn runtime_anchor(
     module: &ModuleAnalysis,
     at: Span,
-    output: OutputFormat,
+    edits: &[SourceTransform],
 ) -> Result<usize, CompileError> {
+    let edited = |span: Span| edits.iter().any(|edit| edit.call_span == span);
     let Some(projection) = module.input.projection() else {
         return module
             .ir
             .imports
             .macros
             .iter()
-            .position(|import| import.adapter.spec().output == output)
+            .position(|import| edited(import.span))
             .ok_or_else(|| {
                 CompileError::new(CompileDiagnostic::MissingRuntimeAnchor { span: at }, at)
             });
@@ -386,9 +349,13 @@ fn runtime_anchor(
         )
     })?;
     for realm in projection.realm_chain(region.import_realm) {
-        if let Some(anchor) = module.ir.imports.macros.iter().position(|import| {
-            import.adapter.spec().output == output && contains(realm.source, import.span)
-        }) {
+        if let Some(anchor) = module
+            .ir
+            .imports
+            .macros
+            .iter()
+            .position(|import| edited(import.span) && contains(realm.source, import.span))
+        {
             return Ok(anchor);
         }
     }
@@ -515,23 +482,44 @@ mod runtime_anchor_tests {
         )
     }
 
-    /// A module without a projection anchors on its first macro import, and a module
-    /// without any macro import is reported instead of guessing an anchor.
+    /// Returns removal edits for the macro imports at `indices`.
+    fn removals(module: &ModuleAnalysis, indices: &[usize]) -> Vec<SourceTransform> {
+        indices
+            .iter()
+            .map(|&index| SourceTransform {
+                call_span: module.ir.imports.macros[index].span,
+                replacement: LeanString::new(),
+                expressions: Vec::new(),
+            })
+            .collect()
+    }
+
+    /// A module without a projection anchors on its first edited macro import, whatever
+    /// its output format, and a module without one is reported instead of guessing.
     #[test]
-    fn runtime_anchor_uses_the_first_macro_import_without_a_projection() {
-        let module = analysis("import { style } from 'stillwind/react'; const x = style('flex');");
+    fn runtime_anchor_uses_the_first_edited_macro_import_without_a_projection() {
+        let module = analysis(
+            "import { style } from 'stillwind/react'; import { style as v } from 'stillwind/vue'; style('flex'); v('flex');",
+        );
         let at = module.source.full_span();
+        assert_eq!(
+            runtime_anchor(&module, at, &removals(&module, &[0, 1])).unwrap(),
+            0
+        );
+        assert_eq!(
+            runtime_anchor(&module, at, &removals(&module, &[1])).unwrap(),
+            1
+        );
         assert!(matches!(
-            runtime_anchor(&module, at, OutputFormat::ClassNameObject),
-            Ok(0)
+            runtime_anchor(&module, at, &[]),
+            Err(CompileError {
+                diagnostic: CompileDiagnostic::MissingRuntimeAnchor { .. },
+                ..
+            })
         ));
         let module = analysis("export const x = 1;");
         assert!(matches!(
-            runtime_anchor(
-                &module,
-                module.source.full_span(),
-                OutputFormat::ClassNameObject
-            ),
+            runtime_anchor(&module, module.source.full_span(), &[]),
             Err(CompileError {
                 diagnostic: CompileDiagnostic::MissingRuntimeAnchor { .. },
                 ..
@@ -626,12 +614,12 @@ mod runtime_anchor_tests {
             vec![region(1, 45, 60)],
         );
         assert_eq!(
-            runtime_anchor(&nested, at, OutputFormat::ClassObject).unwrap(),
+            runtime_anchor(&nested, at, &removals(&nested, &[0])).unwrap(),
             0
         );
         let orphan = projected(vec![realm(1, 45, 60, None)], vec![region(1, 45, 60)]);
         assert!(matches!(
-            runtime_anchor(&orphan, at, OutputFormat::ClassObject),
+            runtime_anchor(&orphan, at, &removals(&orphan, &[0])),
             Err(CompileError {
                 diagnostic: CompileDiagnostic::MissingRuntimeAnchor { .. },
                 ..
@@ -691,7 +679,7 @@ mod runtime_anchor_tests {
             runtime_anchor(
                 &single,
                 single.ir.style_calls[0].span,
-                OutputFormat::ClassObject
+                &removals(&single, &[0])
             ),
             Err(CompileError {
                 diagnostic: CompileDiagnostic::EditOutsideEditableRegion { .. },

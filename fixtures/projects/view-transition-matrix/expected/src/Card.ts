@@ -1,8 +1,8 @@
-import { stillwindClsx } from "stillwind/runtime/class-name-object";
+import { stillwindClsx } from "stillwind/runtime";
 
 import { pageTitle, selectedTransition } from "./transitions";
 
 // Imported identities exercise the same TypeScript fact propagation used by
 // the Vite project compiler.
-export const cardTransition = {className:"sw_yieb3"};
-export const selectedCardTransition = {className:stillwindClsx("sw_m1ewp",({"sw-vt-page-title-56mrr":"sw_x2sz9","sw-vt-9jm9s":"sw_pyfzj"})[(selectedTransition).v])};
+export const cardTransition = {className:"sw_o4bpk"};
+export const selectedCardTransition = {className:stillwindClsx("sw_q7qur",({"sw-vt-hl4nk":"sw_dbpdn","sw-vt-page-title-0b9dx":"sw_kbhc0"})[(selectedTransition).v])};

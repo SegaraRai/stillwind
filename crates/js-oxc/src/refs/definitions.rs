@@ -50,9 +50,11 @@ impl<'a> MacroExtractor<'a> {
                 None
             }
         };
+        let key = self.declaration_key(AssetKind::Ref, binding.span, &binding.value);
         RefDefinition {
             module_id: self.module_id.clone(),
             binding,
+            key,
             label,
             call_span: self.source_span(call.span),
         }
@@ -381,7 +383,9 @@ mod tests {
         ClassExpression, GroupEntry, RuleExpression, ScriptLanguage, ScriptModuleKind, StyleInput,
         StyleVariant,
     };
-    use stillwind_semantic::{AssetKind, ExportedValue, IdentityId, SymbolicValue, TypeFact};
+    use stillwind_semantic::{
+        AssetKind, DeclarationKey, ExportedValue, IdentityId, SymbolicValue, TypeFact,
+    };
     use stillwind_source::{FileId, ModuleId, SourceFile};
 
     use crate::{ParsedJavaScript, parse};
@@ -397,12 +401,10 @@ mod tests {
         )
         .to_lean_str();
         let source = SourceFile::new(FileId(1), None, None, code.as_str()).unwrap();
-        let target_start = source.text().find("target =").unwrap();
         let target = IdentityId::new(
             AssetKind::Ref,
             "variants.ts".into(),
-            u32::try_from(target_start).unwrap(),
-            u32::try_from(target_start + "target".len()).unwrap(),
+            DeclarationKey::top(0),
             "target",
         );
         let alias_facts = source
@@ -489,7 +491,7 @@ mod tests {
                 .iter()
                 .map(|reference| reference.binding.value.as_str())
                 .collect::<Vec<_>>(),
-            ["target", "outer"]
+            ["outer", "target"]
         );
         assert_eq!(condition.prefix.value, "");
         assert_eq!(scopes.len(), 1);
