@@ -115,9 +115,14 @@ export function createVitePlugins(
         if (isReactRouterExportScan(environment.getTopLevelConfig())) {
           return false;
         }
-        const { hotUpdate } = developmentHooks(project.forConfig(environment.getTopLevelConfig()));
+        const { hotUpdate, watchChange } = developmentHooks(
+          project.forConfig(environment.getTopLevelConfig()),
+        );
         return {
           name: "stillwind:development",
+          // Each environment compiles its own producers before Vite invalidates their modules.
+          perEnvironmentWatchChangeDuringDev: true,
+          watchChange,
           hotUpdate:
             transform.originalSource && typeof hotUpdate === "function"
               ? {
