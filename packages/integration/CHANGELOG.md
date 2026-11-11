@@ -1,5 +1,72 @@
 # @stillwind/integration
 
+## 0.9.0
+
+### Patch Changes
+
+- Build Vite applications faster when pages reach source files only through dynamic imports, such as an `index.html` entry with lazy routes or Astro pages. A build now loads the source files that the project's `files` globs select into the type checker before the first compilation, so the checker no longer rebuilds its project for each newly found page.
+
+- Start Vite development servers and apply edits of shared style modules faster. A development server now plans the document stylesheet once after a burst of compilations instead of after each compilation.
+
+- Apply edits of a shared module faster in the Vite development server. A module that imports the edited module receives a hot update only when its transformed JavaScript changes.
+
+- Apply edits of a shared module faster in the Vite development server. When an edit keeps the class names and types that a module exports, for example when it only changes utilities, the modules that import it are not compiled again. Their checker diagnostics then update when they are compiled for another reason.
+
+- Start Vite development servers and apply edits faster in projects whose modules share styles. The development server now prepares the files that the build inputs reach once, and compilations share their scans and checker results until a file changes.
+
+- Load the first page of a Vite development server faster. The server now starts the type checker when it starts, instead of at the first request that compiles a module.
+
+- Update document CSS faster after an edit in Next and Turbopack development. Document CSS reconstruction now reuses the imports of modules whose source is unchanged and reads each level of the module graph concurrently, and Next route discovery reads route directories concurrently. Adding or removing a file still makes reconstruction resolve every import again.
+
+- Start Vite development servers faster in large projects. While no browser is connected, compilations no longer plan the document stylesheet every 200 milliseconds, so the first server-rendered page of a cold start is ready sooner.
+
+- Fix document CSS in large Next applications that use webpack. After an edit, the stylesheet failed with "Maximum call stack size exceeded" while its source map was read, so the page returned an error and the edit never applied.
+
+- Keep Next.js development CSS in sync when routes are added or removed during stylesheet compilation.
+
+- `minifyCss()` now makes more rewrites that keep the meaning of the CSS:
+
+  - A numeric `calc()` in a custom property value or another unparsed value becomes a literal, as in `--x:calc(95 * 1%)` to `--x:95%` and `--y:calc(10px / 4)` to `--y:2.5px`. A division stays when its result does not terminate, such as `calc(1px / 3)`, and a unitless result stays when it is not an integer, unless `@property` registers the custom property as a `<number>`. A negative result also folds, so a property such as `width` that clamps a negative `calc()` result to zero rejects the folded literal instead.
+  - Media features use their boolean form when it matches the same devices, as in `(hover:hover)` to `(hover)`.
+  - A lower and an upper range of one feature become one interval, as in `(width>=40rem) and (width<60rem)` to `(40rem<=width<60rem)`. Browser targets without range syntax still receive `min-` and `max-` features.
+  - `@supports` declarations lose whitespace next to commas.
+  - A repeated selector in a selector list is removed, as in `.a,.b,.a` to `.a,.b`.
+  - Keyframes that have equal declarations are merged, as in `0%{opacity:0}50%{opacity:0}` to `0%,50%{opacity:0}`.
+
+- Update document CSS faster after an edit in Next and Turbopack development. When an edited module keeps its exports, the modules that import it are no longer compiled again, and their checker diagnostics are refreshed when they are compiled for another reason. Next with webpack also renders the document stylesheet once for each change instead of once for each compiler and layer.
+
+- Build and edit Next applications faster. The Stillwind loaders for Turbopack and webpack in Next now reuse the evaluated configuration, the design system, and the type checker across modules in one process while the configuration and CSS files stay unchanged. Document CSS is compiled again only for the modules whose sources or imported modules changed since the previous reconstruction in the same process.
+
+- Each published npm package and the VS Code extension now include `CHANGELOG.md`, so you can read the release notes of the installed version in `node_modules` or on the extension page.
+
+- Start the React Router development server faster. Stillwind no longer compiles routes in the child compiler that React Router uses to read route exports during development, as it already did in builds.
+
+- Vite builds and development servers now run TypeScript type collection once for all environments, such as client and SSR, while the environments resolve imports of source files to the same files. This shortens builds and the first page load. Packages may resolve differently, for example when SSR externalizes them. An environment that resolves an import of a source file differently continues with its own type collection.
+
+  Hosts that share a `CompilationProject` can set `resolverDomain` on `CompilerHost` to name their resolver. When another domain resolves an import of a source file differently, preparation and compilation reject with `ResolutionMismatchError`. Prepared import links no longer point the checker at package runtime files, so the checker resolves package types itself.
+
+- Production Vite builds compile faster. Compilations in one build now share scanned sources, import resolutions, and type facts, and React Router builds no longer compile styles for route-export scans and client route stubs.
+
+- Build Next applications with Turbopack faster. A production build now loads the entries and the source files that the project's `files` globs select into one type checker that the loader and document CSS compilers of a worker process share, so the checker no longer rebuilds its project for each compiled module.
+
+- Apply edits faster in Next development servers that use Turbopack. The Stillwind loaders of a worker process now keep the project files in one type checker between compilations and watch the application directory for changes, so an edit no longer reloads the whole project into the checker.
+
+- Compile modules faster when they import other style modules. A compilation no longer builds output again for imported modules that did not change.
+
+- Build Vue, Svelte, and Astro projects faster. A module that several entries import is no longer compiled again for each entry while its source and the facts that it reads stay unchanged, and component files now receive the same stylesheet imports as a dependency and as an entry.
+
+- Compile faster when many modules import the same styles. A compilation no longer rebuilds the dependencies whose source did not change, and development servers no longer render the whole stylesheet again when a compilation leaves its producers unchanged. Editing a shared style module in a Vite development server now applies the change sooner.
+
+- `minifyCss()` now removes whitespace next to commas in values that Lightning CSS does not parse, such as custom property values and values that contain `var()`. Inside such a `calc()` or other math function, it also removes whitespace next to `*` and `/`. For example, `calc(var(--spacing) * 4)` becomes `calc(var(--spacing)*4)`, so minified CSS is smaller.
+
+- Build webpack and Rspack applications faster with `StillwindPlugin`. The producer loaders of a compiler now share one design system, compiler session, and type checker while the configuration and CSS files stay unchanged, and document CSS reconstruction reuses their compiled modules instead of compiling every producer again. In watch mode, the shared checker receives the files that webpack or Rspack reports as changed before each compilation.
+
+- Updated dependencies:
+  - @stillwind/config@0.9.0
+  - @stillwind/host@0.9.0
+  - @stillwind/native@0.9.0
+  - stillwind@0.9.0
+
 ## 0.8.0
 
 ### Patch Changes

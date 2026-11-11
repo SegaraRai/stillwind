@@ -37,6 +37,10 @@
   dir: packages/cli
   intents:
     - clean-doors-clap
+"@stillwind/cli@0.9.0":
+  dir: packages/cli
+  intents:
+    - packed-changelogs-ship
 "@stillwind/config@0.2.0":
   dir: packages/config
   intents:
@@ -45,10 +49,26 @@
   dir: packages/config
   intents:
     - typed-badges-show
+"@stillwind/config@0.9.0":
+  dir: packages/config
+  intents:
+    - packed-changelogs-ship
+    - project-files-list
+    - stable-class-names
+    - stable-declaration-names
 "@stillwind/host@0.7.0":
   dir: packages/host
   intents:
     - typed-badges-show
+"@stillwind/host@0.9.0":
+  dir: packages/host
+  intents:
+    - imported-bases-load
+    - linked-keyframes
+    - shared-environment-facts
+    - smooth-crabs-hope
+    - stable-class-names
+    - stable-declaration-names
 "@stillwind/integration@0.5.0":
   dir: packages/integration
   intents:
@@ -71,6 +91,33 @@
   dir: packages/integration
   intents:
     - react-router-server-source-retry
+"@stillwind/integration@0.9.0":
+  dir: packages/integration
+  intents:
+    - build-scope-prepare
+    - delayed-dev-publication
+    - dependency-hot-update
+    - dependency-interface-hot-update
+    - dev-facts-reuse
+    - early-checker-start
+    - graph-scan-reuse
+    - idle-publication
+    - large-css-source-map
+    - loud-kings-visit
+    - minified-queries-shrink
+    - next-kept-interface
+    - next-loader-project-reuse
+    - packed-changelogs-ship
+    - react-router-dev-export-scan
+    - shared-environment-facts
+    - tall-turtles-joke
+    - turbopack-build-prepare
+    - turbopack-dev-shared-checker
+    - unchanged-dependency-output
+    - unchanged-module-analysis
+    - unchanged-modules-skip
+    - unparsed-spaces-drop
+    - webpack-shared-project
 "@stillwind/language-server@0.5.0":
   dir: packages/language-server
   intents:
@@ -84,10 +131,26 @@
   dir: packages/language-server
   intents:
     - clean-doors-clap
+"@stillwind/native@0.9.0":
+  dir: packages/native
+  intents:
+    - angry-rabbits-notice
+    - gentle-mangos-scream
+    - lazy-falcons-reply
+    - minified-queries-shrink
+    - new-kids-drum
+    - quiet-owls-hoist
+    - real-boxes-boil
+    - tidy-pears-sneeze
+    - unparsed-spaces-drop
 "@stillwind/plugin-iconify@0.6.0":
   dir: plugins/iconify
   intents:
     - package-keywords-list
+"@stillwind/plugin-iconify@0.9.0":
+  dir: plugins/iconify
+  intents:
+    - packed-changelogs-ship
 "@stillwind/projection@0.7.0":
   dir: packages/projection
   intents:
@@ -127,6 +190,10 @@
   dir: packages/vscode-extension
   intents:
     - typed-badges-show
+"@stillwind/vscode-extension@0.9.0":
+  dir: packages/vscode-extension
+  intents:
+    - packed-changelogs-ship
 prettier-plugin-stillwind@0.6.0:
   dir: packages/prettier-plugin
   intents:
@@ -135,6 +202,10 @@ prettier-plugin-stillwind@0.7.0:
   dir: packages/prettier-plugin
   intents:
     - typed-badges-show
+prettier-plugin-stillwind@0.9.0:
+  dir: packages/prettier-plugin
+  intents:
+    - packed-changelogs-ship
 stillwind@0.1.0:
   dir: packages/core
   intents:
@@ -195,3 +266,11 @@ stillwind@0.8.0:
     - variant-alternatives
     - wild-boxes-boil
     - writing-modes-conflict
+stillwind@0.9.0:
+  dir: packages/core
+  intents:
+    - gentle-mangos-scream
+    - old-swans-leave
+    - packed-changelogs-ship
+    - rust-astro-tsx
+    - tsrs-checker
