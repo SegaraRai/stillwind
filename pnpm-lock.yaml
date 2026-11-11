@@ -2778,6 +2778,9 @@ importers:
         specifier: npm:typescript@^7.0.2
         version: typescript@7.0.2
     devDependencies:
+      '@astrojs/astro2tsx':
+        specifier: 0.1.4
+        version: 0.1.4
       '@astrojs/compiler':
         specifier: 4.0.0
         version: 4.0.0
@@ -3056,9 +3059,9 @@ importers:
         specifier: npm:typescript@^6.0.3
         version: typescript@6.0.3
     devDependencies:
-      '@astrojs/compiler':
-        specifier: ^4.0.0
-        version: 4.0.0
+      '@astrojs/astro2tsx':
+        specifier: ^0.1.4
+        version: 0.1.4
       '@stillwind-internal/tools-workspace':
         specifier: workspace:*
         version: link:../../tools/workspace

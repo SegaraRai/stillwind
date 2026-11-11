@@ -127,12 +127,14 @@ TypeScript diagnostic suppression are outside these guarantees.
   duplicates it for type declarations without a source map. Declare the style
   in the script and pass it to the slot.
 - Astro: Frontmatter and templates are TSX. Each original client-script region
-  gets an independent checker `.ts` buffer. Client bodies inside converter-generated
-  functions become whitespace, preserving positions. Source maps and body
-  equality validate the original-script mappings. TSX conversion uses the Go/WASM
-  `@astrojs/compiler`. Write client-script generic arrows with a TSX-distinguishable
-  form such as `<T,>`. The converter copies `<T>` unchanged into TSX, so Rust's
-  projection validation rejects it.
+  gets an independent checker `.ts` buffer. TSX conversion uses the Rust/WASM
+  `@astrojs/astro2tsx`, which leaves script elements empty. The projection
+  inserts each client body into its empty element as `{() => {body}}` and maps
+  the body to the original script. In the main checker buffer, client bodies
+  become whitespace, preserving positions. Volar mappings and body equality
+  validate the original-script mappings. Write client-script generic arrows with
+  a TSX-distinguishable form such as `<T,>`. The projection copies `<T>`
+  unchanged into TSX, so Rust's projection validation rejects it.
 
 ## Dependencies
 
@@ -142,13 +144,13 @@ range describes the converter, not the Vue runtime. Global type declarations
 returned by a converter enter the checker's virtual `.d.ts` files.
 
 Svelte supports `svelte ^5.0.0` and `svelte2tsx ^0.7.56`.
-Astro supports `@astrojs/compiler ^4.0.0`.
+Astro supports `@astrojs/astro2tsx ^0.1.4`.
 
 | Framework | Optional peers                                                 |
 | --------- | -------------------------------------------------------------- |
 | Vue       | `@vue/compiler-dom`, `@vue/compiler-sfc`, `@vue/language-core` |
 | Svelte    | `svelte`, `svelte2tsx`                                         |
-| Astro     | `@astrojs/compiler`                                            |
+| Astro     | `@astrojs/astro2tsx`                                           |
 
 Vue and Astro runtimes and declarations come from framework packages installed
 in the consuming project. The TS6 SDK is a regular projection dependency, and

@@ -59,6 +59,7 @@
     "typescript-7": "npm:typescript@^7.0.2"
   },
   "devDependencies": {
+    "@astrojs/astro2tsx": "0.1.4",
     "@astrojs/compiler": "4.0.0",
     "@stillwind-internal/tools-workspace": "workspace:*",
     "@types/node": "catalog:",

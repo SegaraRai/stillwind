@@ -75,7 +75,7 @@ for (const { format, broken, code, converter } of [
     format: "astro",
     broken: "<script>const identity=<T>(value:T)=>value;</script>",
     code: "SW31004",
-    converter: "@astrojs/compiler",
+    converter: "@astrojs/astro2tsx",
   },
 ]) {
   test(`${format}: throw and collect preserve reports, watch output and recovery`, async (t) => {
