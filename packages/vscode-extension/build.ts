@@ -123,22 +123,6 @@ if (process.argv.includes("--package-web") || process.argv.includes("--package-d
         copied,
       );
     }
-    // @astrojs/astro2tsx loads its WebAssembly through @napi-rs/wasm-runtime, which imports
-    // `@emnapi/runtime` as a peer. The runtime must match the major version of the `@emnapi/core`
-    // copy beneath astro2tsx, and other packaged dependencies may use another major version at the
-    // top level, so the runtime is placed beneath astro2tsx too.
-    await copyDependencies(
-      await dependencyDirectory(
-        await dependencyDirectory(
-          await dependencyDirectory(projection, "@astrojs/astro2tsx"),
-          "@napi-rs/wasm-runtime",
-        ),
-        "@emnapi/runtime",
-      ),
-      path.join(stage, "dist/node/node_modules/@astrojs/astro2tsx"),
-      "@emnapi/runtime",
-      copied,
-    );
     // svelte2tsx imports `typescript` as a peer and needs the JavaScript API of TypeScript 6.
     await copyDependencies(
       path.dirname(typescriptLibrary),

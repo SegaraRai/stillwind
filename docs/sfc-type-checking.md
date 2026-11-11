@@ -144,7 +144,7 @@ range describes the converter, not the Vue runtime. Global type declarations
 returned by a converter enter the checker's virtual `.d.ts` files.
 
 Svelte supports `svelte ^5.0.0` and `svelte2tsx ^0.7.56`.
-Astro supports `@astrojs/astro2tsx ^0.1.3`.
+Astro supports `@astrojs/astro2tsx ^0.1.4`.
 
 | Framework | Optional peers                                                 |
 | --------- | -------------------------------------------------------------- |
