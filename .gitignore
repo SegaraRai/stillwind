@@ -13,6 +13,8 @@ dist
 .test-*
 *.tmp
 
+.vitest
+
 .claude
 
 packages/core/docs/

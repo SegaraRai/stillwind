@@ -5,7 +5,7 @@
   "type": "module",
   "devDependencies": {
     "@headlessui/tailwindcss": "0.2.2",
-    "@iconify-json/lucide": "^1.2.152",
+    "@iconify-json/lucide": "^1.2.153",
     "@iconify/tailwind4": "1.2.3",
     "@rspack/core": "2.3.1",
     "@stillwind-internal/e2e-harness": "workspace:*",

@@ -45,8 +45,8 @@ catalogs:
     rolldown: ^1.3.1
     tailwindcss: 4.3.5
     typescript: ^6.0.3
-    vite: npm:@voidzero-dev/vite-plus-core@1.5.1
-    vite-plus: 1.5.1
+    vite: npm:@voidzero-dev/vite-plus-core@1.6.0
+    vite-plus: 1.6.0
     vitest: 5.1.0
 
 overrides:
@@ -188,3 +188,13 @@ minimumReleaseAgeExclude:
   - "@tsrs/linux-x64-musl@0.24.0-ts7.1.0-beta"
   - "@tsrs/win32-x64@0.24.0-ts7.1.0-beta"
   - tsrs@0.24.0-ts7.1.0-beta
+  - "@voidzero-dev/vite-plus-core@1.6.0"
+  - "@voidzero-dev/vite-plus-darwin-arm64@1.6.0"
+  - "@voidzero-dev/vite-plus-darwin-x64@1.6.0"
+  - "@voidzero-dev/vite-plus-linux-arm64-gnu@1.6.0"
+  - "@voidzero-dev/vite-plus-linux-arm64-musl@1.6.0"
+  - "@voidzero-dev/vite-plus-linux-x64-gnu@1.6.0"
+  - "@voidzero-dev/vite-plus-linux-x64-musl@1.6.0"
+  - "@voidzero-dev/vite-plus-win32-arm64-msvc@1.6.0"
+  - "@voidzero-dev/vite-plus-win32-x64-msvc@1.6.0"
+  - vite-plus@1.6.0

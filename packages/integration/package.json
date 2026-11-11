@@ -119,7 +119,7 @@
     "@vitejs/plugin-vue": "^6.0.10",
     "astro": "^7.4.8",
     "css-loader": "^7.1.5",
-    "next": "^16.4.5",
+    "next": "^16.4.6",
     "nuxt": "^4.6.4",
     "stillwind": "workspace:*",
     "svelte": "^5.57.3",
