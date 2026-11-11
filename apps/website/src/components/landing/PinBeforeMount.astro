@@ -1,0 +1,37 @@
+---
+/**
+ * Applies a pinned section's layout before its module script mounts it, so the first paint does
+ * not move when the script loads. Place it directly after the section. The section's mount
+ * function must set `data-mounted` when it succeeds. If it is still missing after the scripts run,
+ * the section returns to its static layout.
+ */
+interface Props {
+  /** Media query that enables the pinned layout, matching the one that the mount function uses. */
+  media: string;
+}
+
+const { media } = Astro.props;
+---
+
+<script is:inline define:vars={{ media }}>
+  {
+    const root = document.currentScript.previousElementSibling;
+    if (matchMedia(media).matches) {
+      root.setAttribute("data-enhanced", "");
+      // The timeout runs after every listener of the event, including the one that mounts the section.
+      const verify = () =>
+        setTimeout(() => {
+          if (!root.hasAttribute("data-mounted")) {
+            root.removeAttribute("data-enhanced");
+          }
+        });
+      // Module scripts run before the initial load event. The client router runs them before
+      // astro:page-load after a navigation.
+      if (document.readyState === "loading") {
+        addEventListener("load", verify, { once: true });
+      } else {
+        document.addEventListener("astro:page-load", verify, { once: true });
+      }
+    }
+  }
+</script>

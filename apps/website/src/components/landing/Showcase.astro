@@ -6,6 +6,7 @@ import { createExamples } from "../../lib/landing/examples";
 import { highlightCss, highlightScript } from "../../lib/landing/highlight";
 import { showcaseMedia, showcaseScenes, showcaseScrollLength } from "../../lib/landing/showcase";
 import { documentRoot } from "../site/document";
+import PinBeforeMount from "./PinBeforeMount.astro";
 import { syntaxStyles } from "./syntax";
 import SyntaxTokens from "./SyntaxTokens.astro";
 
@@ -730,13 +731,7 @@ const results = [
   </div>
 </section>
 
-<script is:inline define:vars={{ media: showcaseMedia }}>
-  // The first paint uses the pinned layout that mountShowcase enables later, so the section does not
-  // move when the module script loads.
-  if (matchMedia(media).matches) {
-    document.currentScript.previousElementSibling.setAttribute("data-enhanced", "");
-  }
-</script>
+<PinBeforeMount media={showcaseMedia} />
 
 <script>
   import { mount } from "@cloudflare/nimbus-docs/client";

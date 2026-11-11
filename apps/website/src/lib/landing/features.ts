@@ -187,7 +187,9 @@ export function mountFeatures(root: HTMLElement): () => void {
     { signal },
   );
 
+  root.setAttribute("data-mounted", "");
   return () => {
+    root.removeAttribute("data-mounted");
     abort.abort();
     controller.dispose();
     observer.disconnect();

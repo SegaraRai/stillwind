@@ -177,7 +177,9 @@ export function mountShowcase(root: HTMLElement): () => void {
     view.history.replaceState(null, "", step.hash);
   };
   root.addEventListener("click", navigate);
+  root.setAttribute("data-mounted", "");
   return () => {
+    root.removeAttribute("data-mounted");
     controller.dispose();
     morph.dispose();
     root.removeEventListener("click", navigate);

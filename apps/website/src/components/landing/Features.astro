@@ -5,6 +5,7 @@ import { featureTopics } from "../../lib/landing/features/examples";
 import { featureScrollLength, featuresMedia } from "../../lib/landing/features/scenes";
 import { documentRoot } from "../site/document";
 import FeatureSource from "./FeatureSource.astro";
+import PinBeforeMount from "./PinBeforeMount.astro";
 import { featurePanel, featureSource, features, previewFrame } from "./presentation";
 
 const featureCue = style.ref();
@@ -410,13 +411,7 @@ const stops = featureTopics.flatMap((topic, scene) =>
   </div>
 </section>
 
-<script is:inline define:vars={{ media: featuresMedia }}>
-  // The first paint uses the pinned layout that mountFeatures enables later, so the section does not
-  // move when the module script loads.
-  if (matchMedia(media).matches) {
-    document.currentScript.previousElementSibling.setAttribute("data-enhanced", "");
-  }
-</script>
+<PinBeforeMount media={featuresMedia} />
 
 <script>
   import { mount } from "@cloudflare/nimbus-docs/client";
