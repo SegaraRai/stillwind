@@ -55,8 +55,8 @@
     "oxc-resolver": "^11.24.2",
     "pathe": "catalog:",
     "tinyglobby": "^0.2.17",
-    "typescript-6": "npm:typescript@^6.0.3",
-    "typescript-7": "npm:typescript@^7.0.2"
+    "tsrs": "0.24.0-ts7.1.0-beta",
+    "typescript-6": "npm:typescript@^6.0.3"
   },
   "devDependencies": {
     "@astrojs/astro2tsx": "0.1.4",

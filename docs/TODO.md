@@ -32,7 +32,7 @@ Sources: [Tailwind 4.3.4](https://github.com/tailwindlabs/tailwindcss/releases/t
 
 ## Type facts under Deno on Linux
 
-The synchronous TypeScript 7 API passes `child.stdin._handle.fd` to `fs.writeSync` on
+The synchronous tsrs API passes `child.stdin._handle.fd` to `fs.writeSync` on
 POSIX systems. Under Deno, this value is not an operating system file descriptor, so
 the Fresh fixture fails with `Bad file descriptor (os error 9)`. macOS uses the same
 code path, so the fixture expects this failure there, but this needs testing. Find a Deno or TypeScript API that exchanges checker

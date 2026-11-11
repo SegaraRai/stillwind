@@ -2,15 +2,10 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 
 import type { NativeAssetRecord as AssetRecord } from "@stillwind/native";
-import type { Node, SourceFile } from "typescript-7/unstable/ast";
-import { isExpression } from "typescript-7/unstable/ast/is";
-import {
-  API,
-  Snapshot,
-  type Checker,
-  type Diagnostic,
-  type Type,
-} from "typescript-7/unstable/sync";
+import type { Node, SourceFile } from "tsrs/ast";
+import { isExpression } from "tsrs/ast/is";
+import { serverFS } from "tsrs/fs";
+import { API, Snapshot, type Checker, type Diagnostic, type Type } from "tsrs/sync";
 
 import type { TypeFactSource } from "../backend.ts";
 import type { TypePropertyCache } from "./decoder.ts";
@@ -245,22 +240,31 @@ export class NodeChecker {
               const prefix = normalize(directoryName).replace(/\/$/, "") + "/";
               return [...this.#virtualFiles.keys()].some((name) => name.startsWith(prefix))
                 ? true
-                : undefined;
+                : serverFS.useOS;
             },
             fileExists: (fileName) => {
               this.dependencies.add(fileName);
-              return this.#virtualFiles.has(normalize(fileName)) ? true : undefined;
+              return this.#virtualFiles.has(normalize(fileName)) ? true : serverFS.useOS;
             },
+            getAccessibleEntries: serverFS.useOS,
             readFile: (fileName) => {
               const overlay = this.#virtualFiles.get(normalize(fileName));
               if (overlay === undefined) {
                 this.dependencies.add(fileName);
                 this.stats.diskReadRequests += 1;
-              } else {
-                this.stats.overlayReads += 1;
+                return serverFS.useOS;
               }
+              this.stats.overlayReads += 1;
               return overlay;
             },
+            // Overlay files may not exist on disk, so the operating system cannot resolve or
+            // stat them.
+            realpath: (fileName) =>
+              this.#virtualFiles.has(normalize(fileName)) ? serverFS.identity : serverFS.useOS,
+            stat: (fileName) =>
+              this.#virtualFiles.has(normalize(fileName)) ? serverFS.fakeStat : serverFS.useOS,
+            writeFile: serverFS.noop,
+            removeFile: serverFS.noop,
           },
         }),
     );
@@ -324,7 +328,7 @@ export class NodeChecker {
     this.#virtualFiles = prepared.virtualFiles;
 
     if (this.#snapshot && changed.length === 0 && created.length === 0 && deleted.length === 0) {
-      const project = this.#snapshot.getProject(this.#shadowTsconfigPath);
+      const project = this.#snapshot.getConfiguredProject(this.#shadowTsconfigPath);
       if (project) {
         return project;
       }
@@ -332,14 +336,16 @@ export class NodeChecker {
 
     this.#clearQueries();
     const next = this.#snapshot
-      ? this.#api.updateSnapshot({
-          fileChanges: {
+      ? this.#snapshot.update({
+          fileNotifications: {
             changed,
             created,
             deleted,
           },
+          // Without this option, the new snapshot keeps the shadow project's previous program.
+          ensurePrograms: true,
         })
-      : this.#api.updateSnapshot({
+      : this.#api.createSnapshot({
           openProjects: [this.#shadowTsconfigPath],
         });
     this.stats.snapshots += 1;
@@ -348,9 +354,9 @@ export class NodeChecker {
     }
     this.#snapshot?.dispose();
     this.#snapshot = next;
-    const project = next.getProject(this.#shadowTsconfigPath);
+    const project = next.getConfiguredProject(this.#shadowTsconfigPath);
     if (!project) {
-      throw new Error("TypeScript 7 could not open the Stillwind shadow project");
+      throw new Error("tsrs could not open the Stillwind shadow project");
     }
     return project;
   }

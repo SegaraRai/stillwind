@@ -1,7 +1,7 @@
 import type { NativeTypeFact as TypeFact } from "@stillwind/native";
-import type { Node, SourceFile } from "typescript-7/unstable/ast";
-import { isCallExpression } from "typescript-7/unstable/ast/is";
-import type { Diagnostic, Type } from "typescript-7/unstable/sync";
+import type { Node, SourceFile } from "tsrs/ast";
+import { isCallExpression } from "tsrs/ast/is";
+import type { Diagnostic, Type } from "tsrs/sync";
 
 import { TypeFactsError, type UnverifiedRange } from "../backend.ts";
 import { CheckerSource } from "../checker-source.ts";

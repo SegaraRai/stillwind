@@ -47,7 +47,7 @@ test("browser server and memory analysis bundle without Node runtime or CLI depe
           file = file.replaceAll("\\", "/");
           return (
             file.includes("packages/cli/") ||
-            file.includes("typescript-7/unstable/") ||
+            file.includes("/node_modules/tsrs/") ||
             file.includes("worker-client")
           );
         }),

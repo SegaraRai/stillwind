@@ -6,7 +6,7 @@ import { syncBuiltinESMExports } from "node:module";
  *
  * The TypeScript API starts its checker with `spawn` and has no option for `windowsHide`. Under
  * Electron, `Code.exe` is a Windows GUI program that has no console, so Windows opens a visible
- * console for `tsc.exe` unless the spawn call hides it.
+ * console for `tsrs.exe` unless the spawn call hides it.
  *
  * @param action - Synchronous function that starts processes. Asynchronous work after it returns
  * uses the original `spawn`.

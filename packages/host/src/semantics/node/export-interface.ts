@@ -1,4 +1,4 @@
-import type { SourceFile } from "typescript-7/unstable/ast";
+import type { SourceFile } from "tsrs/ast";
 import {
   SignatureKind,
   SymbolFlags,
@@ -6,7 +6,7 @@ import {
   type Checker,
   type Type,
   type Symbol as TypeSymbol,
-} from "typescript-7/unstable/sync";
+} from "tsrs/sync";
 
 import type { AssetTypeDecoder } from "./decoder.ts";
 

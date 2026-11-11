@@ -1,12 +1,12 @@
 import type { NativeAssetRecord, NativeTypeFact } from "@stillwind/native";
-import type { Node } from "typescript-7/unstable/ast";
+import type { Node } from "tsrs/ast";
 import {
   isCallExpression,
   isExportDeclaration,
   isImportDeclaration,
   isSourceFile,
   isStringLiteral,
-} from "typescript-7/unstable/ast/is";
+} from "tsrs/ast/is";
 
 import { startPhase, tracePhase } from "../../compilation/trace.ts";
 import {
@@ -316,7 +316,7 @@ export class TypeScriptFactsService implements TypeFactsBackend {
       } catch (retryError) {
         throw new AggregateError(
           [firstError, retryError],
-          `TypeScript 7 checker failed before and after a clean restart: ${String(retryError)}`,
+          `tsrs checker failed before and after a clean restart: ${String(retryError)}`,
         );
       }
     }
@@ -498,7 +498,7 @@ export class TypeScriptFactsService implements TypeFactsBackend {
     for (const mapping of selected) {
       const sourceFile = project.program.getSourceFile(mapping.id);
       if (!sourceFile) {
-        throw new Error(`TypeScript 7 omitted ${mapping.id}`);
+        throw new Error(`tsrs omitted ${mapping.id}`);
       }
       let diagnostics = this.#checker.diagnostics.get(mapping.id);
       if (!diagnostics) {

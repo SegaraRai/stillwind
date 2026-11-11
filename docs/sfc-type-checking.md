@@ -1,8 +1,9 @@
 # TypeScript type facts for SFCs
 
-Stillwind's checker uses TypeScript 7.0.2. Vue, Svelte, and Astro converters live
-in `@stillwind/projection`, which uses TypeScript 6.0.3 for operations requiring
-the JavaScript SDK. Rust has no dependency on a TypeScript version.
+Stillwind's checker uses tsrs 0.24.0, a Rust port of TypeScript 7.1 beta.
+Vue, Svelte, and Astro converters live in `@stillwind/projection`, which uses
+TypeScript 6.0.3 for operations requiring the JavaScript SDK. Rust has no
+dependency on a TypeScript version.
 
 ## Compilation path and edit targets
 

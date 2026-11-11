@@ -5,7 +5,7 @@ import {
   type Checker,
   type Type,
   type Symbol as TypeSymbol,
-} from "typescript-7/unstable/sync";
+} from "tsrs/sync";
 
 /**
  * Result of decoding a checker type.

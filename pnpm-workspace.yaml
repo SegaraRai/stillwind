@@ -180,3 +180,11 @@ minimumReleaseAgeExclude:
   - cf@1.0.0-beta.29
   - miniflare@5.20261110.0-beta
   - workerd@1.20261110.1
+  - "@tsrs/darwin-arm64@0.24.0-ts7.1.0-beta"
+  - "@tsrs/darwin-x64@0.24.0-ts7.1.0-beta"
+  - "@tsrs/linux-arm64-gnu@0.24.0-ts7.1.0-beta"
+  - "@tsrs/linux-arm64-musl@0.24.0-ts7.1.0-beta"
+  - "@tsrs/linux-x64-gnu@0.24.0-ts7.1.0-beta"
+  - "@tsrs/linux-x64-musl@0.24.0-ts7.1.0-beta"
+  - "@tsrs/win32-x64@0.24.0-ts7.1.0-beta"
+  - tsrs@0.24.0-ts7.1.0-beta
