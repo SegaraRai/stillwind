@@ -1,5 +1,15 @@
+import { style } from "stillwind/vanilla";
+
 import { featureTopics } from "./examples";
 import { clamp, ease } from "./progress";
+
+/** Media query that enables the pinned features. */
+export const featuresMedia = style.media(
+  "outline:pin-features:motion-safe",
+  "sidebar:max-outline:pin-features-sidebar:motion-safe",
+  "inline:max-sidebar:pin-features-inline:motion-safe",
+  "demo:max-inline:pin-features-compact:motion-safe",
+);
 
 const switchLength = 0.15;
 let sceneStart = 0;

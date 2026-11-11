@@ -2,7 +2,7 @@
 import { style } from "stillwind/astro";
 
 import { featureTopics } from "../../lib/landing/features/examples";
-import { featureScrollLength } from "../../lib/landing/features/scenes";
+import { featureScrollLength, featuresMedia } from "../../lib/landing/features/scenes";
 import { documentRoot } from "../site/document";
 import FeatureSource from "./FeatureSource.astro";
 import { featurePanel, featureSource, features, previewFrame } from "./presentation";
@@ -10,10 +10,11 @@ import { featurePanel, featureSource, features, previewFrame } from "./presentat
 const featureCue = style.ref();
 const featureStep = style.ref();
 
-const stops = featureTopics.flatMap((topic) =>
+const stops = featureTopics.flatMap((topic, scene) =>
   topic.frames.map((frame) => ({
     topic: topic.name,
     label: frame.label,
+    scene,
   })),
 );
 ---
@@ -147,6 +148,7 @@ const stops = featureTopics.flatMap((topic) =>
           })}
           id={topic.id}
           data-feature-panel={index}
+          data-active={index === 0 || undefined}
           aria-label={topic.name}
         >
           <p
@@ -340,6 +342,8 @@ const stops = featureTopics.flatMap((topic) =>
             aria-label={stop.topic + ": " + stop.label}
             title={stop.label}
             aria-pressed={index === 0 ? "true" : "false"}
+            data-current={index === 0 || undefined}
+            hidden={stop.scene !== 0}
           >
             <span
               {...style({
@@ -405,6 +409,14 @@ const stops = featureTopics.flatMap((topic) =>
     </div>
   </div>
 </section>
+
+<script is:inline define:vars={{ media: featuresMedia }}>
+  // The first paint uses the pinned layout that mountFeatures enables later, so the section does not
+  // move when the module script loads.
+  if (matchMedia(media).matches) {
+    document.currentScript.previousElementSibling.setAttribute("data-enhanced", "");
+  }
+</script>
 
 <script>
   import { mount } from "@cloudflare/nimbus-docs/client";

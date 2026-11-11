@@ -9,6 +9,12 @@ export const showcaseScenes = [0, 1, 2, 2, 2, 3] as const;
 /** Scroll distance in viewport heights. */
 export const showcaseScrollLength = (showcaseScenes.length - 1) * 0.8;
 
+/** Media query that enables the pinned showcase. */
+export const showcaseMedia = style.media(
+  "inline:pin-story:motion-safe",
+  "demo:max-inline:pin-story-compact:motion-safe",
+);
+
 /**
  * Maps finite scroll progress to six states, four scene opacities, and their source labels.
  * Normalization and sorting keep the combined scene's heading visible throughout both morphs.
@@ -61,7 +67,6 @@ export function mountShowcase(root: HTMLElement): () => void {
   const headings = [...root.querySelectorAll<HTMLElement>("[data-heading]")];
   const details = [...root.querySelectorAll<HTMLElement>("[data-detail]")];
   const demo = root.querySelector<HTMLElement>("[data-live-demo]")!;
-  const description = root.querySelector<HTMLElement>("[data-live-description]")!;
   const readable = root.querySelector<HTMLElement>("[data-readable-source]")!;
   const labels = [...root.querySelectorAll<HTMLElement>("[data-source-label]")];
   const diagnostics = root.querySelector<HTMLElement>("[data-format-diagnostics]")!;
@@ -99,15 +104,10 @@ export function mountShowcase(root: HTMLElement): () => void {
     });
   };
   const controller = trackScroll(root, {
-    media: style.media(
-      "inline:pin-story:motion-safe",
-      "demo:max-inline:pin-story-compact:motion-safe",
-    ),
+    media: showcaseMedia,
     onEnable(enabled) {
       enhanced = enabled;
       root.toggleAttribute("data-enhanced", enabled);
-      demo.hidden = !enabled;
-      description.hidden = !enabled;
       stops.forEach((stop) => {
         stop.inert = enabled;
         if (enabled) {
@@ -184,8 +184,6 @@ export function mountShowcase(root: HTMLElement): () => void {
     view.removeEventListener("hashchange", restoreHash);
     view.removeEventListener("load", restoreHash);
     root.removeAttribute("data-enhanced");
-    demo.hidden = true;
-    description.hidden = true;
     stops.forEach((stop) => {
       stop.inert = false;
       stop.removeAttribute("aria-hidden");

@@ -10,6 +10,7 @@ import {
   featurePosition,
   featureScenes,
   featureScrollLength,
+  featuresMedia,
 } from "./features/scenes";
 import { trackScroll } from "./scroll";
 
@@ -74,12 +75,7 @@ export function mountFeatures(root: HTMLElement): () => void {
     presentation.setActive(scene, frame, enhanced);
   };
   const controller = trackScroll(root, {
-    media: style.media(
-      "outline:pin-features:motion-safe",
-      "sidebar:max-outline:pin-features-sidebar:motion-safe",
-      "inline:max-sidebar:pin-features-inline:motion-safe",
-      "demo:max-inline:pin-features-compact:motion-safe",
-    ),
+    media: featuresMedia,
     onEnable(enabled) {
       enhanced = enabled;
       root.toggleAttribute("data-enhanced", enabled);

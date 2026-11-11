@@ -88,7 +88,14 @@ const frameworks = [
     </div>
   </section>
 
+  <script is:inline>
+    // mountHeader sets this attribute after the module script loads. The pinned sections reserve
+    // space for the header when it is present, so the first paint must already include it.
+    document.documentElement.setAttribute("data-header-mounted", "");
+  </script>
+
   <Showcase />
+
   <Features />
 
   <section aria-labelledby="start" {...style("py-16 border-border border-bs sidebar:py-32")}>

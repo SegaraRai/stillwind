@@ -4,7 +4,7 @@ import { style } from "stillwind/astro";
 import { styleParts } from "../../lib/landing/code-morph";
 import { createExamples } from "../../lib/landing/examples";
 import { highlightCss, highlightScript } from "../../lib/landing/highlight";
-import { showcaseScenes, showcaseScrollLength } from "../../lib/landing/showcase";
+import { showcaseMedia, showcaseScenes, showcaseScrollLength } from "../../lib/landing/showcase";
 import { documentRoot } from "../site/document";
 import { syntaxStyles } from "./syntax";
 import SyntaxTokens from "./SyntaxTokens.astro";
@@ -190,9 +190,8 @@ const results = [
             "max-outline:": "inline-1/2",
             "max-sidebar:": "inline-full",
           },
+          [story("not-data-enhanced")]: "hidden",
         })}
-        data-live-description
-        hidden
       >
         <div
           {...style({
@@ -241,9 +240,9 @@ const results = [
               "mbs-0 [--output-x:24px] [--output-y:calc(var(--input-y)+var(--source-height,72px)+56px)]",
           },
         ],
+        [story("not-data-enhanced")]: "hidden",
       })}
       data-live-demo
-      hidden
     >
       <div
         data-code-canvas
@@ -730,6 +729,14 @@ const results = [
     ))}
   </div>
 </section>
+
+<script is:inline define:vars={{ media: showcaseMedia }}>
+  // The first paint uses the pinned layout that mountShowcase enables later, so the section does not
+  // move when the module script loads.
+  if (matchMedia(media).matches) {
+    document.currentScript.previousElementSibling.setAttribute("data-enhanced", "");
+  }
+</script>
 
 <script>
   import { mount } from "@cloudflare/nimbus-docs/client";
