@@ -1,5 +1,28 @@
 # stillwind
 
+## 0.9.0
+
+### Minor Changes
+
+- Astro components are now converted to TSX for analysis with `@astrojs/astro2tsx`, the converter that the Astro language server uses, instead of `@astrojs/compiler`. For Astro support, install `@astrojs/astro2tsx` `^0.1.4`. Stillwind no longer uses `@astrojs/compiler`.
+
+  Analysis now finds frontmatter in the same places as the Astro 7 build. A `---` fence that follows template text, such as an HTML comment, is template text and does not start frontmatter.
+
+- Type facts now come from [tsrs](https://github.com/oxc-project/tsrs), a Rust port of the TypeScript 7.1 beta checker, instead of TypeScript 7.0. Edits that need type information finish faster. Stillwind no longer installs `typescript` 7.
+
+### Patch Changes
+
+- Update Tailwind CSS compatibility to 4.3.5, preserve empty variable fallbacks, and improve group and peer selectors and Safari property fallbacks.
+
+- Documentation examples now declare component-specific refs, keyframes, and view transitions inside the component that uses them.
+
+- Each published npm package and the VS Code extension now include `CHANGELOG.md`, so you can read the release notes of the installed version in `node_modules` or on the extension page.
+
+- Updated dependencies:
+  - @stillwind/config@0.9.0
+  - @stillwind/native@0.9.0
+  - @stillwind/projection@0.9.0
+
 ## 0.8.0
 
 ### Minor Changes

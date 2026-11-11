@@ -1,5 +1,18 @@
 # @stillwind/vscode-extension
 
+## 0.9.0
+
+### Patch Changes
+
+- Each published npm package and the VS Code extension now include `CHANGELOG.md`, so you can read the release notes of the installed version in `node_modules` or on the extension page.
+
+- Updated dependencies:
+  - @stillwind/analysis@0.9.0
+  - @stillwind/config@0.9.0
+  - @stillwind/host@0.9.0
+  - @stillwind/language-server@0.9.0
+  - @stillwind/native@0.9.0
+
 ## 0.8.0
 
 ### Patch Changes

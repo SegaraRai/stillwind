@@ -1,5 +1,14 @@
 # @stillwind/analysis
 
+## 0.9.0
+
+### Patch Changes
+
+- Updated dependencies:
+  - @stillwind/config@0.9.0
+  - @stillwind/host@0.9.0
+  - @stillwind/native@0.9.0
+
 ## 0.8.0
 
 ### Patch Changes
