@@ -199,7 +199,7 @@ async function deploy(site: Site, branch: string, dryRun: boolean): Promise<void
   const require = createRequire(import.meta.url);
   const cli = path.join(path.dirname(require.resolve("cf/package.json")), "bin/cf");
   const args = [
-    ...(deployment === "preview" ? ["previews", "deploy", branch] : ["deploy"]),
+    ...(deployment === "preview" ? ["previews", "deploy", "--preview-name", branch] : ["deploy"]),
     "--prebuilt",
     "--mode",
     deployment,
