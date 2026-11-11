@@ -8,6 +8,7 @@ import { afterAll, beforeAll, expect, test } from "vite-plus/test";
 
 /**
  * Measures both icons, whose parents are 200px by 120px.
+ *
  * @param page - Page of a project.
  * @returns The width and height of each icon.
  */

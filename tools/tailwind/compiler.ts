@@ -36,12 +36,20 @@ export async function compileTailwindCss({
     from,
     async loadStylesheet(id, importerBase) {
       const path = resolveStylesheet(id, importerBase);
-      return { path, base: dirname(path), content: readFileSync(path, "utf8") };
+      return {
+        path,
+        base: dirname(path),
+        content: readFileSync(path, "utf8"),
+      };
     },
     async loadModule(id, importerBase) {
       const path = resolve(importerBase, id);
       const loaded = await import(/* @vite-ignore */ pathToFileURL(path).href);
-      return { path, base: dirname(path), module: loaded.default ?? loaded };
+      return {
+        path,
+        base: dirname(path),
+        module: loaded.default ?? loaded,
+      };
     },
   });
   return compiler.build(candidates).replaceAll("\r\n", "\n").trimEnd();

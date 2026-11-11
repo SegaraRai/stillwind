@@ -74,6 +74,7 @@ export function createMemoryAnalysisWorkspace(
   return {
     /**
      * Replaces an open buffer and advances the workspace revision when its state changes.
+     *
      * @param uri - Original document URI, including dependencies outside the target scope.
      * @param source - Complete unsaved text.
      * @param version - Increasing safe integer. An identical update at the same version is accepted.
@@ -95,6 +96,7 @@ export function createMemoryAnalysisWorkspace(
     },
     /**
      * Removes a buffer and advances the revision if it existed.
+     *
      * @param uri - Original document URI. Unknown URIs have no effect.
      */
     closeDocument(uri) {
@@ -104,6 +106,7 @@ export function createMemoryAnalysisWorkspace(
     },
     /**
      * Captures open buffers and queues compilation for an included target.
+     *
      * @param uri - Target URI tested by the embedding's includes callback.
      * @param signal - Optional cancellation checked before and after compilation.
      * @returns One project result, or no result for an excluded target. Compiler failures become
@@ -173,6 +176,7 @@ export function createMemoryAnalysisWorkspace(
     },
     /**
      * Invalidates queued snapshots and invokes the embedding's cleanup after queued work.
+     *
      * @returns The same cleanup promise on repeated calls.
      * @throws If the embedding's cleanup fails.
      */

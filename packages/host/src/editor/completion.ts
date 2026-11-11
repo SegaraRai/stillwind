@@ -2,6 +2,7 @@ import { segments } from "./candidates.ts";
 
 /**
  * Converts one empty arbitrary-value placeholder into an LSP snippet.
+ *
  * @param candidate - Decoded replacement text, including enclosing variants.
  * @param source - Encodes decoded text for its source string. CSS uses the unchanged text.
  * @returns A snippet with its first tab stop inside `[]`, or undefined without a placeholder.
@@ -22,6 +23,7 @@ export function completionSnippet(
 
 /**
  * Converts the start of a modifiable marker's modifier into an LSP snippet.
+ *
  * @param label - Decoded marker name followed by `/`.
  * @param source - Encodes decoded text for its source string.
  * @returns A snippet that inserts `label` and selects a `name` placeholder after it.

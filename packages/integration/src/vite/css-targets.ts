@@ -7,6 +7,7 @@ const browserTarget =
 
 /**
  * Selects browser versions from Vite's resolved CSS target without inferring versions from JS levels.
+ *
  * @param target - Resolved CSS target, including disabled targets and language-level strings.
  * @returns A copy of the browser list, or an empty list if any entry cannot identify browser versions.
  */
@@ -17,6 +18,7 @@ export function inheritCssTarget(target: ResolvedConfig["build"]["cssTarget"]): 
 
 /**
  * Converts Stillwind browser versions to Lightning CSS's packed minimum versions.
+ *
  * @param target - Validated compiler targets. Omission and empty lists leave minifier targets unspecified.
  * @returns Browser versions with the oldest entry retained for each browser and ios named ios_saf.
  * @throws If a target cannot be represented by Lightning CSS's three one-byte version components.

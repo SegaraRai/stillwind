@@ -494,6 +494,7 @@ async function loadDesignSystem(
   const root = realpathSync(entry);
   /**
    * Watches relative candidates before resolution and the resolved file after success.
+   *
    * @param specifier - CSS import or resource request passed to the configured resolver.
    * @param importer - Full identity of the source containing the request.
    * @returns The resolver's identity with its query and fragment retained.

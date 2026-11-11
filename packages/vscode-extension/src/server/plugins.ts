@@ -37,6 +37,7 @@ export function browserPluginHost(
     /**
      * Bundles and evaluates a plugin package, reusing the module while the text of every bundled
      * file is unchanged.
+     *
      * @param specifier - Package specifier or path from the `@plugin` statement.
      * @param importer - Stylesheet that contains the statement.
      * @param watch - Receives each bundled file.
@@ -66,6 +67,7 @@ export function browserPluginHost(
     },
     /**
      * Resolves a plugin file request with browser package exports.
+     *
      * @param specifier - Package specifier with an optional subpath, or a path.
      * @param importer - Stylesheet that contains the statement.
      * @returns The virtual path, or undefined when the request does not resolve.
@@ -75,6 +77,7 @@ export function browserPluginHost(
     },
     /**
      * Reads a captured file.
+     *
      * @param path - Absolute virtual path.
      * @returns The captured text.
      * @throws If the inventory has no such file.

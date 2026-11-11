@@ -5,7 +5,9 @@ import { pathToFileURL } from "node:url";
 
 import { expect, test } from "vite-plus/test";
 
-/** One JSON-RPC message from the language server. */
+/**
+ * One JSON-RPC message from the language server.
+ */
 interface Message {
   id?: number;
   method?: string;
@@ -32,6 +34,7 @@ interface Message {
 
 /**
  * Starts the language server over stdio in a new temporary project directory.
+ *
  * @param prefix - Name prefix of the temporary directory.
  * @returns The directory, the received messages, and operations to send requests, wait for a
  * message, and stop the server. `stop` waits for the process and removes the directory.

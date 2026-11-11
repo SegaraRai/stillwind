@@ -15,7 +15,9 @@ import { LoaderCache, recordInputs, type InputReader } from "../loader-cache.ts"
 import { buildCompilerOptions, IntegrationSession } from "../session.ts";
 import { buildSourceEntries, isSourceEntry } from "../source-entries.ts";
 
-/** Compiler operations of webpack and Rspack that a shared project uses. */
+/**
+ * Compiler operations of webpack and Rspack that a shared project uses.
+ */
 export interface ProjectCompiler {
   /** Top compiler of a child compiler. Child compilers use the projects of their top compiler. */
   root?: ProjectCompiler;
@@ -53,7 +55,9 @@ export interface ProjectCompiler {
   };
 }
 
-/** Loader context operations that {@link useProject} uses. */
+/**
+ * Loader context operations that {@link useProject} uses.
+ */
 export interface ProjectContext {
   /** Compiler that runs the loader, or undefined outside a webpack or Rspack compilation. */
   _compiler?: ProjectCompiler;
@@ -61,16 +65,19 @@ export interface ProjectContext {
   _compilation?: object;
   /**
    * Registers a file whose changes invalidate this loader result.
+   *
    * @param id - Absolute file path.
    */
   addDependency(id: string): void;
   /**
    * Registers a missing file whose creation invalidates this loader result.
+   *
    * @param id - Absolute file path.
    */
   addMissingDependency(id: string): void;
   /**
    * Registers a directory whose listing affects this loader result.
+   *
    * @param id - Absolute directory path.
    */
   addContextDependency(id: string): void;
@@ -80,12 +87,14 @@ export interface ProjectContext {
 export interface ProjectHost {
   /**
    * Reads a file through the bundler filesystem.
+   *
    * @param id - Absolute file path.
    * @returns A promise for the file text, rejecting when the file cannot be read.
    */
   read: (id: string) => Promise<string>;
   /**
    * Resolves a CSS import.
+   *
    * @param specifier - CSS import text.
    * @param importer - Absolute path of the importing stylesheet.
    * @returns A promise for the resolved path, or an empty string when the resolver declines it.
@@ -93,7 +102,9 @@ export interface ProjectHost {
   resolveCss: (specifier: string, importer: string) => Promise<string>;
 }
 
-/** Design system and compiler that loader calls with equal settings share. */
+/**
+ * Design system and compiler that loader calls with equal settings share.
+ */
 export interface SharedProject {
   /** Completed CSS graph and authored resources used by the compiler. */
   loaded: LoadedCssGraph;
@@ -108,7 +119,9 @@ export interface SharedProject {
   outputs: Map<string, ProducerOutput>;
 }
 
-/** Result of a producer loader compilation that the compiler session still holds. */
+/**
+ * Result of a producer loader compilation that the compiler session still holds.
+ */
 export interface ProducerOutput {
   /** Source text that the compilation received. */
   source: string;

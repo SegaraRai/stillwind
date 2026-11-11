@@ -39,6 +39,7 @@ test("loading marks files for stylesheet lint and reports their identities", asy
   ]);
   /**
    * Builds a CSS host over the in-memory files.
+   *
    * @param lint - Optional lint decision supplied by the host.
    * @returns A host that resolves `pkg` to `/pkg/index.css` and relative paths beside the importer.
    */

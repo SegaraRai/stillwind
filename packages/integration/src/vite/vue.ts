@@ -36,6 +36,7 @@ const hooks = new WeakMap<Plugin, Pick<Plugin, "load" | "transform">>();
 export function attachVueHooks(plugins: readonly Plugin[], project: ViteProject): void {
   /**
    * Composes a Vue block's map through the recorded Stillwind transform for its source file.
+   *
    * @param result - Original load or transform result, left unchanged when a required map is absent.
    * @param id - Full Vue block identity, including its `vue` query.
    * @param environment - Vite environment whose top-level configuration owns the recorded input.
@@ -81,6 +82,7 @@ export function attachVueHooks(plugins: readonly Plugin[], project: ViteProject)
       const handler = typeof hook === "function" ? hook : hook.handler;
       /**
        * Runs the saved Vue load hook with its original receiver, then composes its map.
+       *
        * @param id - Resolver identity passed by Vite.
        * @param args - Remaining load-hook arguments forwarded unchanged.
        * @returns The delegated result with its map composed when the recorded input permits it.
@@ -102,6 +104,7 @@ export function attachVueHooks(plugins: readonly Plugin[], project: ViteProject)
       const handler = typeof hook === "function" ? hook : hook.handler;
       /**
        * Composes Vue's map and reloads components with explicit CSS values on template edits.
+       *
        * @param code - Vue block source passed by Vite.
        * @param id - Resolver identity passed by Vite.
        * @param args - Remaining transform-hook arguments forwarded unchanged.

@@ -19,6 +19,7 @@ export interface FormatResult {
 
 /**
  * Sorts configured targets and saves changed files unless check is true.
+ *
  * @param options - Configuration discovery, target filters, and optional check mode.
  * @returns Changed paths, original findings, and failures. Healthy targets continue after a failure.
  * @throws If selection, configuration, worker communication, or cleanup fails.

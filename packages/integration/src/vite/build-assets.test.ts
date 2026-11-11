@@ -97,6 +97,7 @@ test.each([false, true])(
 
 /**
  * Creates a recording asset emitter without a filesystem or bundler build.
+ *
  * @returns The emitter context and its mutable array of emitted files in call order.
  */
 function assetContext() {
@@ -104,6 +105,7 @@ function assetContext() {
   const context: Pick<Rollup.PluginContext, "emitFile" | "getFileName" | "warn"> = {
     /**
      * Records an asset and returns a deterministic reference for filename assertions.
+     *
      * @param asset - Emission descriptor retained in the recorded array.
      * @returns Its explicit filename or a reference based on the emission count.
      */

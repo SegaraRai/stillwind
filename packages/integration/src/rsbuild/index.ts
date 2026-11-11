@@ -9,7 +9,9 @@ import { stillwindRules } from "../webpack/rules.ts";
 
 export type { InlineConfig as IntegrationConfig } from "@stillwind/config";
 
-/** Rsbuild plugin that uses only the hook for updating the Rspack configuration. */
+/**
+ * Rsbuild plugin that uses only the hook for updating the Rspack configuration.
+ */
 export interface StillwindRsbuildPlugin extends RsbuildPlugin {
   /**
    * Registers Stillwind's configuration changes through the host's Rspack hook.
@@ -19,6 +21,7 @@ export interface StillwindRsbuildPlugin extends RsbuildPlugin {
   setup(api: {
     /**
      * Registers a modifier for each generated Rspack configuration.
+     *
      * @param callback - Receives mutable host options and returns the configuration to use.
      */
     modifyRspackConfig(callback: (options: RspackOptions) => RspackOptions): void;

@@ -5,6 +5,7 @@ import { cleanModuleId, fileModuleDescriptor } from "@stillwind/host";
 
 /**
  * Keeps each query-selected derivative's compiler, checker, and source-map identities distinct.
+ *
  * @param root - Absolute project root used to derive compiler identities.
  * @param id - Full source identity, including any query or fragment selecting transformed source.
  * @returns Ordinary file metadata without a suffix, or distinct module/document identities and a hashed checker filename.

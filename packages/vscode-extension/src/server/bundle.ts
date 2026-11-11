@@ -1,7 +1,9 @@
 import { rolldown } from "@rolldown/browser";
 import { resolveVirtualModule } from "@stillwind/host/resolution";
 
-/** One ESM source and the inventory files that it contains. */
+/**
+ * One ESM source and the inventory files that it contains.
+ */
 export interface BundledModule {
   /** ESM source whose default export can be evaluated through a Blob URL. */
   code: string;
@@ -12,6 +14,7 @@ export interface BundledModule {
 /**
  * Bundles a browser module, such as a configuration or a plugin package, from a captured
  * workspace without reading the host filesystem.
+ *
  * @param files - Virtual absolute paths and source text, including browser-compatible packages.
  * @param entry - Module path present in the inventory.
  * @returns The bundled source and the files that it contains.

@@ -14,6 +14,7 @@ export function mergeConfig<T extends object>(base: T, overrides: Partial<T>): T
 
 /**
  * Merges object fields recursively while treating other values as replacements.
+ *
  * @param base - Existing value. It is retained when the override is undefined.
  * @param override - Replacement or fields to merge. A changed, defined `kind` replaces the whole object.
  * @returns The original value, replacement value, or a new merged object. Nested values may share

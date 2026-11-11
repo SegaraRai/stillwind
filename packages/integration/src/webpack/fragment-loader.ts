@@ -4,6 +4,7 @@ import type { CssFragment } from "./css-value.ts";
 
 /**
  * Decodes an immutable CSS fragment into a module that substitutes bundler-resolved asset URLs.
+ *
  * @param this - Loader context whose css query contains base64url-encoded UTF-8 fragment JSON.
  * @returns JavaScript importing referenced assets and exporting the fragment's CSS.
  * @throws If the css query is absent or its decoded JSON is invalid.

@@ -216,6 +216,7 @@ export class EditorProject {
     };
     /**
      * Requires this analysis to retain the captured project revision and an active signal.
+     *
      * @throws If cancellation or a newer project revision makes this analysis obsolete.
      */
     const assertActive = () => {

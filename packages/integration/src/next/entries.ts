@@ -5,7 +5,9 @@ import type { LoaderContext } from "webpack";
 
 import type { TurbopackLoaderOptions } from "../turbopack/project.ts";
 
-/** Loader settings that reconstruct document CSS from Next app and pages routes. */
+/**
+ * Loader settings that reconstruct document CSS from Next app and pages routes.
+ */
 export interface NextLoaderOptions extends TurbopackLoaderOptions {
   /** Configured page extensions without a leading dot, matched case-sensitively. */
   extensions: string[];
@@ -13,6 +15,7 @@ export interface NextLoaderOptions extends TurbopackLoaderOptions {
 
 /**
  * Discovers route sources beneath app or src/app and pages or src/pages.
+ *
  * @param context - Loader context that receives visited directory and missing-directory dependencies.
  * @param options - Evaluated absolute project root and Next page extensions.
  * @returns Sorted absolute route paths. App traversal skips private directories and non-route filenames.
@@ -25,6 +28,7 @@ export async function routeEntries(
   const entries: string[] = [];
   /**
    * Traverses a route directory and appends matching files to entries.
+   *
    * @param directory - Absolute directory registered as a context dependency before reading.
    * @param app - Whether app-directory private folders and route filename constraints apply.
    * @returns Completion of recursive traversal. Subdirectories are traversed concurrently.

@@ -66,6 +66,7 @@ test("development rendering leaves build output and the document plan untouched"
 
 /**
  * Creates a completed graph with cached and lazy producers plus repeated stylesheet partitions.
+ *
  * @param emission - Document asset mode exercised by the production hooks.
  * @returns Recording project and hook context, emitted assets, event order, and captured build output.
  */
@@ -82,6 +83,7 @@ function buildFixture(emission: "single" | "split") {
   ]);
   /**
    * Creates a partition for exercising build emission and repeated partition keys.
+   *
    * @param key - Partition identity shared by repeated entries.
    * @param css - CSS emitted for the partition.
    * @param owner - Producer module that requires this partition.

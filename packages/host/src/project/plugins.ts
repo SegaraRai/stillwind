@@ -12,6 +12,7 @@ import { completePluginPaths } from "../css/plugins/paths.ts";
 /**
  * Lists disk children for plugin completion and plugin directory reads, following
  * directory symlinks.
+ *
  * @param id - Absolute directory to enumerate without loading its scripts.
  * @returns Immediate entries in filesystem order. Broken symlinks are treated as files.
  * @throws If the directory cannot be read.

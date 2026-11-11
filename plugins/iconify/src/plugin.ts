@@ -52,7 +52,9 @@ export interface IconifyOptions {
   readonly svgo?: boolean | SvgoConfig;
 }
 
-/** Settings of one `@plugin` statement. */
+/**
+ * Settings of one `@plugin` statement.
+ */
 interface Settings extends IconStyle {
   /** Utility prefix without the trailing hyphen. */
   readonly prefix: string;
@@ -100,6 +102,7 @@ export function iconify(options: IconifyOptions = {}): StillwindPlugin {
   const statements = new WeakMap<PluginContext, Collections>();
   /**
    * Returns the icon sets of one statement.
+   *
    * @param context - Statement context. The host keeps it for the lifetime of the loaded statement.
    * @returns The statement's icon set cache.
    */

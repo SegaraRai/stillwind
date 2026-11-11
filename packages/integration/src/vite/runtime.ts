@@ -10,7 +10,9 @@ type StylesheetSourceMap = Readonly<
   readonly ignoreList?: readonly number[];
 };
 
-/** Ordered CSS partition activated by its producers or included unconditionally. */
+/**
+ * Ordered CSS partition activated by its producers or included unconditionally.
+ */
 export interface StylesheetPart {
   /** Preserved notices required by this part. */
   readonly banners?: readonly string[];
@@ -22,7 +24,9 @@ export interface StylesheetPart {
   readonly map?: StylesheetSourceMap | null;
 }
 
-/** Complete stylesheet and composition state published for one adapter revision. */
+/**
+ * Complete stylesheet and composition state published for one adapter revision.
+ */
 export interface StylesheetSnapshot {
   /** Monotonic revision within the adapter environment. */
   readonly revision: number;
@@ -33,14 +37,18 @@ export interface StylesheetSnapshot {
 }
 
 declare module "vite" {
-  /** Extends Vite's typed HMR events with complete Stillwind stylesheet snapshots. */
+  /**
+   * Extends Vite's typed HMR events with complete Stillwind stylesheet snapshots.
+   */
   interface CustomEventMap {
     /** Stylesheet revision, ordered parts, and composition dependencies published by Stillwind. */
     "stillwind:css": StylesheetSnapshot;
   }
 }
 
-/** Mutable stylesheet state shared by runtime instances in the current global document context. */
+/**
+ * Mutable stylesheet state shared by runtime instances in the current global document context.
+ */
 interface DocumentState {
   /** Latest accepted revision. -1 identifies state before its first snapshot. */
   revision: number;
@@ -62,6 +70,7 @@ const documentKey = Symbol.for("stillwind.document");
  * must return CSS for the selected parts in their existing order.
  * Returns operations for producer registration, snapshot updates and synchronization.
  * Snapshots older than the shared document revision are ignored.
+ *
  * @param options - Initial snapshot, snapshot endpoint, and optional renderer. Accepted snapshots are captured.
  * @returns Operations that update shared producer state and the owned style element.
  */
@@ -84,7 +93,9 @@ export function createDevelopmentRuntime(options: {
     active: new Set(),
   });
 
-  /** Expands composition dependencies and writes active partitions into the shared style element. */
+  /**
+   * Expands composition dependencies and writes active partitions into the shared style element.
+   */
   function render() {
     if (!state.snapshot || typeof document === "undefined") {
       return;
@@ -108,6 +119,7 @@ export function createDevelopmentRuntime(options: {
 
   /**
    * Activates a producer and rerenders its CSS and composition dependencies.
+   *
    * @param id - Compiler module identity. Repeated registration has no additional ownership count.
    */
   function register(id: string) {
@@ -117,6 +129,7 @@ export function createDevelopmentRuntime(options: {
 
   /**
    * Removes a producer registration and rerenders the remaining active CSS.
+   *
    * @param id - Compiler module identity. Unknown identities have no effect on the set.
    */
   function unregister(id: string) {
@@ -128,6 +141,7 @@ export function createDevelopmentRuntime(options: {
    * Fetches the current snapshot, sharing pending requests between producers.
    * Resolves after the document reaches `revision`; rejects on fetch or response
    * failures. Does not fetch when no document exists.
+   *
    * @param revision - Minimum adapter revision required before completion.
    * @returns Completion after a fetched snapshot reaches the requested revision, or immediately without a document.
    * @throws If fetching, decoding, or applying a snapshot fails.
@@ -154,6 +168,7 @@ export function createDevelopmentRuntime(options: {
 
   /**
    * Accepts a current or newer snapshot and rerenders shared document styles.
+   *
    * @param update - Complete snapshot to capture. Older revisions are ignored, and equal revisions are accepted.
    */
   function apply(update: StylesheetSnapshot) {

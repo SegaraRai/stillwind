@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
  * packages. Watching both locations covers napi-rs's local and packaged loading.
  * Missing optional packages are skipped. Other filesystem and resolution errors
  * propagate to the caller.
+ *
  * @returns Distinct absolute runtime paths in discovery order, including the generated loader entry.
  * @throws If metadata, filesystem access, or resolution fails beyond a missing optional package.
  */
@@ -17,6 +18,7 @@ export function nativeBindingFiles(): string[] {
   const files = new Set([entry]);
   /**
    * Adds native and WASM runtime companions from an installed runtime directory.
+   *
    * @param directory - Existing directory to enumerate. Matching filenames are added to files.
    * @throws If enumeration fails.
    */

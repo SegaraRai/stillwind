@@ -109,6 +109,7 @@ function withoutStillwindVersion(css: string) {
 
 /**
  * Builds document CSS and an explicit CSS value from the same fixture sources.
+ *
  * @param testCase - Vite and Stillwind target overrides, plus optional emission and minification settings.
  * @returns The emitted CSS in HTML link order, evaluated CSS value, and output assets. The two CSS
  * strings omit the version from the Stillwind notice, so a release does not change the expected

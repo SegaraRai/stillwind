@@ -7,6 +7,7 @@ import { loaderCompletion, type LoaderAdditionalData } from "./source-map-loader
 /**
  * Skips CSS extraction until the completed graph supplies document CSS. Extracting
  * empty CSS first would retain an empty module in mini-css-extract-plugin's graph.
+ *
  * @returns Empty source before reconstruction, otherwise leaves the loader chain active.
  */
 export function pitch(this: LoaderContext<unknown>): string | undefined {
@@ -17,7 +18,9 @@ export function pitch(this: LoaderContext<unknown>): string | undefined {
   return undefined;
 }
 
-/** Preserves the host CSS pipeline's output and source map after reconstruction. */
+/**
+ * Preserves the host CSS pipeline's output and source map after reconstruction.
+ */
 export default function documentLoader(
   this: LoaderContext<unknown>,
   source: string,

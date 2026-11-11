@@ -2,6 +2,7 @@ import { dirname, join, resolve } from "pathe";
 
 /**
  * Resolves browser runtime modules or CSS from an immutable virtual filesystem.
+ *
  * @param files - Absolute paths to text, including package.json files.
  * @param specifier - Authored request. Relative and package subpath imports are accepted.
  * @param importer - Absolute importing file path.
@@ -17,6 +18,7 @@ export function resolveVirtualModule(
 ): string | undefined {
   /**
    * Finds the first existing file using extension substitution and directory index candidates.
+   *
    * @param name - Absolute candidate path before extension or index fallback.
    * @returns An existing path, or undefined when the candidates for the requested kind are absent.
    */
@@ -63,6 +65,7 @@ export function resolveVirtualModule(
       const metadata = JSON.parse(text) as Record<string, unknown>;
       /**
        * Selects an exports target using active conditions in package declaration order.
+       *
        * @param entry - A string target, an array of alternatives, or a conditional exports object.
        * @returns The selected string without checking whether its file exists, or undefined.
        */

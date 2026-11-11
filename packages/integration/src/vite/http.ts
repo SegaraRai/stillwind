@@ -2,6 +2,7 @@ import type { ServerResponse } from "node:http";
 
 /**
  * Ends a response with JSON and disables caching for development snapshots.
+ *
  * @param response - Writable response whose status and content-type/cache-control headers are replaced.
  * @param value - Value accepted by JSON.stringify.
  * @param statusCode - HTTP status to send, defaulting to 200.

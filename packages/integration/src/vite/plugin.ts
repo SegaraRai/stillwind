@@ -46,6 +46,7 @@ export function createVitePlugins(
       enforce: "pre",
       /**
        * Initializes the project owned by this configuration and composes Vue source maps.
+       *
        * @param config - Resolved Vite configuration whose plugin chain includes Stillwind.
        * @returns Completion of project configuration.
        * @throws If configuration discovery or evaluation fails.
@@ -59,6 +60,7 @@ export function createVitePlugins(
       },
       /**
        * Defers watch registration until the server's plugin setup succeeds.
+       *
        * @param server - Server whose configuration owns the project.
        * @returns A post hook that attaches watches and records the server's environments.
        */
@@ -75,6 +77,7 @@ export function createVitePlugins(
       },
       /**
        * Creates compiler hooks while Vite resolves plugins for an environment.
+       *
        * @param environment - Descriptor supplied during plugin resolution. Runtime hooks receive
        * their owning instance as this.environment.
        * @returns Hooks that initialize and close the compiler state owned by this.environment.
@@ -88,7 +91,9 @@ export function createVitePlugins(
           servers.get(generation)?.delete(owner);
         });
       },
-      /** Releases projects after all environments owned by their server have closed. */
+      /**
+       * Releases projects after all environments owned by their server have closed.
+       */
       closeServer() {
         for (const [generation, remaining] of servers) {
           if (remaining.size === 0) {
@@ -169,6 +174,7 @@ function compilerPlugin(
     perEnvironmentWatchChangeDuringDev: true,
     /**
      * Delegates generated-reference resolution using the current environment's hook context.
+     *
      * @param id - Requested module identity.
      * @param importer - Importing resolver identity, when available.
      * @param options - Vite resolution options forwarded unchanged.
@@ -181,6 +187,7 @@ function compilerPlugin(
     },
     /**
      * Delegates generated-module loading through the current environment's registry.
+     *
      * @param id - Resolved module identity.
      * @param options - Vite load options forwarded unchanged.
      * @returns The virtual loader's result, or undefined when no callable hook is available.
@@ -193,6 +200,7 @@ function compilerPlugin(
     ...transformHooks(project, virtualModules, transform),
     /**
      * Refreshes configuration, registers its watches, and starts the current compiler environment.
+     *
      * @returns Completion of configuration refresh and environment initialization.
      * @throws If refresh or environment startup fails.
      */
@@ -203,7 +211,9 @@ function compilerPlugin(
       }
       await project.environment(this.environment).start(this);
     },
-    /** Releases this environment's state when its plugin container closes. */
+    /**
+     * Releases this environment's state when its plugin container closes.
+     */
     closeBundle() {
       project.closeEnvironment(this.environment);
       closed(this.environment);

@@ -1,4 +1,6 @@
-/** Schema validation that reports authored field paths and keeps supplied objects unchanged. */
+/**
+ * Schema validation that reports authored field paths and keeps supplied objects unchanged.
+ */
 
 import * as v from "valibot";
 
@@ -19,6 +21,7 @@ export const nonemptyStringList = v.pipe(
 
 /**
  * Checks a schema and narrows the supplied value without replacing it with parsed output.
+ *
  * @param schema - Synchronous schema whose output type describes the input's existing shape.
  * Parsed replacements are discarded, so narrowing must not depend on a transformation.
  * @param value - Value to validate. Objects, arrays, and callbacks retain their original identities.
@@ -45,6 +48,7 @@ export function validate<T extends v.GenericSchema>(
 
 /**
  * Constructs a schema that requires an object and rejects undeclared keys.
+ *
  * @param entries - Field names and synchronous schemas used to validate their values.
  * @returns A schema that validates declared fields on non-null, non-array objects and rejects unknown keys.
  */
@@ -57,6 +61,7 @@ export function strictObject<T extends v.ObjectEntries>(entries: T) {
 
 /**
  * Checks whether a value can supply configuration fields.
+ *
  * @param value - Any runtime value. Objects with custom prototypes are accepted.
  * @returns Whether the value is a non-null object other than an array.
  */

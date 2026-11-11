@@ -94,6 +94,7 @@ export interface ProjectSettings {
 export interface ViteProject {
   /**
    * Obtains the project owned by a resolved Vite configuration.
+   *
    * @param config - Top-level configuration, obtained from a server or getTopLevelConfig().
    * @returns This project for its first configuration, or an isolated project for another configuration.
    */
@@ -103,7 +104,9 @@ export interface ViteProject {
    * replaces the fields of this same object so plugin hooks retain the current settings.
    */
   config: IntegrationConfig;
-  /** Mutable settings initialized by the compiler plugin before environment startup. */
+  /**
+   * Mutable settings initialized by the compiler plugin before environment startup.
+   */
   settings: ProjectSettings;
   /**
    * Obtains isolated compilation state for a Vite environment, creating it on first use.
@@ -114,6 +117,7 @@ export interface ViteProject {
   environment: (name?: string | EnvironmentOwner) => ViteEnvironment;
   /**
    * Closes the state owned by an environment without closing other environments.
+   *
    * @param environment - The owning Vite instance. Development also removes its state from watch tracking.
    */
   closeEnvironment: (environment: EnvironmentOwner) => void;
@@ -151,9 +155,13 @@ export interface ViteProject {
    * @throws If a directory watcher for a missing configuration candidate cannot be created.
    */
   attachServer: (server: ViteDevServer) => void;
-  /** Closes type-facts services in existing environments while retaining native compiler state. */
+  /**
+   * Closes type-facts services in existing environments while retaining native compiler state.
+   */
   closeTypeFacts: () => void;
-  /** Removes CSS watch listeners, closes type facts, and clears environment virtual references. */
+  /**
+   * Removes CSS watch listeners, closes type facts, and clears environment virtual references.
+   */
   close: () => void;
   /**
    * Obtains recorded producer inputs for one environment.
@@ -393,6 +401,7 @@ export function createViteProject(
     ));
   /**
    * Gets or creates the compiler state owned by one Vite environment.
+   *
    * @param owner - Owning Vite instance, or a name selecting the current state. Omission selects `client`.
    * @returns The retained environment state. Newly created non-client states invalidate their
    * affected modules in the corresponding development module graph.
@@ -501,6 +510,7 @@ export function createViteProject(
 
   /**
    * Replaces server watch registrations and retains the server for module invalidation and HMR.
+   *
    * @param server - Configured development server. A null watch setting disables these watches.
    * @throws If a missing configuration's parent directory cannot be watched.
    */
@@ -513,6 +523,7 @@ export function createViteProject(
     }
     /**
      * Restarts on configuration changes or invalidates affected compiler environments.
+     *
      * @param event - Watch event. Only `add`, `change`, and `unlink` are handled.
      * @param file - Changed filesystem path, normalized before dependency lookup.
      */
@@ -571,6 +582,7 @@ export function createViteProject(
 
   /**
    * Publishes a CSS snapshot through the matching environment's HMR channel when serving.
+   *
    * @param name - Vite environment name, or undefined for `client`.
    * @param context - Resolver and watch operations used to refresh the environment's CSS.
    * @returns A promise that resolves after publication, or immediately when no active server exists.

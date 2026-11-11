@@ -58,6 +58,7 @@ export function renderChunkStyles(
 
   /**
    * Records a stylesheet in the chunk's Vite metadata, creating the metadata when absent.
+   *
    * @param file - Emitted asset filename without the public base prefix.
    */
   const attachCss = (file: string) => {

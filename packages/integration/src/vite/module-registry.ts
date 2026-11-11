@@ -5,7 +5,9 @@ import { cleanModuleId } from "@stillwind/host";
 import { sourceModuleId } from "./module-ids.ts";
 import type { StylesheetResource } from "./resources.ts";
 
-/** Payload for an issued virtual reference in one compiler environment. */
+/**
+ * Payload for an issued virtual reference in one compiler environment.
+ */
 type ModuleEntry =
   | {
       /** Selects explicit CSS values or source projections that compile CSS without application execution. */
@@ -30,7 +32,9 @@ type ModuleEntry =
       readonly resources: readonly (readonly [string, StylesheetResource])[];
     };
 
-/** References issued by one project environment. Unknown IDs never supply file paths. */
+/**
+ * References issued by one project environment. Unknown IDs never supply file paths.
+ */
 export class ModuleRegistry {
   /** Issued virtual identities mapped to their payloads. References are not interpreted as paths. */
   readonly #entries = new Map<string, ModuleEntry>();
@@ -39,6 +43,7 @@ export class ModuleRegistry {
 
   /**
    * Creates an empty registry for one project environment.
+   *
    * @param root - Project root used to derive compiler identities from source resolver identities.
    * @param environment - Environment name included in every issued reference's fingerprint.
    */
@@ -49,6 +54,7 @@ export class ModuleRegistry {
 
   /**
    * Issues a deterministic reference. Identical fragments reuse their fixed payloads.
+   *
    * @param kind - Reference family included in the virtual prefix and fingerprint.
    * @param key - Source identity or serialized fragment content used within that family.
    * @param entry - Owned payload fixed under the resulting identity.
@@ -68,6 +74,7 @@ export class ModuleRegistry {
 
   /**
    * Registers a source-backed generated module.
+   *
    * @param kind - CSS value, projection, or producer registration module family.
    * @param sourceId - Full resolver identity, including queries that select distinct source.
    * @returns A deterministic reference for that environment, family, and compiler module identity.
@@ -83,6 +90,7 @@ export class ModuleRegistry {
 
   /**
    * Registers CSS with only the resource records whose placeholders occur in it.
+   *
    * @param css - Generated fragment text before resource replacement.
    * @param resources - Available placeholder records. The supplied map is unchanged.
    * @returns A reference fingerprinted from CSS and selected records in map order.
@@ -109,6 +117,7 @@ export class ModuleRegistry {
 
   /**
    * Looks up an issued public or resolved virtual reference.
+   *
    * @param id - virtual:stillwind identity or its NUL-prefixed resolved spelling.
    * @returns The retained payload, or undefined for an unregistered identity.
    */
@@ -118,6 +127,7 @@ export class ModuleRegistry {
 
   /**
    * Replaces an importer's projection edges and removes previous references with no remaining owner.
+   *
    * @param importer - Full resolver identity of the original importing document.
    * @param sources - Authored projection specifiers mapped to resolved source identities. The map is copied.
    */
@@ -140,6 +150,7 @@ export class ModuleRegistry {
 
   /**
    * Resolves a projection only through an importer's previously registered edge.
+   *
    * @param specifier - Authored projection request, including ?stillwind.css.
    * @param importer - Full importer identity. Omission cannot select an edge.
    * @returns The issued reference, or undefined when no corresponding edge exists.
@@ -150,12 +161,14 @@ export class ModuleRegistry {
 
   /**
    * Removes source-backed references and projection edges after source removal.
+   *
    * @param sourceId - Full resolver identity to remove.
    * @param file - Whether to match all queries and fragments of the cleaned file identity.
    */
   remove(sourceId: string, file = false): void {
     /**
      * Applies the selected source-removal policy to a registered identity.
+     *
      * @param id - Full resolver identity from a source entry or projection importer.
      * @returns Whether the exact identity, or its cleaned file identity when requested, matches.
      */

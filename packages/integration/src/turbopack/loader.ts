@@ -14,6 +14,7 @@ import { createProject, type TurbopackLoaderOptions } from "./project.ts";
 
 /**
  * Compiles producer source or emits a JavaScript CSS value for its module-css query.
+ *
  * @param this - Bundler loader context that supplies options, source identity, resolution, and async completion.
  * @param source - Original module text. Sources without recognized Stillwind imports pass through unchanged.
  * @param inputMap - Optional upstream map composed with compiler replacements for producer output.

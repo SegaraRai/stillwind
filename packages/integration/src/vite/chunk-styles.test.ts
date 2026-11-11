@@ -150,6 +150,7 @@ test("a chunk rendered before build output exists needs no CSS metadata", () => 
 
 /**
  * Creates chunk metadata with cyclic static dependencies and a separate lazy stylesheet.
+ *
  * @param base - Vite public base used in manifest URLs and loader URL classification.
  * @param output - Optional build output replacing the default split manifest.
  * @returns Project, graph lookup context, and a rendered entry chunk with existing asset metadata.
@@ -267,6 +268,7 @@ interface FakeLink {
 
 /**
  * Creates a stylesheet link that supports the attribute reads of the generated loaders.
+ *
  * @param init - Initial `href` and `dataset`. The link is a stylesheet unless `rel` is given.
  * @returns A link whose `href` attribute equals its `href` property.
  */
@@ -292,6 +294,7 @@ function fakeLink(init: Partial<Pick<FakeLink, "rel" | "href" | "dataset">> = {}
 /**
  * Creates a document with a head of links and the listener API that the generated loaders use.
  * The head supports only the `link[...]` selectors that the loaders query.
+ *
  * @param baseURI - Base URL for loaders that resolve public paths.
  * @returns The document, its head links in order, and `dispatch`, which calls listeners of a type.
  */
@@ -334,6 +337,7 @@ function fakeDocument(baseURI?: string) {
 
 /**
  * Reads the serialized stylesheet occurrences embedded in a generated chunk loader.
+ *
  * @param code - Generated chunk JavaScript containing the expected for-of loader loop.
  * @returns Occurrence descriptors in the order emitted by the chunk renderer.
  * @throws If the expected loop is missing or its array is invalid JSON.

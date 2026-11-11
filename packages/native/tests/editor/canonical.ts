@@ -212,6 +212,7 @@ export function registerCanonicalEditorContract(specifier: string): void {
     const loader = new NativeDesignSystemLoader();
     /**
      * Builds a theme whose brand color differs between revisions.
+     *
      * @param value - Brand color.
      * @returns Stylesheet text.
      */
@@ -353,6 +354,7 @@ const definitions = `
 
 /**
  * Registers canonical queries and source fixes for a native or WASM binding.
+ *
  * @param specifier - Module specifier that resolves to the binding under test.
  */
 export function registerCanonicalContract(specifier: string): void {

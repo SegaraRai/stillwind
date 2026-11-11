@@ -18,6 +18,7 @@ const imported =
 
 /**
  * Creates an editor project with an in-memory theme and untitled diagnostic URIs.
+ *
  * @param read - Fallback source reader. The default fails if analysis attempts a disk read.
  * @returns A project whose relative imports resolve to sibling TypeScript paths.
  */

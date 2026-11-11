@@ -4,6 +4,7 @@ import { LoaderCache, recordInputs } from "./loader-cache.ts";
 
 /**
  * Creates an in-memory file system for input checks.
+ *
  * @param files - Initial file contents keyed by path.
  * @returns The mutable contents and a reader that resolves undefined for a missing file.
  */

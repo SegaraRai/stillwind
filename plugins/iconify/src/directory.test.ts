@@ -11,6 +11,7 @@ const wide =
 
 /**
  * Creates a statement context over in-memory files.
+ *
  * @param files - Absolute file paths and their text. Parent directories are inferred.
  * @returns The context and the paths that the plugin watches.
  */
@@ -49,6 +50,7 @@ function project(files: Record<string, string>) {
 
 /**
  * Loads a directory icon set through the plugin and returns the set's data.
+ *
  * @param context - Statement context.
  * @param directory - Directory argument of `svgDirectory`.
  * @param options - Options of `svgDirectory`.
