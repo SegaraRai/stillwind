@@ -1,4 +1,5 @@
 import nimbus, { defineConfig as defineNimbusConfig } from "@cloudflare/nimbus-docs";
+import { siteHtml } from "@stillwind-internal/tools-site-html/astro";
 import { stillwind } from "@stillwind/integration/astro";
 import { defineConfig } from "astro/config";
 
@@ -138,6 +139,23 @@ export default defineConfig({
       },
     ),
     stillwind(),
+    siteHtml({
+      cloudflareWebAnalytics: true,
+      contentSecurityPolicy: {
+        "default-src": ["'self'"],
+        // Pagefind and the candidate lookup compile WASM.
+        "script-src": ["'self'", "'wasm-unsafe-eval'"],
+        "style-src": ["'self'"],
+        // Pages set custom properties in style attributes.
+        "style-src-attr": ["'unsafe-inline'"],
+        // Icon utilities embed SVG images as data URLs.
+        "img-src": ["'self'", "data:"],
+        "object-src": ["'none'"],
+        "base-uri": ["'none'"],
+        "form-action": ["'self'"],
+        "frame-ancestors": ["'none'"],
+      },
+    }),
   ],
   vite: {
     ssr: {

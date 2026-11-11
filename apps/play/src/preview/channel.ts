@@ -17,7 +17,18 @@ export interface PreviewUpdate {
  * @returns HTML containing one persistent React mount and stylesheet element.
  */
 export function previewDocument(runtime: string): string {
-  return `<!doctype html><html><head><meta charset="utf-8"><style id="styles"></style></head><body><div id="root"></div><script>${runtime.replace(/<\/script/gi, "<\\/script")}</script></body></html>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><style id="styles"></style></head><body><div id="root"></div><script>${previewScript(runtime)}</script></body></html>`;
+}
+
+/**
+ * Returns the text of the runtime script element in {@link previewDocument}.
+ * The frame inherits the playground's Content Security Policy, which allows this text by its hash.
+ *
+ * @param runtime - Trusted bundled runtime.
+ * @returns The runtime with closing script tokens escaped for HTML parsing.
+ */
+export function previewScript(runtime: string): string {
+  return runtime.replace(/<\/script/gi, "<\\/script");
 }
 
 /**

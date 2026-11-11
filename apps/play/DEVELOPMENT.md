@@ -50,6 +50,9 @@ vp run @stillwind-internal/apps-play#lint:stillwind
 `Cross-Origin-Opener-Policy: same-origin` and
 `Cross-Origin-Embedder-Policy: require-corp`. The threaded WASM compiler requires them.
 `public/_headers` configures these headers for Cloudflare Workers Static Assets.
+The build appends the Content Security Policy from `astro.config.ts` to `_headers`.
+The preview frame inherits this policy. The acceptance servers in `e2e/play` send the
+policy from the build's `_headers`.
 
 See [Site deployments](../../DEVELOPMENT.md#site-deployments) for CI, Preview,
 production, and the required Cloudflare and GitHub settings.

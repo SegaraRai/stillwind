@@ -27,7 +27,11 @@ const tokenize = (source: string, frame: number) => {
     return {
       ...token,
       punctuation,
-      key: (punctuation ? "syntax-" + frame + "-" : "value-") + token.text + "-" + count,
+      key:
+        (punctuation ? "syntax-" + frame + "-" : "value-") +
+        encodeURIComponent(token.text) +
+        "-" +
+        count,
     };
   });
 };
@@ -50,7 +54,10 @@ const specimens = frames.map((frame, index) => {
     if (previous?.focused === focused) {
       previous.parts.push(part);
     } else {
-      runs.push({ focused, parts: [part] });
+      runs.push({
+        focused,
+        parts: [part],
+      });
     }
   }
   return runs;

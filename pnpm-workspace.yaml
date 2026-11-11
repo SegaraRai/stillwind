@@ -39,6 +39,7 @@ catalogs:
     "@vitest/browser-playwright": 5.1.0
     "@vitest/ui": 5.1.0
     "@webref/css": 8.7.8
+    astro: ^7.4.8
     cf: ^1.0.0-beta.29
     pathe: ^2.0.3
     playwright: ^1.65.0
@@ -162,6 +163,7 @@ versioning:
     - "@stillwind-internal/tools-builtin-css"
     - "@stillwind-internal/tools-fixture-css"
     - "@stillwind-internal/tools-projects"
+    - "@stillwind-internal/tools-site-html"
     - "@stillwind-internal/tools-sites"
     - "@stillwind-internal/tools-tailwind"
     - "@stillwind-internal/tools-tailwind-compat"

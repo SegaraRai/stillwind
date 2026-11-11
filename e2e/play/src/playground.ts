@@ -7,6 +7,7 @@ import { chromium, type Page, type FrameLocator, type Locator } from "playwright
 import { expect, type TestContext } from "vite-plus/test";
 
 import { editSource } from "./browser.ts";
+import { playgroundHeaders } from "./server.ts";
 
 // The site embeds these files as the Release checklist preset. Vitest stubs CSS imports, so the test
 // reads them from disk instead of importing the playground module.
@@ -42,6 +43,7 @@ export async function withPlayground(
   const directory = process.env.STILLWIND_PLAY_TEST_DIRECTORY
     ? resolve(process.env.STILLWIND_PLAY_TEST_DIRECTORY)
     : resolve(import.meta.dirname, "../../../apps/play/dist/acceptance");
+  const headers = await playgroundHeaders(directory);
   const requests: string[] = [];
   const server = createServer(async (request, response) => {
     requests.push(request.method ?? "");
@@ -72,8 +74,7 @@ export async function withPlayground(
                 ".wasm": "application/wasm",
               } as Record<string, string>
             )[extname(path)] ?? "application/octet-stream",
-          "Cross-Origin-Opener-Policy": "same-origin",
-          "Cross-Origin-Embedder-Policy": "require-corp",
+          ...headers,
         })
         .end(contents);
     } catch {

@@ -1,0 +1,21 @@
+{
+  "name": "@stillwind-internal/tools-site-html",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Astro integration that minifies inline scripts and writes the Content Security Policy of a static site",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./astro": "./astro.ts"
+  },
+  "dependencies": {
+    "rolldown": "catalog:"
+  },
+  "devDependencies": {
+    "@stillwind-internal/tools-workspace": "workspace:*",
+    "@types/node": "catalog:",
+    "astro": "catalog:",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

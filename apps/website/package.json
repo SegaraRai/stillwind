@@ -8,7 +8,7 @@
   "dependencies": {
     "@cloudflare/nimbus-docs": "^0.19.4",
     "@fontsource/instrument-sans": "^5.3.0",
-    "astro": "^7.4.8",
+    "astro": "catalog:",
     "stillwind": "workspace:*",
     "sugar-high": "^2.6.4"
   },
@@ -18,6 +18,7 @@
     "@iconify-json/lucide": "^1.2.153",
     "@iconify-json/simple-icons": "^1.2.102",
     "@stillwind-internal/tools-builtin-css": "workspace:*",
+    "@stillwind-internal/tools-site-html": "workspace:*",
     "@stillwind-internal/tools-workspace": "workspace:*",
     "@stillwind/cli": "workspace:*",
     "@stillwind/host": "workspace:*",

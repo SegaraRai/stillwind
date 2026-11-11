@@ -113,7 +113,8 @@ export async function deletePreview(
 }
 
 /**
- * Checks the deployed site's routes, metadata, indexing policy, and WASM response headers.
+ * Checks the deployed site's routes, metadata, indexing policy, Content Security Policy, and WASM
+ * response headers.
  * Throws when an HTTP request fails or a response breaks the hosting contract.
  */
 export async function checkSite(site: Site, origin: string, deployment: Deployment): Promise<void> {
@@ -151,6 +152,9 @@ export async function checkSite(site: Site, origin: string, deployment: Deployme
       ) {
         throw new Error(`${url}: missing WASM isolation headers`);
       }
+    }
+    if (route === "/" && !response.headers.get("content-security-policy")?.includes("script-src")) {
+      throw new Error(`${url}: missing Content-Security-Policy header`);
     }
     if (route.endsWith(".wasm") && response.headers.get("content-type") !== "application/wasm") {
       throw new Error(`${url}: expected application/wasm`);

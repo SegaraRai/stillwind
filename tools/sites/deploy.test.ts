@@ -137,6 +137,7 @@ test("verifies Preview indexing, isolation, and the WASM MIME type", async () =>
               "Content-Type": "application/wasm",
               "Cross-Origin-Opener-Policy": "same-origin",
               "Cross-Origin-Embedder-Policy": "require-corp",
+              "Content-Security-Policy": "script-src 'self'",
               "X-Robots-Tag": "noindex",
             },
           },
@@ -175,6 +176,7 @@ test.each([
           headers: {
             "Cross-Origin-Opener-Policy": "same-origin",
             "Cross-Origin-Embedder-Policy": "require-corp",
+            "Content-Security-Policy": "script-src 'self'",
             ...(excluded && url.pathname.endsWith("/index.md")
               ? { "X-Robots-Tag": "noindex" }
               : {}),
@@ -191,6 +193,26 @@ test.each([
   }
 });
 
+test("requires a Content Security Policy on the home page", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(
+      async () =>
+        new Response(null, {
+          headers: {
+            "Content-Type": "application/wasm",
+            "Cross-Origin-Opener-Policy": "same-origin",
+            "Cross-Origin-Embedder-Policy": "require-corp",
+            "X-Robots-Tag": "noindex",
+          },
+        }),
+    ),
+  );
+  await expect(checkSite("play", "https://preview.example", "preview")).rejects.toThrow(
+    "Content-Security-Policy",
+  );
+});
+
 test("rejects metadata that points to another deployment", async () => {
   vi.stubGlobal(
     "fetch",
@@ -200,6 +222,7 @@ test("rejects metadata that points to another deployment", async () => {
           headers: {
             "Cross-Origin-Opener-Policy": "same-origin",
             "Cross-Origin-Embedder-Policy": "require-corp",
+            "Content-Security-Policy": "script-src 'self'",
             "X-Robots-Tag": "noindex",
           },
         }),
@@ -240,6 +263,7 @@ test.each([
         headers: {
           "Cross-Origin-Opener-Policy": "same-origin",
           "Cross-Origin-Embedder-Policy": "require-corp",
+          "Content-Security-Policy": "script-src 'self'",
           ...(url.pathname.endsWith("/index.md") ? { "X-Robots-Tag": "noindex" } : {}),
         },
       },
@@ -267,6 +291,7 @@ test("rejects a successful HTML fallback for a missing WASM file", async () => {
             "Content-Type": "text/html",
             "Cross-Origin-Opener-Policy": "same-origin",
             "Cross-Origin-Embedder-Policy": "require-corp",
+            "Content-Security-Policy": "script-src 'self'",
           },
         }),
     ),

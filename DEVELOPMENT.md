@@ -206,6 +206,13 @@ The applications declare their Worker settings in `cloudflare.config.ts`.
 Vite+ builds the static sites and `tools/sites` writes Cloudflare Build Output
 under `.deploy/<app>/.cloudflare/output/v0/`. The build excludes source maps and
 internal build files, checks asset limits, and preserves WASM isolation headers.
+Both applications register `siteHtml()` from `tools/site-html` in `astro.config.ts`.
+After `astro build`, it minifies the inline scripts of the rendered pages and appends a
+`Content-Security-Policy` rule for `/*` to the build's `_headers`. The application sets
+the directives, and the integration adds the hash of each inline script in the output
+to `script-src`. An inline script that the build does not write, such as the playground
+preview frame's script, must be returned from `runtimeInlineScripts`. Development
+servers send no policy, so check a policy change with a production build.
 Preview builds add `noindex` and block crawlers in `robots.txt`.
 `PUBLIC_WEBSITE_URL` and `PUBLIC_PLAYGROUND_URL` select the two origins used by
 metadata, sitemaps, agent indexes, and navigation between the sites. CI uses the

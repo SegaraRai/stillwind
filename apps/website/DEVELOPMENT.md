@@ -295,6 +295,8 @@ Module scripts run once per visit, so components start through `mount()` from
 stops it before the router swaps the page, and starts it again on the new page.
 The router also replaces the root element's attributes. The inline head scripts
 apply the stored theme and package manager again on `astro:after-swap`.
+The Content Security Policy in `astro.config.ts` allows inline scripts only by the
+hashes that the build adds, so a new inline script needs no policy change.
 
 `SiteHeader` stays in document flow at the top of the page. After it leaves the
 viewport, it floats at the top of the viewport. The landing page shows the floating
