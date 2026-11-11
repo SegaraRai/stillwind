@@ -112,6 +112,7 @@ export default function webpackLoader(
     }
     /**
      * Creates a virtual module request using this source file's framework and compiler settings.
+     *
      * @param query - Stillwind virtual query selecting the requested CSS or value module.
      * @returns An inline loader request retaining the resource path and resolved configuration.
      */
@@ -202,21 +203,26 @@ export default function webpackLoader(
               map: typeof inputMap === "string" ? inputMap : JSON.stringify(inputMap),
             }
           : undefined,
+        // The shared project can read the producer itself as a dependency. Its source and
+        // upstream map are recorded above, and reconstruction composes each recorded upstream
+        // map once, so a second copy would map the stylesheet's positions twice.
         dependencies: await Promise.all(
-          [...dependencySources].map(async ([id, pending]) => {
-            const { source, map } = await pending;
-            return {
-              id,
-              source,
-              upstream: map
-                ? {
-                    id: cleanModuleId(id),
-                    sourceMapSource: sourceDescriptor(root, id).document.uri,
-                    map: typeof map === "string" ? map : JSON.stringify(map),
-                  }
-                : undefined,
-            };
-          }),
+          [...dependencySources]
+            .filter(([dependency]) => dependency !== id)
+            .map(async ([id, pending]) => {
+              const { source, map } = await pending;
+              return {
+                id,
+                source,
+                upstream: map
+                  ? {
+                      id: cleanModuleId(id),
+                      sourceMapSource: sourceDescriptor(root, id).document.uri,
+                      map: typeof map === "string" ? map : JSON.stringify(map),
+                    }
+                  : undefined,
+              };
+            }),
         ),
       });
     }
