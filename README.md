@@ -1,9 +1,9 @@
 <h1 align="center">
-  <a href="https://stillwind.dev/">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="tools/brand/output/logo-outlined-dark.svg" />
-      <img src="tools/brand/output/logo-outlined-light.svg" alt="Stillwind" width="360" />
-    </picture>
+  <a href="https://stillwind.dev/#gh-light-mode-only">
+    <img src="tools/brand/output/logo-outlined-light.svg" alt="Stillwind" width="360" />
+  </a>
+  <a href="https://stillwind.dev/#gh-dark-mode-only">
+    <img src="tools/brand/output/logo-outlined-dark.svg" alt="Stillwind" width="360" />
   </a>
 </h1>
 
