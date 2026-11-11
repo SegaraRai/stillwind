@@ -1,5 +1,6 @@
 /**
  * Connects a button in a live document to the shared theme preference.
+ * Sets `data-mounted` on the button, which reveals it.
  * Returns a disposer that releases click and storage listeners.
  */
 export function mountThemeControl(button: HTMLButtonElement): () => void {
@@ -40,7 +41,7 @@ export function mountThemeControl(button: HTMLButtonElement): () => void {
     }
   };
   update(normalize(root.dataset.theme));
-  button.hidden = false;
+  button.setAttribute("data-mounted", "");
   button.addEventListener("click", toggle);
   view.addEventListener("storage", synchronize);
   return () => {

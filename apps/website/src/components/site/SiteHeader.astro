@@ -107,10 +107,13 @@ const header = style.ref();
         type="button"
         data-theme-toggle
         aria-label="Color theme"
-        hidden
         {...style(
           headerTransition.for("theme"),
-          "inline-flex block-9 inline-9 shrink-0 items-center justify-center text-muted rounded-control cursor-pointer hover:text-foreground hover:bg-surface-muted [&[hidden]]:hidden",
+          "inline-flex block-9 inline-9 shrink-0 items-center justify-center text-muted rounded-control cursor-pointer hover:text-foreground hover:bg-surface-muted",
+          {
+            // The button keeps its size before the script mounts it, so the header does not move.
+            "not-data-mounted:": "invisible",
+          },
         )}
       >
         <span

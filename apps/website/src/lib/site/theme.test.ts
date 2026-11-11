@@ -3,7 +3,11 @@ import { expect, it } from "vite-plus/test";
 import { mountThemeControl } from "./theme";
 
 function themeControl(preference?: string) {
-  const root = { dataset: { theme: preference } };
+  const root = {
+    dataset: {
+      theme: preference,
+    },
+  };
   const attributes = new Map<string, string>();
   const stored = new Map<string, string>();
   const status = { textContent: "" };
@@ -14,8 +18,10 @@ function themeControl(preference?: string) {
     },
   });
   const button = Object.assign(new EventTarget(), {
-    ownerDocument: { documentElement: root, defaultView: view },
-    hidden: true,
+    ownerDocument: {
+      documentElement: root,
+      defaultView: view,
+    },
     title: "",
     setAttribute: (key: string, value: string) => attributes.set(key, value),
     querySelector: () => status,
@@ -44,7 +50,7 @@ function themeControl(preference?: string) {
 
 it("cycles the accessible control and saves explicit choices while system uses the OS", () => {
   const control = themeControl();
-  expect(control.button.hidden).toBe(false);
+  expect(control.attributes.has("data-mounted")).toBe(true);
   expect(control.attributes.get("aria-label")).toBe("Color theme: system. Switch to light.");
   control.click();
   expect(control.root.dataset.theme).toBe("light");
