@@ -23,7 +23,7 @@ use crate::candidate_fixes::{WrittenSource, detect as detect_fixes};
 use crate::compiler::literal::{resolved_candidate_lints, variant_selector_lints};
 use crate::compiler::utilities::{
     CompiledUtility, marker_use_finding, resolve_utility_targets, unresolved_lint_kind,
-    unresolved_utility_finding,
+    unresolved_utility_finding, utility_name,
 };
 use crate::utility_conflicts::{PropertyPairs, conflict_notes, conflict_policy, describe_overlaps};
 
@@ -215,7 +215,8 @@ fn check_canonical_group(checker: &mut Checker<'_>, candidates: &[Range<usize>])
 /// interfering properties with different values. With `allow-shorthand-overrides`, a
 /// shorthand and a property that it covers do not compete. A logical property and a
 /// physical property compete only when they set one physical side in one of the
-/// configured writing modes.
+/// configured writing modes. Candidates do not compete when either utility name matches
+/// an ignored utility glob.
 fn check_pairs(checker: &mut Checker<'_>, resolved: &[(Range<usize>, Vec<CompiledUtility>)]) {
     let duplicate = checker.enabled(LintKind::DuplicateUtility);
     let conflict = checker.enabled(LintKind::ConflictingUtilities);
@@ -237,7 +238,10 @@ fn check_pairs(checker: &mut Checker<'_>, resolved: &[(Range<usize>, Vec<Compile
                     utility: raw.to_lean_str(),
                 }
             } else {
-                let overlaps = if conflict {
+                let overlaps = if conflict
+                    && !policy.ignores_utility(utility_name(raw))
+                    && !policy.ignores_utility(utility_name(previous_raw))
+                {
                     overlapping_properties(utilities, previous, &policy)
                 } else {
                     PropertyPairs::new()

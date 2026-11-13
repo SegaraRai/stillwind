@@ -217,6 +217,14 @@ pub(crate) fn validate_lint_settings(settings: &LintSettings) -> Result<(), Comp
             {
                 Some("utilities require nonempty complete utility patterns")
             }
+            LintConfig::ConflictingUtilities(config)
+                if config
+                    .ignored_utilities
+                    .iter()
+                    .any(|p| p.is_empty() || p.chars().any(char::is_whitespace)) =>
+            {
+                Some("ignoredUtilities must contain nonempty complete utility patterns")
+            }
             LintConfig::NoRestrictedDeclarations(config)
                 if config.rules.iter().any(|rule| {
                     rule.properties.is_empty()

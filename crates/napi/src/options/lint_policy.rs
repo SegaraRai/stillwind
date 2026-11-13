@@ -109,6 +109,9 @@ pub struct NativeConflictingUtilitiesOptions {
     /// `horizontal-tb`, `vertical-rl`, or `vertical-lr`. A supplied list replaces the
     /// previous one.
     pub writing_modes: Option<Vec<String>>,
+    /// Complete utility globs, without variants, whose pairs are not reported. A
+    /// supplied list replaces the previous one.
+    pub ignored_utilities: Option<Vec<String>>,
 }
 
 impl TryFrom<NativeConflictingUtilitiesOptions> for ConflictingUtilitiesOverride {
@@ -136,6 +139,8 @@ impl TryFrom<NativeConflictingUtilitiesOptions> for ConflictingUtilitiesOverride
                         .collect()
                 })
                 .transpose()?,
+            ignored_utilities: (value.ignored_utilities)
+                .map(|values| values.into_iter().map(Into::into).collect()),
         })
     }
 }

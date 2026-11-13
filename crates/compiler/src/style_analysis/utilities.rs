@@ -13,6 +13,7 @@ use stillwind_diagnostics::{
 
 use super::composition::ResolvedSupply;
 use super::{DeclarationValue, ResolvedStyle, RuleContext, SupplyKind, UseId};
+use crate::compiler::utility_name;
 use crate::utility_conflicts::{PropertyPairs, conflict_notes, conflict_policy, describe_overlaps};
 
 pub(super) fn check(style: &ResolvedStyle<'_>) -> Vec<LintFinding> {
@@ -67,7 +68,10 @@ pub(super) fn check(style: &ResolvedStyle<'_>) -> Vec<LintFinding> {
                     utility: candidate.clone(),
                 }
             } else {
-                if !conflict {
+                if !conflict
+                    || policy.ignores_utility(utility_name(candidate))
+                    || policy.ignores_utility(utility_name(previous_candidate))
+                {
                     continue;
                 }
                 let overlaps = overlapping_properties(

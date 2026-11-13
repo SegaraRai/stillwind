@@ -579,6 +579,20 @@ pub(crate) fn explanation(message: Option<&str>) -> LeanString {
     })
 }
 
+/// Returns the utility name of the candidate `raw` without its variants and important
+/// modifiers, such as `btn` for `hover:btn!`. An unparsable candidate is returned
+/// unchanged.
+pub(crate) fn utility_name(raw: &str) -> &str {
+    parse_candidate(raw).map_or(raw, |candidate| {
+        let offset = candidate
+            .variants
+            .iter()
+            .map(|variant| variant.raw.len() + 1)
+            .sum::<usize>();
+        raw[offset..].trim_matches('!')
+    })
+}
+
 pub(crate) fn check_candidate_name(
     raw: &str,
     settings: &LintSettings,
@@ -592,14 +606,7 @@ pub(crate) fn check_candidate_name(
     else {
         return Vec::new();
     };
-    let utility = parse_candidate(raw).map_or(raw, |candidate| {
-        let offset = candidate
-            .variants
-            .iter()
-            .map(|variant| variant.raw.len() + 1)
-            .sum::<usize>();
-        raw[offset..].trim_matches('!')
-    });
+    let utility = utility_name(raw);
     config
         .utilities
         .iter()

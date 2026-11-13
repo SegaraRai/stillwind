@@ -78,6 +78,70 @@ const rules = {
 Utilities that conflict in every writing mode, such as `p-2 px-4`, are reported
 even when the list is empty.
 
+`ignoredUtilities` lists utility names whose pairs the rule does not report.
+Use it for a base class that a component library expects you to combine with
+modifier classes. For example, daisyUI expects `btn` with `btn-outline` or
+`btn-ghost`:
+
+```ts
+const rules = {
+  "conflicting-utilities": {
+    ignoredUtilities: ["btn"],
+  },
+};
+```
+
+The rule then reports neither `btn btn-outline` nor `btn btn-ghost`, but it
+still reports `btn-outline btn-ghost`. Each entry is a complete,
+case-sensitive glob that accepts `*` and `?`. The rule matches it against the
+utility name without variants and the `!` modifier, so `btn` also covers
+`hover:btn` and `btn!`. A pair is not reported when either utility matches. A
+glob such as `btn*` also matches `btn-outline` and `btn-ghost`, so list base
+classes by their full names. The default is an empty list.
+[Plugins](#plugins) lists the base classes of common plugins.
+
+## Plugins
+
+Some plugins define a base class that you combine with modifier classes on the
+same element, such as `btn btn-outline` in daisyUI. When both classes set the
+same property, the rule reports the pair, although the plugin intends the
+modifier to win. The following settings stop these reports for the plugins that
+[Tailwind CSS compatibility](/docs/guides/tailwind-compatibility#plugins-and-css-packages)
+lists:
+
+| Package                                        | Setting                                             | Pairs that the setting allows                            |
+| ---------------------------------------------- | --------------------------------------------------- | -------------------------------------------------------- |
+| `daisyui`                                      | `ignoredUtilities: ["btn", "join"]`                 | `btn btn-outline`, `btn btn-ghost`, `join join-vertical` |
+| `@tailwindcss/typography`                      | `ignoredUtilities: ["prose"]`                       | `prose prose-lg`, `prose prose-invert`                   |
+| `@tailwindcss/forms` with the `class` strategy | `ignoredUtilities: ["form-*"]`                      | `form-input px-4`, `form-select rounded-full`            |
+| `tailwind-scrollbar`                           | `ignoredUtilities: ["scrollbar", "scrollbar-thin"]` | `scrollbar scrollbar-thumb-sky-700`                      |
+| `tailwindcss-motion`                           | `ignoredUtilities: ["motion-preset-*"]`             | `motion-preset-fade motion-duration-2000`                |
+| `tailwindcss-animate`                          | `ignoredUtilities: ["animate-in", "animate-out"]`   | `animate-in fade-in`, `animate-in duration-300`          |
+| `tailwindcss-animated`                         | `allowShorthandOverrides: true`                     | `animate-fade animate-duration-1000`                     |
+| `tw-animate-css`                               | `allowShorthandOverrides: true`                     | `animate-in delay-150`, `animate-in repeat-infinite`     |
+
+The other packages on that page need no setting. In these packages, the rule
+reports only pairs of alternative classes, such as `h-radix-select-trigger h-10`.
+
+`tailwindcss-animated` and `tw-animate-css` write the `animation` shorthand in
+an animation class and an `animation-*` longhand in a modifier class, so
+`allowShorthandOverrides` allows these pairs without hiding other pairs of the
+animation class.
+
+If you use several plugins, put all their entries in one list:
+
+```ts
+const rules = {
+  "conflicting-utilities": {
+    ignoredUtilities: ["btn", "join", "prose"],
+  },
+};
+```
+
+An ignored base class also hides the pairs that do conflict, such as
+`animate-in animate-out` or `scrollbar scrollbar-thin`. Check these pairs in
+review.
+
 ## Rule settings
 
 <LintRuleSummary name="conflicting-utilities" />

@@ -723,6 +723,15 @@ part of a shorthand. Two different values for the same property still conflict.
 Logical and physical longhands still conflict when they share a side in one of the
 configured writing modes.
 
+`conflicting-utilities.ignoredUtilities` lists complete, case-sensitive utility globs
+that accept `*` and `?`. It defaults to an empty list, and a supplied list replaces the
+inherited one. The rule matches each glob against the utility name without variants and
+important modifiers, so `btn` matches `hover:btn` and `btn!`. A pair is not reported
+when either utility matches, in `style()` calls and in `@apply`. The option does not
+change `duplicate-utility`. An empty glob or a glob with whitespace makes the lint
+configuration invalid. The option exists for plugin base classes that the plugin
+combines with modifier classes, such as daisyUI `btn` with `btn-outline`.
+
 `invalid-marker-use` defaults to `warn`. Its `ignoredClasses` option lists exact
 decoded marker class names, such as `group` or `foo/bar`, whose findings are not
 reported. A supplied list replaces the inherited list.

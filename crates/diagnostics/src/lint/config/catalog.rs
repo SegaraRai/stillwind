@@ -214,6 +214,7 @@ macro_rules! lint_config_value {
             severity: $severity,
             allow_shorthand_overrides: false,
             writing_modes: Cow::Borrowed(&[WritingMode::HorizontalTb]),
+            ignored_utilities: Vec::new(),
         }
     };
     (NoRestrictedLengthUnits, $severity:expr) => {

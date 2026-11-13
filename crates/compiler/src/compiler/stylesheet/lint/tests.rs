@@ -257,6 +257,30 @@ fn conflict_findings_of_an_application_offer_a_named_logical_utility() {
 }
 
 #[test]
+fn an_application_does_not_report_pairs_with_an_ignored_utility() {
+    let options = CompilerOptions {
+        lint: LintOverrides {
+            conflicting_utilities: Some(ConflictingUtilitiesOverride {
+                ignored_utilities: Some(vec!["p-2".into()]),
+                ..ConflictingUtilitiesOverride::default()
+            }),
+            ..LintOverrides::default()
+        },
+        ..CompilerOptions::default()
+    };
+    assert_eq!(
+        findings(
+            ".a { @apply md:p-2! md:px-4; } .b { @apply p-2 px-4 px-6; }",
+            &options,
+        )
+        .into_iter()
+        .filter(|(kind, _, _)| *kind == LintKind::ConflictingUtilities)
+        .collect::<Vec<_>>(),
+        [finding(LintKind::ConflictingUtilities, "px-6")]
+    );
+}
+
+#[test]
 fn selector_variants_are_checked_against_the_rule_selector() {
     assert_eq!(
         default_findings(".a { @apply [:root]:flex; @variant [:root] { color: red; } }"),

@@ -185,6 +185,11 @@ report utilities that Stillwind cannot resolve and Tailwind features that it
 ignores. Then test the production build, and compare your pages with the old
 version as described in the next section.
 
+The `conflicting-utilities` lint rule can report a plugin's base class together
+with its modifier classes, such as `btn btn-outline` in daisyUI. The
+[Plugins](/docs/lints/conflicting-utilities#plugins) section of the rule page
+lists a setting for each tested plugin that stops these reports.
+
 ### Compare computed styles
 
 A successful build and clean CLI checks do not prove that the pages look the

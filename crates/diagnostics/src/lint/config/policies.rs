@@ -5,7 +5,7 @@ use std::borrow::Cow;
 use lean_string::LeanStr;
 use serde::{Deserialize, Serialize};
 
-use stillwind_css::WritingMode;
+use stillwind_css::{WritingMode, policy_glob_matches};
 
 use super::LintSeverity;
 
@@ -135,6 +135,20 @@ pub struct ConflictingUtilitiesConfig {
     /// these modes, with the `ltr` or the `rtl` direction. A pair that overlaps in every
     /// writing mode is reported even when the list is empty.
     pub writing_modes: Cow<'static, [WritingMode]>,
+    /// Case-sensitive complete utility globs supporting `*` and `?`, matched against the
+    /// utility name without variants and important modifiers. The rule does not report
+    /// a pair when either utility matches a glob.
+    pub ignored_utilities: Vec<LeanStr>,
+}
+
+impl ConflictingUtilitiesConfig {
+    /// Returns whether pairs that include `utility` are not reported. `utility` must
+    /// exclude variants and important modifiers, such as `btn` for `hover:btn!`.
+    pub fn ignores_utility(&self, utility: &str) -> bool {
+        self.ignored_utilities
+            .iter()
+            .any(|pattern| policy_glob_matches(pattern, utility))
+    }
 }
 
 impl Default for ConflictingUtilitiesConfig {
@@ -143,6 +157,7 @@ impl Default for ConflictingUtilitiesConfig {
             severity: LintSeverity::Warn,
             allow_shorthand_overrides: false,
             writing_modes: Cow::Borrowed(&[WritingMode::HorizontalTb]),
+            ignored_utilities: Vec::new(),
         }
     }
 }
@@ -157,6 +172,8 @@ pub struct ConflictingUtilitiesOverride {
     pub allow_shorthand_overrides: Option<bool>,
     /// Omission preserves the writing modes; a supplied list replaces them.
     pub writing_modes: Option<Vec<WritingMode>>,
+    /// Omission preserves the ignored utility globs; a supplied list replaces them.
+    pub ignored_utilities: Option<Vec<LeanStr>>,
 }
 
 /// One unit restriction selected by CSS property name.

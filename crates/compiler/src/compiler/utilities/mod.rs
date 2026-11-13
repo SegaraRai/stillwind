@@ -22,7 +22,7 @@ mod render;
 mod resolve;
 
 pub(crate) use emission::{FLATTEN_COLOR_COMPATIBILITY, emit_utility_rules};
-pub(crate) use policy::{candidate_allowed, check_candidate_name};
+pub(crate) use policy::{candidate_allowed, check_candidate_name, utility_name};
 pub(crate) use resolve::{
     CompiledUtility, invalid_property_value_finding, marker_use_finding, resolve_utility_targets,
     unresolved_lint_kind, unresolved_utility_finding, with_type_hint, written_span,

@@ -65,7 +65,40 @@ next steps.
 
 Do not change the look of the pages beyond the chosen level without asking.
 Do not add suppression comments or relax the `lint` setting to pass the checks
-unless the user agrees.
+unless the user agrees. Plugin base classes are an exception, as the next
+section describes.
+
+### Conflicts with plugin classes
+
+`conflicting-utilities` can report two classes of a plugin or CSS package, or a
+plugin class and a core utility. Decide from the plugin's own usage whether the
+pair is intended:
+
+- The pair is intended when the plugin's documentation or examples put both
+  classes on the same element, and one class is meant to change the other. For
+  example, daisyUI combines the base class `btn` with `btn-outline`, and
+  `@tailwindcss/forms` combines `form-input` with `px-4`. Check the
+  documentation of the installed version, because class names and CSS change
+  between versions.
+- The pair is a real conflict when the classes are alternatives, such as two
+  modifiers of one kind (`btn-outline btn-ghost`) or two values (`p-2 p-4`), or
+  when the plugin uses them on different elements, such as a container class and
+  a class for its child. Fix the code instead.
+
+For an intended pair, change the `conflicting-utilities` options in
+`stillwind.config.ts`. You do not need to ask first, but report each change.
+
+- When the finding has a note that names `allowShorthandOverrides`, the pair is a
+  shorthand and a longhand, such as `animation` and `animation-duration`. Set
+  `allowShorthandOverrides: true`.
+- Otherwise, add the base class to `ignoredUtilities`. Write its full name, such
+  as `btn`. Use a glob such as `form-*` only when every class that it matches is
+  a base class, because the rule stops reporting every pair of a matching class.
+- The "Plugins" section of `docs/lints/conflicting-utilities.md` lists the
+  settings for tested plugins. Use them as examples, and still check each pair
+  against the installed version.
+
+When the plugin's usage does not tell whether a pair is intended, ask the user.
 
 ## Verify
 
@@ -84,5 +117,6 @@ unless the user agrees.
   the project's instruction file, such as `AGENTS.md` or `CLAUDE.md`. Ask
   before you create or change the file, and keep its other content.
 - Report the chosen level, the changes, the verification results, and what
-  remains: unresolved findings, plugins that did not work, code that you left
+  remains: the `lint` options that you changed for plugin classes and the pairs
+  that they allow, unresolved findings, plugins that did not work, code that you left
   unchanged, and the work for the next level. Do not commit unless the user asks.

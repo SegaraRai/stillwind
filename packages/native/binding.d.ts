@@ -1087,6 +1087,11 @@ export interface NativeConflictingUtilitiesOptions {
    * previous one.
    */
   writingModes?: Array<string>
+  /**
+   * Complete utility globs, without variants, whose pairs are not reported. A
+   * supplied list replaces the previous one.
+   */
+  ignoredUtilities?: Array<string>
 }
 
 /** Converter that produced a projected input. */

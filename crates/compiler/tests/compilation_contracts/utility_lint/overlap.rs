@@ -80,6 +80,39 @@ fn utility_pairs_respect_css_contexts_source_choices_and_shorthand_policy() {
 }
 
 #[test]
+fn pairs_with_an_ignored_utility_do_not_compete() {
+    let options = CompilerOptions {
+        lint: LintOverrides {
+            conflicting_utilities: Some(ConflictingUtilitiesOverride {
+                ignored_utilities: Some(vec!["p?".into()]),
+                ..ConflictingUtilitiesOverride::default()
+            }),
+            ..LintOverrides::default()
+        },
+        ..CompilerOptions::default()
+    };
+    for (code, expected) in [
+        ("const x=style('p2 px4');", None),
+        ("const x=style('hover:p2! hover:px4');", None),
+        ("const x=style('p2', ['px4']);", None),
+        (
+            "const x=style('p2 px4 px4');",
+            Some(LintKind::DuplicateUtility),
+        ),
+        (
+            "const x=style('px4 pl4');",
+            Some(LintKind::ConflictingUtilities),
+        ),
+    ] {
+        assert_eq!(
+            kinds(code, CSS, &options),
+            expected.into_iter().collect::<Vec<_>>(),
+            "{code}"
+        );
+    }
+}
+
+#[test]
 fn shared_composition_declarations_and_one_candidate_expansion_do_not_compete() {
     let theme = "@utility x {--x:1px;translate:var(--x) var(--y)} @utility y {--y:2px;translate:var(--x) var(--y)} @utility many {color:red; &:hover {color:blue;} }";
     assert_eq!(

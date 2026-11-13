@@ -280,6 +280,9 @@ impl LintOverrides {
             if let Some(value) = &overrides.writing_modes {
                 config.writing_modes = Cow::Owned(value.clone());
             }
+            if let Some(value) = &overrides.ignored_utilities {
+                config.ignored_utilities.clone_from(value);
+            }
             settings.insert(LintConfig::ConflictingUtilities(config));
         }
     }

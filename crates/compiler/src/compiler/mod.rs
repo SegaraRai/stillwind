@@ -84,7 +84,7 @@ pub(crate) use stylesheet::{
 pub(crate) use symbols::detached_symbol;
 pub(crate) use utilities::{
     FLATTEN_COLOR_COMPATIBILITY, candidate_allowed, check_candidate_name, emit_utility_rules,
-    resolve_utility_targets, with_type_hint,
+    resolve_utility_targets, utility_name, with_type_hint,
 };
 pub(crate) use variants::{condition_paths, wrap_conditions};
 

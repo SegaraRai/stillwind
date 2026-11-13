@@ -66,4 +66,8 @@ Markdown version of each page.
   the `docs` field of a finding names that page. Do not add a suppression comment or
   relax the `lint` setting unless the user agrees. A suppression comment names the rule
   and gives the reason after `--`.
+- When `conflicting-utilities` reports a pair of classes from a plugin or CSS package,
+  follow "Conflicts with plugin classes" in `../migrate-to-stillwind/SKILL.md`. For a
+  pair that the plugin intends, you can change the rule options without asking first,
+  and you report the change.
 - Check the result in the browser when a change can affect the layout.

@@ -170,6 +170,21 @@ export const policies=style('child:[padding-left:2px] text-red-500');`;
       },
     );
     expect(allowed.reports).toEqual([]);
+    const ignored = compileSource(
+      oneShotInput(
+        "import {style} from 'stillwind/react';const x=style('p2 px4');",
+        "ignored.tsx",
+        css,
+      ),
+      {
+        lint: {
+          conflictingUtilities: {
+            ignoredUtilities: ["p?"],
+          },
+        },
+      },
+    );
+    expect(ignored.reports).toEqual([]);
     const indirect = compileSource(
       oneShotInput(
         "import {style} from 'stillwind/react';const x=style('child-before:p2');",

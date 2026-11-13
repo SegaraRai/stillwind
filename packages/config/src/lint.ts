@@ -154,6 +154,13 @@ export type ConflictingUtilitiesOptions = {
    * with an empty list.
    */
   writingModes?: readonly ("horizontal-tb" | "vertical-rl" | "vertical-lr")[];
+  /**
+   * Case-sensitive complete utility globs that accept `*` and `?`, such as `btn`. Each glob
+   * is matched against the utility name without variants and important modifiers. A pair is
+   * not reported when either utility matches. Omission preserves the inherited list, or uses
+   * an empty list.
+   */
+  ignoredUtilities?: readonly string[];
 };
 
 /**
@@ -423,6 +430,7 @@ const ruleOptions = {
     severity: v.optional(severitySchema),
     allowShorthandOverrides: v.optional(v.boolean()),
     writingModes: v.optional(v.array(v.picklist(["horizontal-tb", "vertical-rl", "vertical-lr"]))),
+    ignoredUtilities: v.optional(v.array(glob)),
   }),
   "invalid-marker-use": strictObject({
     severity: v.optional(severitySchema),

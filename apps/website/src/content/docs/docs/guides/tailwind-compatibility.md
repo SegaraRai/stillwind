@@ -80,6 +80,12 @@ Other plugins can use the same features. [`@plugin`](/docs/at-rules/plugin#tailw
 lists the supported plugin API. JavaScript plugins need the `tailwindcss` package,
 and CSS packages do not.
 
+Some of these packages combine a base class with modifier classes, such as
+`btn btn-outline` in daisyUI. The `conflicting-utilities` lint rule reports such
+pairs by default. The [Plugins](/docs/lints/conflicting-utilities#plugins)
+section of the rule page lists a setting for each package that stops these
+reports.
+
 The tests cover CSS. They do not run the JavaScript of a package, such as the
 components of Preline. Plugins have no browser test with webpack or Next.js. Test
 these combinations in your application.

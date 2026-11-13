@@ -63,6 +63,12 @@ A plugin can select elements by fixed class names, such as `not-prose`.
 [Tailwind CSS compatibility](/docs/guides/tailwind-compatibility#class-names-that-a-plugins-selectors-use)
 describes. That page also lists the tested plugins.
 
+A plugin can define a base class that you combine with modifier classes, such
+as `btn btn-outline` in daisyUI. The `conflicting-utilities` lint rule reports
+such a pair when both classes set the same property. The
+[Plugins](/docs/lints/conflicting-utilities#plugins) section of the rule page
+lists the settings that stop these reports for common plugins.
+
 Each selector that a plugin passes to `addUtilities` or `addComponents` must
 name a class. An `@scope` rule can appear inside such a selector, as in
 `{ ".join": { "@scope (&)": { … } } }`, but not around it. When a plugin
