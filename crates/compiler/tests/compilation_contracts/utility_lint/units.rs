@@ -185,8 +185,13 @@ fn implementation_declarations_are_optional_without_disabling_source_policies() 
 fn built_in_screen_reader_utilities_skip_implementation_policies() {
     for check_implementation in [false, true] {
         let options = policy_options(LintOverrides {
-            prefer_logical_properties: Some(LogicalPropertiesOverride {
+            no_restricted_declarations: Some(RestrictedDeclarationsOverride {
                 check_implementation: Some(check_implementation),
+                rules: Some(vec![RestrictedDeclarationRule {
+                    properties: vec!["position".into()],
+                    values: vec!["*".into()],
+                    message: None,
+                }]),
                 ..Default::default()
             }),
             ..Default::default()
@@ -198,7 +203,7 @@ fn built_in_screen_reader_utilities_skip_implementation_policies() {
                     PACKAGE_CSS,
                     &options
                 )
-                .contains(&LintKind::PreferLogicalProperties),
+                .contains(&LintKind::NoRestrictedDeclarations),
                 check_implementation,
                 "{candidate}"
             );
@@ -308,6 +313,42 @@ fn implementation_classifications_follow_retained_rules_and_variant_declarations
         assert!(
             found.contains(&LintKind::NoRestrictedLengthUnits),
             "{candidate}: {found:?}"
+        );
+    }
+}
+
+fn logical_policy_options() -> CompilerOptions {
+    policy_options(LintOverrides {
+        prefer_logical_properties: Some(LogicalPropertiesOverride::default()),
+        ..Default::default()
+    })
+}
+
+fn logical_policy_css() -> String {
+    format!(
+        "{PACKAGE_CSS}
+:root {{ @stillwind-slot theme; }}
+@theme {{ --spacing:0.25rem; }}
+@utility square {{ width:1rem; height:1rem; }}
+@utility split {{ width:1rem; @media print {{ height:1rem; }} }}"
+    )
+}
+
+#[test]
+fn logical_policy_skips_rules_that_set_both_sizes_to_one_value() {
+    let options = logical_policy_options();
+    let css = logical_policy_css();
+    for candidate in ["size-6", "size-full", "hover:size-[3px]", "square"] {
+        assert!(
+            kinds(&format!("const x=style('{candidate}');"), &css, &options).is_empty(),
+            "{candidate}"
+        );
+    }
+    for candidate in ["w-6", "split", "[width:1rem]"] {
+        assert!(
+            kinds(&format!("const x=style('{candidate}');"), &css, &options)
+                .contains(&LintKind::PreferLogicalProperties),
+            "{candidate}"
         );
     }
 }

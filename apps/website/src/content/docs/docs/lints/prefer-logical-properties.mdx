@@ -28,7 +28,20 @@ style("ms-4");
 ## How to fix
 
 - If the margin separates the element from the content before it, use the
-  logical form, as in the example.
+  logical form, as in the example. Most physical utilities have a logical
+  utility that gives the same result in horizontal left-to-right text:
+
+  | Physical                                               | Logical                                                      |
+  | ------------------------------------------------------ | ------------------------------------------------------------ |
+  | `w-*`, `h-*`                                           | `inline-*`, `block-*`                                        |
+  | `min-w-*`, `max-w-*`, `min-h-*`, `max-h-*`             | `min-inline-*`, `max-inline-*`, `min-block-*`, `max-block-*` |
+  | `mt-*`, `mr-*`, `mb-*`, `ml-*`                         | `mbs-*`, `me-*`, `mbe-*`, `ms-*`                             |
+  | `pt-*`, `pr-*`, `pb-*`, `pl-*`                         | `pbs-*`, `pe-*`, `pbe-*`, `ps-*`                             |
+  | `top-*`, `right-*`, `bottom-*`, `left-*`               | `inset-bs-*`, `inset-e-*`, `inset-be-*`, `inset-s-*`         |
+  | `border-t-*`, `border-r-*`, `border-b-*`, `border-l-*` | `border-bs-*`, `border-e-*`, `border-be-*`, `border-s-*`     |
+  | `rounded-l-*`, `rounded-tl-*`                          | `rounded-s-*`, `rounded-ss-*`                                |
+  | `text-left`, `float-left`, `clear-left`                | `text-start`, `float-start`, `clear-start`                   |
+
 - If the side must stay on the left in every language, such as for an icon that
   points left, keep the physical form and add a
   [suppression comment](/docs/configuration#suppression-comments).
@@ -40,7 +53,11 @@ style("ms-4");
 ## Shorthands
 
 A shorthand that gives every side the same value does not depend on the writing
-direction, so this rule does not report `p-4` or `overflow-hidden`.
+direction, so this rule does not report `p-4` or `overflow-hidden`. The same
+applies when one rule sets every physical property of a group to one value, so
+the rule does not report `size-6`, which sets `width` and `height` to the same
+value. A utility that sets `width` and `height` in different rules, such as
+under different media queries, is still reported.
 
 The rule reports a shorthand with different values for its sides, such as
 `[padding:1rem_2rem]`. It also reports a shorthand that sets only some sides, such

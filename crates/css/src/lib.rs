@@ -113,7 +113,7 @@ pub use values::{
     declaration_is_physical, horizontal_logical_counterpart, inspect_css_value, is_length_unit,
     media_has_size_comparison, media_size_comparisons, policy_glob_matches, properties_interfere,
     properties_interfere_in, property_covers, property_value_domains, reads_written_value,
-    repeated_longhands, value_is_well_formed, writing_mode_group,
+    repeated_longhands, uniform_physical_longhands, value_is_well_formed, writing_mode_group,
 };
 
 #[cfg(feature = "minify")]

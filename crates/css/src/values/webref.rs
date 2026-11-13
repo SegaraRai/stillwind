@@ -191,7 +191,8 @@ pub fn writing_mode_group(left: &str, right: &str) -> Option<&'static str> {
 ///
 /// The mapping follows CSS Logical Properties and Values: `top`, `bottom`, `left`, and
 /// `right` become `block-start`, `block-end`, `inline-start`, and `inline-end`, and
-/// `width` and `height` become `inline-size` and `block-size`. The result must be a
+/// `width` and `height` become `inline-size` and `block-size`. A corner such as
+/// `top-left` becomes `start-start`, with the block side first. The result must be a
 /// logical member of the same Webref logical group, so the function returns `None` for
 /// a logical property and for a property without such a counterpart.
 pub fn horizontal_logical_counterpart(property: &str) -> Option<&'static str> {
@@ -201,6 +202,25 @@ pub fn horizontal_logical_counterpart(property: &str) -> Option<&'static str> {
         return None;
     }
     let mut parts: Vec<&str> = property.split('-').collect();
+    // A corner names its block side before its inline side, as `border-top-left-radius`
+    // becomes `border-start-start-radius`.
+    if let Some(corner) = parts
+        .windows(2)
+        .position(|pair| matches!(pair[0], "top" | "bottom") && matches!(pair[1], "left" | "right"))
+    {
+        for part in &mut parts[corner..corner + 2] {
+            *part = if matches!(*part, "top" | "left") {
+                "start"
+            } else {
+                "end"
+            };
+        }
+        let replaced = parts.join("-");
+        return webref_property(&replaced).and_then(|definition| {
+            (definition.logical_group == Some(group) && is_logical(definition.name))
+                .then_some(definition.name)
+        });
+    }
     let side = parts.iter().position(|part| {
         matches!(
             *part,
@@ -389,6 +409,8 @@ mod tests {
             ("top", Some("inset-block-start")),
             ("border-left-width", Some("border-inline-start-width")),
             ("max-height", Some("max-block-size")),
+            ("border-top-left-radius", Some("border-start-start-radius")),
+            ("border-bottom-right-radius", Some("border-end-end-radius")),
             ("padding-block-start", None),
             ("color", None),
         ] {

@@ -14,8 +14,8 @@ use lightningcss::traits::Parse;
 use lightningcss::values::color::CssColor;
 
 use super::webref::{
-    assigns_physical_longhands_by_position, is_logical, sets_part_of_physical_group,
-    webref_property,
+    assigns_physical_longhands_by_position, is_logical, physical_group_longhands,
+    sets_part_of_physical_group, webref_property,
 };
 use crate::lists::whitespace_separated_ranges;
 
@@ -392,6 +392,55 @@ pub fn declaration_is_physical(property: &str, value: &str) -> bool {
         .any(|values| values.iter().any(|value| *value != values[0]))
 }
 
+/// Returns, for each declaration of one rule, whether it belongs to a physical logical
+/// group that the rule sets uniformly.
+///
+/// `declarations` lists the `(property, value)` pairs of one rule in source order. A
+/// group qualifies when the rule declares every physical longhand of the group, as in
+/// `width` and `height`, and every declaration of those longhands has the same value
+/// after trimming. A writing mode then only exchanges equal values, so the result does
+/// not depend on it, as for `padding: 1rem`. `!important` is part of the compared
+/// value. Shorthands, logical properties, and declarations from other rules never
+/// complete a group.
+pub fn uniform_physical_longhands(declarations: &[(&str, &str)]) -> Vec<bool> {
+    let mut groups = BTreeMap::<&'static str, Vec<(LeanString, &str)>>::new();
+    for (property, value) in declarations {
+        let property = property.to_ascii_lowercase();
+        if let Some(definition) = webref_property(&property)
+            && definition.longhands.is_empty()
+            && !is_logical(&property)
+            && let Some(group) = definition.logical_group
+        {
+            groups
+                .entry(group)
+                .or_default()
+                .push((property.to_lean_string(), value.trim()));
+        }
+    }
+    let uniform: BTreeSet<_> = groups
+        .into_iter()
+        .filter(|(group, members)| {
+            members.iter().all(|(_, value)| *value == members[0].1)
+                && physical_group_longhands(group)
+                    .iter()
+                    .all(|name| members.iter().any(|(property, _)| property == name))
+        })
+        .map(|(group, _)| group)
+        .collect();
+    declarations
+        .iter()
+        .map(|(property, _)| {
+            !is_logical(property)
+                && webref_property(property).is_some_and(|definition| {
+                    definition.longhands.is_empty()
+                        && definition
+                            .logical_group
+                            .is_some_and(|group| uniform.contains(group))
+                })
+        })
+        .collect()
+}
+
 /// Returns whether the top-level whitespace-separated components of `value` differ.
 fn values_differ(value: &str) -> bool {
     let components = whitespace_separated_ranges(value);
@@ -512,6 +561,38 @@ mod tests {
         assert!(!declaration_is_physical("overflow", "hidden"));
         assert!(declaration_is_physical("overflow", "hidden auto"));
         assert!(declaration_is_physical("overflow-x", "hidden"));
+    }
+
+    #[test]
+    fn uniform_physical_longhands_require_every_side_with_one_value() {
+        assert_eq!(
+            uniform_physical_longhands(&[("width", "1rem"), ("height", " 1rem"), ("color", "red")]),
+            [true, true, false]
+        );
+        for declarations in [
+            &[("width", "1rem")][..],
+            &[("width", "1rem"), ("height", "2rem")],
+            &[("width", "1rem"), ("height", "1rem!important")],
+            &[("width", "1rem"), ("height", "1rem"), ("width", "2rem")],
+            &[("margin-top", "1rem"), ("margin-bottom", "1rem")],
+        ] {
+            assert!(
+                uniform_physical_longhands(declarations)
+                    .iter()
+                    .all(|uniform| !uniform),
+                "{declarations:?}"
+            );
+        }
+        assert_eq!(
+            uniform_physical_longhands(&[
+                ("top", "0"),
+                ("right", "0"),
+                ("bottom", "0"),
+                ("left", "0"),
+                ("min-width", "0"),
+            ]),
+            [true, true, true, true, false]
+        );
     }
 
     #[test]

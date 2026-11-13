@@ -31,6 +31,7 @@ pub use domain::ValueDomain;
 pub use policy::{
     arbitrary_value_flags, declaration_is_physical, inspect_css_value, is_length_unit,
     media_has_size_comparison, media_size_comparisons, policy_glob_matches, property_value_domains,
+    uniform_physical_longhands,
 };
 pub use properties::CssProperty;
 pub use syntax::value_is_well_formed;

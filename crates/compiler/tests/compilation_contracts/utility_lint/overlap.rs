@@ -236,6 +236,17 @@ fn conflict_findings_offer_a_named_logical_utility_from_the_design_system() {
                 "`margin-right` in horizontal left-to-right writing modes",
             )],
         ),
+        (
+            "const x=style('rounded-ss-lg rounded-tl-xl');",
+            [concat!(
+                "`border-start-start-radius` and `border-top-left-radius` overlap through the ",
+                "`border-radius` logical group, so the writing mode decides which sides they ",
+                "share; set both with logical properties or both with physical properties; to use ",
+                "logical properties, replace `rounded-tl-xl` with `rounded-ss-xl`, which sets ",
+                "`border-start-start-radius` in place of `border-top-left-radius` in horizontal ",
+                "left-to-right writing modes",
+            )],
+        ),
     ] {
         let (_, result) = fixture.compile(code);
         let notes: Vec<_> = result

@@ -11,7 +11,7 @@ use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 use stillwind_css::{
     SelectorTarget, arbitrary_value_flags, declaration_is_physical, inspect_css_value,
     media_has_size_comparison, policy_glob_matches, property_covers, property_value_domains,
-    selector_target,
+    selector_target, uniform_physical_longhands,
 };
 use stillwind_design_system::{
     ThemeIndex, UtilityDeclaration, VariantApplication, VariantContext, VariantValueSource,
@@ -56,9 +56,9 @@ pub(in crate::compiler) fn check(
         Vec::new()
     };
     if filter_importance || filter_restrictions {
-        for declaration in declarations
+        for PolicyDeclaration { declaration, .. } in declarations
             .iter()
-            .filter(|declaration| !declaration.implementation)
+            .filter(|declaration| !declaration.declaration.implementation)
         {
             collect_declarations(
                 &format_args!("{}:{};", declaration.property, declaration.value).to_lean_string(),
@@ -132,7 +132,7 @@ pub(in crate::compiler) fn check(
 /// implementation policy. `reported` records findings already emitted for this use
 /// and receives the keys of new findings.
 fn check_value_policies(
-    declarations: &[UtilityDeclaration],
+    declarations: &[PolicyDeclaration],
     theme: &ThemeIndex,
     settings: &LintSettings,
     span: Span,
@@ -142,10 +142,15 @@ fn check_value_policies(
     if settings.enabled_for_detection(LintKind::PreferLogicalProperties)
         || settings.enabled_for_detection(LintKind::NoRestrictedLengthUnits)
     {
-        for declaration in declarations {
+        for PolicyDeclaration {
+            declaration,
+            uniform_physical,
+        } in declarations
+        {
             let property = &declaration.property;
             let value = &declaration.value;
             if settings.enabled_for_detection(LintKind::PreferLogicalProperties)
+                && !uniform_physical
                 && (!declaration.implementation
                     || matches!(settings.get(LintKind::PreferLogicalProperties), Some(LintConfig::PreferLogicalProperties(config)) if config.check_implementation))
                 && declaration_is_physical(property, value)
@@ -172,13 +177,23 @@ fn check_value_policies(
     }
 }
 
+/// A declaration for value policies.
+struct PolicyDeclaration {
+    /// The declaration and its implementation classification.
+    declaration: UtilityDeclaration,
+    /// Whether its rule sets every physical longhand of its logical group to its value,
+    /// as `size-4` sets `width` and `height`. Such a declaration does not depend on the
+    /// writing mode.
+    uniform_physical: bool,
+}
+
 /// Collects declaration values and their classifications for checks of `utility`.
 ///
 /// `theme` must be the design system that resolved `utility`. Recorded values precede
 /// runtime guards. A group without records is parsed from its current CSS and receives
 /// ordinary classifications. Variant declarations are also ordinary and are included
 /// only when rendering would add them. The result can contain repeated declarations.
-fn declaration_policies(utility: &CompiledUtility, theme: &ThemeIndex) -> Vec<UtilityDeclaration> {
+fn declaration_policies(utility: &CompiledUtility, theme: &ThemeIndex) -> Vec<PolicyDeclaration> {
     let resolved;
     let applications: Vec<&[VariantApplication]> = if utility.variant_applications.is_empty() {
         resolved = utility
@@ -204,9 +219,13 @@ fn declaration_policies(utility: &CompiledUtility, theme: &ThemeIndex) -> Vec<Ut
         )
     {
         if classifications.is_empty() {
-            declarations.extend(ordinary_declarations(css));
+            push_rule_declarations(
+                &mut declarations,
+                ordinary_declarations(css),
+                !css.contains('{'),
+            );
         } else {
-            declarations.extend(classifications.iter().cloned());
+            push_rule_declarations(&mut declarations, classifications.clone(), true);
         }
         for applications in &applications {
             for path in variant_paths(applications) {
@@ -218,13 +237,46 @@ fn declaration_policies(utility: &CompiledUtility, theme: &ThemeIndex) -> Vec<Ut
                         prepend_missing_declarations(&mut expanded, declarations);
                     }
                 }
-                declarations.extend(ordinary_declarations(
-                    &expanded[..expanded.len() - css.len()],
-                ));
+                let prefix = &expanded[..expanded.len() - css.len()];
+                push_rule_declarations(
+                    &mut declarations,
+                    ordinary_declarations(prefix),
+                    !prefix.contains('{'),
+                );
             }
         }
     }
     declarations
+}
+
+/// Appends the declarations of one rule to `target`.
+///
+/// When `single_rule` is true, the base declarations in `rule` must come from one rule,
+/// and the function marks the declarations that [`uniform_physical_longhands`] accepts.
+/// Otherwise it marks none, because a parsed nested rule may hold `height` under another
+/// condition than `width`.
+fn push_rule_declarations(
+    target: &mut Vec<PolicyDeclaration>,
+    rule: Vec<UtilityDeclaration>,
+    single_rule: bool,
+) {
+    let base: Vec<_> = rule
+        .iter()
+        .filter(|declaration| declaration.base)
+        .map(|declaration| (declaration.property.as_str(), declaration.value.as_str()))
+        .collect();
+    let mut uniform = if single_rule {
+        uniform_physical_longhands(&base).into_iter()
+    } else {
+        Vec::new().into_iter()
+    };
+    for declaration in rule {
+        let uniform_physical = declaration.base && uniform.next().unwrap_or(false);
+        target.push(PolicyDeclaration {
+            declaration,
+            uniform_physical,
+        });
+    }
 }
 
 /// Parses declarations from `css`, including nested rules, for policy checks.
