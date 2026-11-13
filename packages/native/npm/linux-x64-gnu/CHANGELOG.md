@@ -1,5 +1,7 @@
 # @stillwind/native-linux-x64-gnu
 
+## 0.10.0
+
 ## 0.9.0
 
 ## 0.8.0

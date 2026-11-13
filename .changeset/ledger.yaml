@@ -210,6 +210,13 @@ stillwind@0.1.0:
   dir: packages/core
   intents:
     - kind-geckos-rush
+stillwind@0.10.0:
+  dir: packages/core
+  intents:
+    - conflicting-utilities-ignored
+    - logical-corner-replacements
+    - logical-uniform-sizes
+    - scope-preview-empty-declarations
 stillwind@0.2.0:
   dir: packages/core
   intents:
