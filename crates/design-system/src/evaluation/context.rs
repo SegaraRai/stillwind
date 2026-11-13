@@ -113,10 +113,7 @@ impl<'a> EvaluationContext<'a> {
     /// Removes the current selections and transfers ownership to the caller.
     /// Returns empty selections when tracking is disabled.
     pub(in crate::evaluation) fn take_selections(&self) -> ValueSelections {
-        self.selections
-            .as_ref()
-            .map(RefCell::take)
-            .unwrap_or_default()
+        self.selections.as_ref().map_or_default(RefCell::take)
     }
 }
 

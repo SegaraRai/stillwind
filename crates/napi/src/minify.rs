@@ -89,7 +89,7 @@ pub fn minify_css(
     css: String,
     options: Option<NativeCssMinifyOptions>,
 ) -> napi::Result<NativeMinifiedCss> {
-    let options = options.map(CssMinifyOptions::from).unwrap_or_default();
+    let options = options.map_or_default(CssMinifyOptions::from);
     let output = stillwind_css::minify_css(&css, &options)
         .map_err(|error| napi::Error::from_reason(error.to_string()))?;
     Ok(NativeMinifiedCss {

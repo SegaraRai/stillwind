@@ -447,8 +447,7 @@ impl ModuleEditor {
             EditorPlan::Call(call) => self
                 .slots
                 .get(&call.span.start.0)
-                .map(PreviewSlots::replay)
-                .unwrap_or_default(),
+                .map_or_default(PreviewSlots::replay),
             _ => PreviewSlots::default(),
         };
         self.render_with_names(plan, &mut slots, names)

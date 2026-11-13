@@ -337,8 +337,7 @@ pub(in crate::evaluation) fn substitute_variant_capture(
         capture.replace_char('_', " ")
     };
     let modifier = modifier
-        .map(|modifier| modifier.replace_char('_', " ").replace_char('/', r"\/"))
-        .unwrap_or_default();
+        .map_or_default(|modifier| modifier.replace_char('_', " ").replace_char('/', r"\/"));
     let modifier_suffix = if modifier.is_empty() {
         LeanString::new()
     } else {

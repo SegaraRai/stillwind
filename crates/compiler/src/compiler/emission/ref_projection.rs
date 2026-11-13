@@ -326,9 +326,11 @@ fn render_ref_projection(
                 format_args!(
                     "container-name:{};{}",
                     container.custom_ident(),
-                    kind.as_ref()
-                        .map(|kind| format_args!("container-type:{};", kind.value).to_lean_string())
-                        .unwrap_or_default()
+                    kind.as_ref().map_or_default(|kind| format_args!(
+                        "container-type:{};",
+                        kind.value
+                    )
+                    .to_lean_string())
                 )
                 .to_lean_string(),
                 Some(projection_symbol(

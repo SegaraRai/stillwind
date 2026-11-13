@@ -88,7 +88,7 @@ pub enum IgnoredTailwindFeatureKind {
 /// the load then fails with that error.
 #[must_use]
 pub fn ignored_tailwind_features(css: &str) -> Vec<IgnoredTailwindFeature> {
-    scan(css).map(|scan| scan.ignored).unwrap_or_default()
+    scan(css).map_or_default(|scan| scan.ignored)
 }
 
 /// The dependencies of one buffer and the Tailwind features that loading ignores.

@@ -197,7 +197,7 @@ pub(in crate::query::canonical) fn authored_variables(raw: &str) -> Vec<LeanStri
         Utility::Named { name, .. } => spelling::arbitrary(&name).map(|(_, _, value)| value),
         Utility::ArbitraryProperty { value, .. } => Some(value.to_string()),
     });
-    written.as_deref().map(variable_calls).unwrap_or_default()
+    written.as_deref().map_or_default(variable_calls)
 }
 
 /// Returns each complete `var()` call in `css`, written in the compact spelling of

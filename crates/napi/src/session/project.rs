@@ -629,8 +629,7 @@ impl NativeProjectSession {
                 transaction
                     .artifacts()
                     .get(&module_id)
-                    .map(|artifact| transaction.linked_output(artifact))
-                    .unwrap_or_default()
+                    .map_or_default(|artifact| transaction.linked_output(artifact))
             } else {
                 CompileResult {
                     diagnostics: update.diagnostics,
@@ -745,8 +744,7 @@ impl NativeProjectSession {
                 let result = transaction
                     .artifacts()
                     .get(&module_id)
-                    .map(|artifact| transaction.linked_output(artifact))
-                    .unwrap_or_default();
+                    .map_or_default(|artifact| transaction.linked_output(artifact));
                 let (output, _) = binding_output_with_batch(result, &source, diagnostic_sources)?;
                 Ok(ProjectModuleOutput::new(module_id, output))
             })

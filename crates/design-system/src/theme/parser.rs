@@ -140,8 +140,7 @@ fn parse_theme_contents(
         origins
             .iter()
             .find(|(range, _)| range.contains(&offset))
-            .map(|(_, origin)| origin.clone())
-            .unwrap_or_default()
+            .map_or_default(|(_, origin)| origin.clone())
     };
     // Stylesheet-wide metadata ignores the statements inside `@stillwind-registry`
     // blocks, so its parsers read a copy in which the blocks are blank.

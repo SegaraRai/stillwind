@@ -320,8 +320,7 @@ fn candidate_selector(candidate: &str) -> LeanString {
         key: DeclarationKey::default(),
         branch: format_args!("{candidate}\0").to_lean_str(),
     })
-    .map(|name| name.selector())
-    .unwrap_or_default()
+    .map_or_default(|name| name.selector())
 }
 
 /// Starts an independent context with default release naming and the default hash

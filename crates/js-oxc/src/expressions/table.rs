@@ -63,8 +63,7 @@ impl<'a> MacroExtractor<'a> {
                 entries
                     .into_iter()
                     .find(|entry| entry.key == literal)
-                    .map(|entry| entry.value)
-                    .unwrap_or_default(),
+                    .map_or_default(|entry| entry.value),
             );
         }
         let TableKey::Expression(key) = key else {
