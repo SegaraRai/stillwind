@@ -1,14 +1,10 @@
 <h1 align="center">
-  <a href="https://stillwind.dev/#gh-light-mode-only">
+  <a href="https://stillwind.dev/">
     <picture>
-      <source media="(not (prefers-reduced-motion: reduce))" srcset="tools/brand/svgreel/logo-outlined-light-animated.svg" />
+      <source media="(prefers-color-scheme: dark) and (not (prefers-reduced-motion: reduce))" srcset="tools/brand/svgreel/logo-outlined-dark-animated.svg">
+      <source media="(not (prefers-reduced-motion: reduce))" srcset="tools/brand/svgreel/logo-outlined-light-animated.svg">
+      <source media="(prefers-color-scheme: dark)" srcset="tools/brand/output/logo-outlined-dark.svg">
       <img src="tools/brand/output/logo-outlined-light.svg" alt="Stillwind" width="420" />
-    </picture>
-  </a>
-  <a href="https://stillwind.dev/#gh-dark-mode-only">
-    <picture>
-      <source media="(not (prefers-reduced-motion: reduce))" srcset="tools/brand/svgreel/logo-outlined-dark-animated.svg" />
-      <img src="tools/brand/output/logo-outlined-dark.svg" alt="Stillwind" width="420" />
     </picture>
   </a>
 </h1>
