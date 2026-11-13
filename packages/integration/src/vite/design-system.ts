@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { realpathSync } from "node:fs";
 import { readdir, readFile, realpath } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import {
@@ -402,8 +402,8 @@ export class DesignSystem {
     const directories = new Set<string>();
     const trackingDirectories = this.cssObservedDirectories;
     /**
-     * Records a directory that a plugin lists once for this load and registers it with Vite's
-     * watchers.
+     * Records a directory that a plugin lists once for this load. The development server's watcher
+     * receives the directory only when the watcher does not already cover it.
      *
      * @param directory - Absolute directory path.
      */
@@ -414,8 +414,20 @@ export class DesignSystem {
       }
       directories.add(path);
       trackingDirectories.add(path);
+      const server = this.settings.devServerRef;
+      // Adding a directory makes chokidar scan it as an initial scan, even when the directory is
+      // already watched. With `ignoreInitial`, a file that is created during this scan emits no
+      // `add` event, and later scans then treat the file as known. Vite watches its root
+      // recursively, so only a directory outside the root that is not watched yet is added.
+      if (
+        server &&
+        (isWithin(server.config.root, path) ||
+          server.watcher.getWatched()[dirname(path)]?.includes(basename(path)))
+      ) {
+        return;
+      }
       context.addWatchFile(path);
-      this.settings.devServerRef?.watcher.add(path);
+      server?.watcher.add(path);
     };
     const result = await loadDesignSystem(
       this.settings,
@@ -625,4 +637,16 @@ async function designSystemVersion(files: Set<string>, directories: ReadonlySet<
     }
   }
   return hash.digest("hex");
+}
+
+/**
+ * Checks whether a path is a directory or a descendant of it.
+ *
+ * @param directory - Absolute directory path. Forward and platform separators are accepted.
+ * @param path - Absolute path to check.
+ * @returns Whether `path` equals `directory` or lies below it.
+ */
+function isWithin(directory: string, path: string): boolean {
+  const child = relative(directory, path);
+  return child !== ".." && !child.startsWith(`..${sep}`) && !isAbsolute(child);
 }
