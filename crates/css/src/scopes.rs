@@ -92,8 +92,8 @@ fn scope_selector_is_valid(selector: &str) -> bool {
 pub struct ScopedCss {
     /// Complete transformed stylesheet.
     pub css: String,
-    /// Original byte offset for each transformed byte, including inserted syntax.
-    /// Empty when no scope normalization is needed.
+    /// Original byte offset for each transformed byte, including inserted syntax. Empty
+    /// when no scope normalization is needed.
     pub origins: Vec<usize>,
     /// A style ancestor remains around a scope whose root depends on stylesheet
     /// placement.
@@ -104,6 +104,28 @@ impl ScopedCss {
     fn copy(&mut self, css: &str, range: Range<usize>) {
         self.css.push_str(&css[range.clone()]);
         self.origins.extend(range);
+    }
+
+    /// Copies text between the nodes of a style rule block that is being lifted. The
+    /// block's empty declarations, such as `;` in `&{@scope (&){}; }`, would become
+    /// top-level `;` tokens, which start a rule that never ends.
+    fn copy_lifted_gap(&mut self, css: &str, range: Range<usize>) {
+        let mut start = range.start;
+        let mut index = range.start;
+        while index < range.end {
+            if css[index..range.end].starts_with("/*") {
+                index = css[index + 2..range.end]
+                    .find("*/")
+                    .map_or(range.end, |end| index + 2 + end + 2);
+            } else if css.as_bytes()[index] == b';' {
+                self.copy(css, start..index);
+                index += 1;
+                start = index;
+            } else {
+                index += 1;
+            }
+        }
+        self.copy(css, start..range.end);
     }
 
     fn insert(&mut self, text: &str, origin: usize) {
@@ -187,7 +209,7 @@ fn walk(
     let mut index = 0;
     while let Some(node) = nodes.get(index) {
         index += 1;
-        out.copy(css, cursor..node.range.start);
+        copy_gap(css, cursor..node.range.start, parent, out);
         match &node.kind {
             CssNodeKind::AtRule {
                 name,
@@ -284,7 +306,15 @@ fn walk(
         }
         cursor = node.range.end;
     }
-    out.copy(css, cursor..range.end);
+    copy_gap(css, cursor..range.end, parent, out);
+}
+
+fn copy_gap(css: &str, range: Range<usize>, parent: Option<&str>, out: &mut ScopedCss) {
+    if parent.is_some() {
+        out.copy_lifted_gap(css, range);
+    } else {
+        out.copy(css, range);
+    }
 }
 
 /// Writes a compiler scope wrapper as `@scope` with its nesting selectors bound to
@@ -455,6 +485,17 @@ mod tests {
         assert_eq!(
             result.css,
             "@scope (:is(.parent) .from) to (:where(:scope) .stop){:where(:scope){color:red;margin:0;}:where(:scope){color:blue}:where(:scope){color:green;}}"
+        );
+        assert_eq!(result.css.len(), result.origins.len());
+    }
+
+    #[test]
+    fn lifted_style_rules_drop_empty_declarations() {
+        let css = "&{;color:red;@scope (&){.a{z-index:2}}/* ; */;}";
+        let result = normalize_scopes(css);
+        assert_eq!(
+            result.css,
+            "&{color:red;}@scope (:is(&)){.a{z-index:2}}/* ; */"
         );
         assert_eq!(result.css.len(), result.origins.len());
     }
