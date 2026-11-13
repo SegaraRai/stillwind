@@ -1,5 +1,16 @@
 # @stillwind/vscode-extension
 
+## 0.10.1
+
+### Patch Changes
+
+- Updated dependencies:
+  - @stillwind/analysis@0.10.1
+  - @stillwind/config@0.10.1
+  - @stillwind/host@0.10.1
+  - @stillwind/language-server@0.10.1
+  - @stillwind/native@0.10.1
+
 ## 0.10.0
 
 ### Patch Changes

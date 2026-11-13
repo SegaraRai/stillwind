@@ -1,6 +1,6 @@
 {
   "name": "@stillwind/native-linux-x64-gnu",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "description": "Node-API and WASM bindings for the Stillwind compiler",
   "homepage": "https://stillwind.dev",
   "bugs": {

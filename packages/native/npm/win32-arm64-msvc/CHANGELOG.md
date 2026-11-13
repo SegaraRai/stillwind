@@ -1,5 +1,7 @@
 # @stillwind/native-win32-arm64-msvc
 
+## 0.10.1
+
 ## 0.10.0
 
 ## 0.9.0

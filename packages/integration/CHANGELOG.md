@@ -1,5 +1,19 @@
 # @stillwind/integration
 
+## 0.10.1
+
+### Patch Changes
+
+- Vite development servers now apply edits of style modules that an editor or tool saves by truncating the file and then writing it. Before this fix, a hot update on Linux could read the file while it was empty, and the edited styles stayed missing until the next edit.
+
+- Vite development servers now reload CSS for every file that is added to a directory that a CSS plugin lists, such as an icon directory. Before this fix, a file that was created while the server started or while the design system reloaded could be missed until the next change in that directory.
+
+- Updated dependencies:
+  - @stillwind/config@0.10.1
+  - @stillwind/host@0.10.1
+  - @stillwind/native@0.10.1
+  - stillwind@0.10.1
+
 ## 0.10.0
 
 ### Patch Changes
