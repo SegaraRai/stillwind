@@ -1,10 +1,10 @@
-import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import { cleanModuleId } from "@stillwind/host";
 import type { Plugin, ViteDevServer } from "vite";
 
 import type { CssContext } from "./design-system.ts";
+import { readChangedFile } from "./file-access.ts";
 import { sendJson } from "./http.ts";
 import type { ViteProject } from "./project.ts";
 
@@ -127,7 +127,7 @@ export function developmentHooks(
       };
       // Reading the file waits until the project's watcher listener has discarded the shared
       // sources of the file, which it does in the same watcher event.
-      const compiled = compileChange(name!, id, "update", () => readFile(file, "utf8"), host);
+      const compiled = compileChange(name!, id, "update", () => readChangedFile(file), host);
       pending.set(id, compiled);
       // The hot update reports a failure.
       await compiled.catch(() => {});
