@@ -1,5 +1,24 @@
 # stillwind
 
+## 0.10.0
+
+### Minor Changes
+
+- Add the `ignoredUtilities` option to the `conflicting-utilities` lint rule. List utility name globs, such as `["btn"]`, and the rule stops reporting pairs that include a matching utility. Other pairs are still reported, so a component library base class such as daisyUI `btn` can be combined with `btn-outline` while `btn-outline btn-ghost` is still reported. Variants and the `!` modifier are ignored when the rule matches a name.
+
+### Patch Changes
+
+- `conflicting-utilities` notes now name logical corner utilities, such as `rounded-ss-lg` for `rounded-tl-lg`, when a physical corner utility overlaps a logical one.
+
+- `prefer-logical-properties` no longer reports a rule that sets every physical property of a group to one value, such as `size-6`, which sets `width` and `height` to the same value. The result does not depend on the writing mode, as for `p-4`. A utility that sets `width` and `height` in different rules is still reported.
+
+- Design-system queries and editor previews now show utilities whose CSS has an empty declaration after a nested `@scope` block, such as daisyUI `join`. Before this fix, `stillwind utilities join` and a `*` utility listing for a daisyUI project failed with `CSS parse failed: Unexpected end of input`.
+
+- Updated dependencies:
+  - @stillwind/config@0.10.0
+  - @stillwind/native@0.10.0
+  - @stillwind/projection@0.10.0
+
 ## 0.9.0
 
 ### Minor Changes
