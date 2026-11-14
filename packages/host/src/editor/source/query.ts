@@ -237,11 +237,13 @@ export class SourceQueries {
     );
     if (request.kind === "hover") {
       if (token) {
-        const css = this.#preview(token.literal, token.text);
-        const marker = this.#candidates.marker(
-          token.literal.prefix + token.text,
-          token.literal.context,
-        );
+        const candidate = token.literal.prefix + token.text;
+        const css = token.literal.key
+          ? this.#candidates.variant(candidate, token.literal.context)
+          : this.#preview(token.literal, token.text);
+        const marker = token.literal.key
+          ? null
+          : this.#candidates.marker(candidate, token.literal.context);
         if (css || marker) {
           result.hover = {
             start: token.start,
@@ -268,17 +270,22 @@ export class SourceQueries {
     const { literal, start, end, prefix } = input;
     const native = this.#candidates
       .complete(literal.prefix + prefix, literal.context, request.snippets === true)
-      .filter(
-        ({ label, marker }) =>
-          marker ||
-          label.endsWith(":") ||
-          !literal.site ||
-          this.#preview(literal, label.slice(literal.prefix.length)),
+      .filter(({ label, marker }) =>
+        literal.key
+          ? !marker && label.endsWith(":")
+          : marker ||
+            label.endsWith(":") ||
+            !literal.site ||
+            this.#preview(literal, label.slice(literal.prefix.length)),
       );
     const known = new Set(native.map(({ label }) => label));
+    // A variant key accepts no utility, so the plugin catalog of dynamic utilities is skipped.
+    const catalog = literal.key
+      ? []
+      : this.#catalogCompletions(literal.prefix + prefix, literal.context);
     result.completions = [
       ...native,
-      ...this.#catalogCompletions(literal.prefix + prefix, literal.context)
+      ...catalog
         .filter((candidate) => !known.has(candidate))
         .map((label) => ({
           label,
@@ -489,13 +496,17 @@ export class SourceQueries {
 
   /**
    * Allows color operations only for input roles that emit utility declarations.
-   * Option and definition-prefix inputs use different value contracts.
+   * Option and definition-prefix inputs use different value contracts, and variant keys
+   * emit no declarations.
    *
    * @param literal - Indexed literal whose context supplies the input role.
    * @returns Whether its role supports a utility candidate's concrete color and replacement.
    */
   #colorInput(literal: UtilityLiteral): boolean {
-    return ["utility", "keyframesFrame", "viewTransitionUtilities"].includes(literal.context);
+    return (
+      !literal.key &&
+      ["utility", "keyframesFrame", "viewTransitionUtilities"].includes(literal.context)
+    );
   }
 
   /**

@@ -147,6 +147,18 @@ export class SourceIndex {
           }
           return;
         }
+        if (this.#bindings.producer(node.expression, "when")) {
+          for (const argument of node.arguments) {
+            if (ts.isStringLiteralLike(argument)) {
+              this.#literal(source, argument, "", "elementVariants");
+            }
+          }
+          return;
+        }
+        if (this.#bindings.producer(node.expression, "cva")) {
+          this.#cva(source, node);
+          return;
+        }
         if (this.asset(source, node.expression)?.identity.kind === "keyframes") {
           const options = node.arguments[0];
           if (options && ts.isStringLiteralLike(options)) {
@@ -310,7 +322,8 @@ export class SourceIndex {
 
   /**
    * Indexes the static utility literals of one `style.css()` input with their group keys.
-   * Runtime values and computed keys add no literals.
+   * String-literal keys are recorded as variant keys. Runtime values and computed keys add
+   * no literals.
    *
    * @param source - Prepared source stored in this index.
    * @param node - Input in that source's checker AST.
@@ -347,6 +360,7 @@ export class SourceIndex {
         if (!ts.isPropertyAssignment(property) || ts.isComputedPropertyName(property.name)) {
           continue;
         }
+        this.#key(source, property, prefix, context);
         const name = propertyName(property);
         if (name === "" || name.endsWith(":")) {
           this.#cssInput(
@@ -368,6 +382,7 @@ export class SourceIndex {
    * @param source - Prepared source whose checker AST contains `node`.
    * @param node - Input expression to inspect. Object properties ending in `:` contribute
    * their values under the accumulated group variants. The keys `""` and `":"` add no variants.
+   * String-literal keys are recorded as variant keys.
    * @param prefix - Decoded enclosing variants, including trailing colons. Nested group
    * names are appended before their literals are recorded.
    */
@@ -430,9 +445,8 @@ export class SourceIndex {
         if (!ts.isPropertyAssignment(property) || ts.isComputedPropertyName(property.name)) {
           continue;
         }
-        const name = ts.isStringLiteralLike(property.name)
-          ? property.name.text
-          : property.name.getText();
+        this.#key(source, property, prefix, "utility");
+        const name = propertyName(property);
         if (name !== "" && !name.endsWith(":")) {
           continue;
         }
@@ -478,6 +492,127 @@ export class SourceIndex {
   }
 
   /**
+   * Records a string-literal object key as a variant key. A key that is complete, incomplete,
+   * empty, or `":"` is recorded, so completion can suggest variants while the key is written.
+   * `class`, `className`, and custom-property keys are not variant keys.
+   *
+   * @param source - Prepared source whose checker AST contains `property`.
+   * @param property - Property of an object written directly in a style input.
+   * @param prefix - Decoded variants of the enclosing keys, each ending in `:`.
+   * @param context - Input role of the values that the key applies to.
+   */
+  #key(
+    source: PreparedSource,
+    property: ts.PropertyAssignment,
+    prefix: string,
+    context: NativeCandidateContext,
+  ): void {
+    const name = property.name;
+    if (
+      !ts.isStringLiteralLike(name) ||
+      name.text === "class" ||
+      name.text === "className" ||
+      name.text.startsWith("--")
+    ) {
+      return;
+    }
+    const literal = this.#literal(source, name, prefix, context);
+    if (literal) {
+      literal.key = true;
+    }
+  }
+
+  /**
+   * Records the variant keys of a `style.cva()` call. The compiler captures the utility
+   * literals of the call, so this method adds only keys.
+   *
+   * @param source - Prepared source whose checker AST contains `call`.
+   * @param call - Call whose callee is the `cva` method of a Stillwind style import.
+   * Keys are read from the base input, from each option of `variants`, and from the
+   * `class` and `className` inputs of `compoundVariants`. Other syntax adds nothing.
+   */
+  #cva(source: PreparedSource, call: ts.CallExpression): void {
+    const [base, config] = call.arguments;
+    this.#cvaInput(source, base, "");
+    if (!config || !ts.isObjectLiteralExpression(config)) {
+      return;
+    }
+    for (const property of config.properties) {
+      if (!ts.isPropertyAssignment(property) || ts.isComputedPropertyName(property.name)) {
+        continue;
+      }
+      const name = propertyName(property);
+      const value = property.initializer;
+      if (name === "variants" && ts.isObjectLiteralExpression(value)) {
+        for (const axis of value.properties) {
+          if (ts.isPropertyAssignment(axis) && ts.isObjectLiteralExpression(axis.initializer)) {
+            for (const option of axis.initializer.properties) {
+              if (ts.isPropertyAssignment(option)) {
+                this.#cvaInput(source, option.initializer, "");
+              }
+            }
+          }
+        }
+      } else if (name === "compoundVariants" && ts.isArrayLiteralExpression(value)) {
+        for (const compound of value.elements) {
+          if (!ts.isObjectLiteralExpression(compound)) {
+            continue;
+          }
+          for (const entry of compound.properties) {
+            if (
+              ts.isPropertyAssignment(entry) &&
+              !ts.isComputedPropertyName(entry.name) &&
+              ["class", "className"].includes(propertyName(entry))
+            ) {
+              this.#cvaInput(source, entry.initializer, "");
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Records the variant keys in one CVA utility input, including keys in nested arrays and
+   * variant groups.
+   *
+   * @param source - Prepared source whose checker AST contains `node`.
+   * @param node - CVA input, or undefined for an omitted argument.
+   * @param prefix - Decoded variants of the enclosing keys, each ending in `:`.
+   */
+  #cvaInput(source: PreparedSource, node: ts.Node | undefined, prefix: string): void {
+    while (
+      node &&
+      (ts.isParenthesizedExpression(node) ||
+        ts.isAsExpression(node) ||
+        ts.isSatisfiesExpression(node))
+    ) {
+      node = node.expression;
+    }
+    if (!node) {
+      return;
+    }
+    if (ts.isArrayLiteralExpression(node)) {
+      for (const element of node.elements) {
+        this.#cvaInput(source, element, prefix);
+      }
+      return;
+    }
+    if (ts.isObjectLiteralExpression(node)) {
+      for (const property of node.properties) {
+        if (!ts.isPropertyAssignment(property) || ts.isComputedPropertyName(property.name)) {
+          continue;
+        }
+        this.#key(source, property, prefix, "utility");
+        const name = propertyName(property);
+        if (name === "" || name.endsWith(":")) {
+          this.#cvaInput(source, property.initializer, name === ":" ? prefix : prefix + name);
+        }
+      }
+    }
+  }
+
+  /**
    * Records decoded content and original UTF-16 boundaries for a literal in `source`'s AST.
    * A captured `site` overrides an existing entry's context and plan at the same content start.
    * Unmapped ranges or decoding that disagrees with the AST add nothing.
@@ -488,6 +623,8 @@ export class SourceIndex {
    * @param context - Input role stored with a new entry. Defaults to ordinary utilities.
    * @param site - Optional captured input. An existing entry keeps its prefix and boundaries
    * when this site replaces its context and plan.
+   * @returns The new entry, or undefined when the literal is unmapped, cannot be decoded, or
+   * already has an entry.
    */
   #literal(
     source: PreparedSource,
@@ -495,10 +632,10 @@ export class SourceIndex {
     prefix: string,
     context: NativeCandidateContext = "utility",
     site?: PreviewSite,
-  ): void {
+  ): UtilityLiteral | undefined {
     const range = this.range(source, node);
     if (!range) {
-      return;
+      return undefined;
     }
 
     const raw = source.document.code.slice(...range);
@@ -515,18 +652,21 @@ export class SourceIndex {
           previous.context = context;
           previous.site = site;
         }
-        return;
+        return undefined;
       }
 
-      this.#literals.push({
+      const literal: UtilityLiteral = {
         source,
         node,
         prefix,
         context,
         site,
         ...decoded,
-      });
+      };
+      this.#literals.push(literal);
+      return literal;
     }
+    return undefined;
   }
 }
 

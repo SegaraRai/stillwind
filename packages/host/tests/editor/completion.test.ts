@@ -124,6 +124,57 @@ test("style.media arguments complete and preview only media variants", async () 
   }
 });
 
+test("variant keys and style.when arguments complete and preview only variants", async () => {
+  const source = `import {style} from "stillwind/react";
+const stored = style.when("focus:", "");
+const value = style({ "hover:": "block", "wide:": { "focus:": "flex" }, "ho": "block", "--gap": "1px" });
+const sheet = style.css({ "hover:": "block" }, { selector: ":host" });
+const factory = style.cva({ "hover:": "block" }, { variants: { size: { sm: { "wide:": "flex" } } } });`;
+  const current = project(
+    source,
+    {},
+    `${theme}
+@stillwind-css-template default { @stillwind-slot utilities; }
+@custom-variant wide (@media (width >= 40rem));`,
+  );
+  try {
+    const hover = async (text: string, from = 0) =>
+      (await current.query("/workspace/entry.tsx", {
+        kind: "hover",
+        offset: source.indexOf(text, from) + 1,
+      }))!.hover;
+    const labels = async (offset: number) =>
+      (await current.query("/workspace/entry.tsx", {
+        kind: "completion",
+        offset,
+      }))!.completions!.map((item) => item.label);
+
+    const key = await hover('"hover:": "block", "wide');
+    expect(source.slice(key!.start, key!.end)).toBe("hover:");
+    expect(key!.css).toContain("&:hover");
+    expect(key!.css).not.toContain("display");
+    // A nested key previews the variants of its enclosing keys.
+    const nested = await hover('"focus:": "flex"');
+    expect(nested!.css).toContain("@media (width >= 40rem");
+    expect(nested!.css).toContain("&:focus");
+    expect((await hover('"hover:"', source.indexOf("style.css")))!.css).toContain("&:hover");
+    expect((await hover('"wide:"', source.indexOf("cva")))!.css).toContain("@media");
+    expect((await hover('"focus:"'))!.css).toContain("&:focus");
+    // A custom-property key is not a variant key, so hover describes the enclosing call.
+    const property = (await hover('"--gap"'))!;
+    expect(source.slice(property.start, property.end)).toMatch(/^style\(\{/);
+
+    const incomplete = await labels(source.indexOf('"ho"') + 3);
+    expect(incomplete).toContain("hover:");
+    expect(incomplete).not.toContain("block");
+    const when = await labels(source.indexOf('""') + 1);
+    expect(when).toEqual(expect.arrayContaining(["focus:", "hover:", "wide:"]));
+    expect(when).not.toContain("block");
+  } finally {
+    await current.close();
+  }
+});
+
 test("style.css calls and inputs preview their output, and template names complete", async () => {
   const source =
     'import {style} from "stillwind/react"; const sheet = style.css("[:host]:flex", { "[button]:": "block" }); const anchored = style.css("p-4", { selector: ":host", template: "shadow" }); const plain = style.css("", { template: "" });';

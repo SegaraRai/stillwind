@@ -19,6 +19,11 @@ export interface UtilityLiteral {
   /** Input role that selects completion registries, validation, and permitted variants. */
   context: NativeCandidateContext;
   /**
+   * True for an object key that applies variants to nested inputs of `context`. Its text is a
+   * variant chain, which may be incomplete, and `prefix` holds the variants of enclosing keys.
+   */
+  key?: boolean;
+  /**
    * Captured occurrence whose native plan retains original UTF-8 ranges.
    * Syntactically recognized incomplete input can have a context without a site.
    */

@@ -47,6 +47,7 @@ export function sortSource(
         (literal) =>
           literal.source === source &&
           literal.context === "utility" &&
+          !literal.key &&
           permits(literal.boundaries[0], literal.boundaries.at(-1)!),
       )
       .map((literal) => {
