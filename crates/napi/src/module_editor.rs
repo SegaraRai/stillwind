@@ -28,6 +28,9 @@ pub enum NativeEditorSiteKind {
     Input,
     /// Serialized as `stylesheet` for a `style.css()` call.
     Stylesheet,
+    /// Serialized as `variant` for the text of a ref condition or a ref container
+    /// query. Its CSS contains only the selectors and conditions of the variant.
+    Variant,
 }
 
 impl From<EditorSiteKind> for NativeEditorSiteKind {
@@ -38,6 +41,7 @@ impl From<EditorSiteKind> for NativeEditorSiteKind {
             EditorSiteKind::Use => Self::Use,
             EditorSiteKind::Input => Self::Input,
             EditorSiteKind::Stylesheet => Self::Stylesheet,
+            EditorSiteKind::Variant => Self::Variant,
         }
     }
 }

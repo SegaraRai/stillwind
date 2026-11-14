@@ -25,8 +25,10 @@ use super::super::conditionals::lower;
 use super::super::css_call::{CssOutput, css_call_text};
 use super::super::definitions::{emit_keyframes_definition, emit_view_transition_definition};
 use super::super::emission::{CallEmitter, CallEmitterInputs};
+use super::super::style_variants::StyleVariantPlan;
+use super::super::stylesheet::render_authored_variant_path;
 use super::super::symbols::named_identity;
-use super::input::{collect_bases, input_plans, replace_text};
+use super::input::{collect_bases, identity_wrappers, input_plans, replace_text};
 use super::resources::preview_resource_urls;
 use super::runtime::collect_runtime_names;
 use crate::compiler::rewrite_generated_css;
@@ -46,6 +48,12 @@ pub enum EditorSiteKind {
     Input,
     /// A `style.css()` call, whose CSS is the string that the call lowers to.
     Stylesheet,
+    /// A ref condition or a ref container query used as a variant. Its CSS contains
+    /// the selectors and conditions of the variant around an empty `&` rule, without
+    /// the rules under the variant. The span addresses the condition's variant text, or
+    /// the whole call when a ref is called without arguments, or the container query
+    /// text.
+    Variant,
 }
 
 /// CSS and dependencies contributed by one original source occurrence.
@@ -346,6 +354,60 @@ impl ModuleEditor {
                 );
             }
         }
+        let mut wrappers = Vec::new();
+        for input in &call.inputs {
+            identity_wrappers(input, &mut wrappers);
+        }
+        let mut spans = BTreeSet::new();
+        for wrapper in wrappers {
+            let span = match wrapper {
+                StyleVariant::Ref { condition, .. } => condition.prefix.span,
+                StyleVariant::Container { query, .. } => query.span,
+                StyleVariant::Prefix(_) | StyleVariant::Alternatives(_) => continue,
+            };
+            // A stored variant that a call uses several times yields the same wrapper.
+            if spans.insert((span.start.0, span.end.0)) {
+                let css = self.render_variant(wrapper);
+                self.sites.push(EditorSite {
+                    span,
+                    kind: EditorSiteKind::Variant,
+                    identity: None,
+                    context: None,
+                    valid: css.is_some(),
+                    css: css.unwrap_or_default().into(),
+                    dependencies: Vec::new(),
+                    runtime_names: Vec::new(),
+                });
+            }
+        }
+    }
+
+    /// Renders the selectors and conditions of one ref or container `wrapper` around an
+    /// empty `&` rule, with the batch's display names. Returns `None` when the wrapper
+    /// does not resolve, for example because its variant text cannot test the
+    /// referenced element, or when conditional lowering fails.
+    fn render_variant(&self, wrapper: &StyleVariant) -> Option<LeanString> {
+        let context = self
+            .identifiers
+            .context(self.options.hash_length)
+            .with_preview_names(Rc::clone(&self.names));
+        let theme = self.snapshot.theme();
+        let plans = StyleVariantPlan::resolve(
+            &context,
+            std::slice::from_ref(wrapper),
+            theme,
+            &mut Vec::new(),
+            &mut Vec::new(),
+        )?;
+        let mut css = LeanString::new();
+        for plan in &plans {
+            for path in plan.applications() {
+                css.push_str(&render_authored_variant_path("&{}", path, &context).ok()?);
+            }
+        }
+        let lowered = lower(&css, self.options.use_css_if, &context).ok()?;
+        let css = rewrite_generated_css(&lowered.css, theme, &self.options);
+        Some(preview_resource_urls(css.to_lean_string(), &self.snapshot))
     }
 
     /// Renders decoded replacement text for the literal whose original inclusive UTF-8

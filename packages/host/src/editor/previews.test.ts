@@ -321,6 +321,40 @@ const child=style({[panel("hover:")]:"block"});`;
   }
 });
 
+test("ref variants preview their selectors, complete variants, and keep template utilities", async () => {
+  const source = `import {style} from "stillwind/react";
+const panel=style.ref("panel"); const other=style.ref("other");
+const keys=style(panel.asContainer("inline-size"),{[panel("hover:")]:"block",[panel\`custom-media:\`]:"opacity-50",[panel.at("width >= 40rem")]:"opacity-0",[panel.in(other)]:"opacity-100"});
+const text=style(\`\${panel("hover:")}:block opacity-50\`);
+const next=style({[panel("")]:"block"});`;
+  const current = await project(source);
+  try {
+    const condition = await hover(current, source, 'hover:")]');
+    expect(condition).toMatch(/&:is\(:where\(\.__ref_panel\):hover \*\) \{\s*& \{\s*\}/);
+    expect(condition).not.toContain("display");
+    // The whole ref variant expression shares the preview of its variant text.
+    expect(await hover(current, source, 'panel("hover:")]')).toBe(condition);
+    expect(await hover(current, source, "custom-media:`")).toContain("@media print");
+    const query = await hover(current, source, "width >= 40rem");
+    expect(query).toContain("@container __container_panel (width >= 40rem");
+    expect(await hover(current, source, "at(")).toBe(query);
+    expect(await hover(current, source, "in(other)")).toContain(
+      ":where(.__ref_other):has(:where(.__ref_panel))",
+    );
+
+    // The utility after a substituted variant previews with that variant.
+    const utility = await hover(current, source, "block opacity-50`");
+    expect(utility).toMatch(/&:is\(:where\(\.__ref_panel\):hover \*\) \{\s*display: block;/);
+    expect(await hover(current, source, "opacity-50`")).toMatch(/^& \{\s*opacity: \.5;/);
+
+    const labels = (await complete(current, source, '")]:"block"});')).map((item) => item.label);
+    expect(labels).toContain("hover:");
+    expect(labels).not.toContain("block");
+  } finally {
+    await current.close();
+  }
+});
+
 test("imported definitions, composed styles, and finite uses contribute their actual CSS", async () => {
   const source = `import {style} from "stillwind/react"; import {first, second, base} from "./assets";
 declare const flag:boolean;

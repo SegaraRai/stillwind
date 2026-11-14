@@ -158,7 +158,7 @@ export class SourceQueries {
     if (request.kind === "previews") {
       result.previews = this.#index.previews
         .sites(source)
-        .filter((site) => site.native.kind !== "input")
+        .filter((site) => site.native.kind !== "input" && site.native.kind !== "variant")
         .flatMap((site) => {
           const preview = this.#index.previews.assemble(site.native);
           const range = {
@@ -191,7 +191,10 @@ export class SourceQueries {
     const tokens = this.#sourceTokens(source);
     if (request.kind === "colors") {
       result.colors = tokens.flatMap((token) => {
-        if (!this.#colorInput(token.literal) || !this.#preview(token.literal, token.text)) {
+        if (
+          !this.#colorInput(token.literal) ||
+          !this.#preview(token.literal, token.text, token.site)
+        ) {
           return [];
         }
         return this.#candidates
@@ -220,7 +223,7 @@ export class SourceQueries {
         request.color,
         this.#candidates,
       );
-      if (candidate && this.#preview(token.literal, candidate)) {
+      if (candidate && this.#preview(token.literal, candidate, token.site)) {
         result.edits = [
           {
             start: token.start,
@@ -236,11 +239,16 @@ export class SourceQueries {
       (token) => token.start <= request.offset && request.offset <= token.end,
     );
     if (request.kind === "hover") {
+      const variant = this.#variantPreview(source, request.offset);
+      if (variant !== false) {
+        result.hover = variant;
+        return result;
+      }
       if (token) {
         const candidate = token.literal.prefix + token.text;
         const css = token.literal.key
           ? this.#candidates.variant(candidate, token.literal.context)
-          : this.#preview(token.literal, token.text);
+          : this.#preview(token.literal, token.text, token.site);
         const marker = token.literal.key
           ? null
           : this.#candidates.marker(candidate, token.literal.context);
@@ -390,16 +398,14 @@ export class SourceQueries {
    *
    * @param literal - Indexed literal that supplies the input role, enclosing variants, and plan.
    * @param candidate - Decoded text without the literal's enclosing group prefix.
+   * @param site - Captured input whose plan is rendered. Defaults to the literal's capture.
+   * A template token can have its own capture.
    * @returns CSS for the replacement, or undefined for failed or unavailable emission.
    * @throws If a matching ordinary utility requirement is malformed in a standalone query.
    */
-  #preview(literal: UtilityLiteral, candidate: string): string | undefined {
-    if (literal.site) {
-      return this.#index.previews.previewInput(
-        literal.source,
-        literal.site.native.start,
-        candidate,
-      );
+  #preview(literal: UtilityLiteral, candidate: string, site = literal.site): string | undefined {
+    if (site) {
+      return this.#index.previews.previewInput(literal.source, site.native.start, candidate);
     }
     return this.#candidates.preview(literal.prefix + candidate, literal.context) ?? undefined;
   }
@@ -451,6 +457,13 @@ export class SourceQueries {
         this.#tokens(literal).map((token) => ({
           ...token,
           literal,
+          // The compiler captures each utility of a template that substitutes variants
+          // with the token's own range, so a template token uses that capture.
+          site:
+            literal.site ??
+            (ts.isTemplateLiteralToken(literal.node)
+              ? this.#index.previews.input(source, token.start, token.end)
+              : undefined),
         })),
       );
   }
@@ -524,10 +537,82 @@ export class SourceQueries {
     /** Exclusive original UTF-16 offset of the token's source spelling. */
     end: number;
   }[] {
-    return [...literal.text.matchAll(/\S+/gu)].map((match) => ({
-      text: match[0],
-      start: literal.boundaries[match.index],
-      end: literal.boundaries[match.index + match[0].length],
-    }));
+    // In `${trigger("hover:")}:block`, the `:` after a substitution separates the
+    // substituted variant from the utility, so it is not part of the utility token.
+    const continued = ts.isTemplateMiddle(literal.node) || ts.isTemplateTail(literal.node);
+    return [...literal.text.matchAll(/\S+/gu)].flatMap((match) => {
+      const skip = continued && match.index === 0 && match[0].startsWith(":") ? 1 : 0;
+      const text = match[0].slice(skip);
+      return text
+        ? [
+            {
+              text,
+              start: literal.boundaries[match.index + skip],
+              end: literal.boundaries[match.index + match[0].length],
+            },
+          ]
+        : [];
+    });
+  }
+
+  /**
+   * Finds the ref or container variant expression at `offset`, such as `trigger("hover:")`,
+   * ``trigger`hover:` ``, `trigger.at("width >= 40rem")`, or `trigger().in(card)`, and its
+   * captured variant preview. The expression extends from the cursor through enclosing
+   * property accesses, calls, and tags, and ends before a call of a style producer.
+   *
+   * @param source - Prepared source stored in this snapshot's index.
+   * @param offset - Cursor offset in the original document's UTF-16 coordinates.
+   * @returns The formatted selectors and conditions of the first captured variant in that
+   * expression, with the expression's original range; undefined when the expression is a ref
+   * variant without a valid capture, such as one whose stored variant has no use; or false when
+   * the cursor is not in a ref variant expression.
+   * @throws If the native formatter rejects the captured CSS.
+   */
+  #variantPreview(source: PreparedSource, offset: number): EditorResult["hover"] | false {
+    let node = this.#index.nodeAt(source, offset);
+    let expression: ts.Node | undefined;
+    let reference = false;
+    while (
+      node &&
+      (ts.isIdentifier(node) ||
+        ts.isStringLiteralLike(node) ||
+        ts.isPropertyAccessExpression(node) ||
+        ts.isParenthesizedExpression(node) ||
+        ts.isTaggedTemplateExpression(node) ||
+        (ts.isCallExpression(node) && !this.#index.styleCall(node)))
+    ) {
+      const callee = ts.isCallExpression(node)
+        ? node.expression
+        : ts.isTaggedTemplateExpression(node)
+          ? node.tag
+          : undefined;
+      if (
+        callee &&
+        (this.#index.asset(source, callee)?.identity.kind === "ref" ||
+          (ts.isPropertyAccessExpression(callee) && ["at", "in"].includes(callee.name.text)))
+      ) {
+        reference = true;
+      }
+      expression = node;
+      node = node.parent;
+    }
+    const range = expression && this.#index.range(source, expression);
+    if (!reference || !range) {
+      return false;
+    }
+    const site = this.#index.previews
+      .sites(source)
+      .find(
+        (site) => site.native.kind === "variant" && range[0] <= site.start && site.end <= range[1],
+      );
+    const preview = site && this.#index.previews.preview(site.native);
+    return preview
+      ? {
+          start: range[0],
+          end: range[1],
+          css: this.#query.formatCss(preview.css, this.#annotations),
+        }
+      : undefined;
   }
 }

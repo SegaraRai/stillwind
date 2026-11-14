@@ -78,6 +78,91 @@ pub(super) fn collect_bases(input: &StyleInput, dependencies: &mut BTreeSet<Iden
     }
 }
 
+/// Appends the ref and container wrappers inside `input` in traversal order, including
+/// the wrappers inside the alternatives of stored variants and inside every conditional
+/// branch. Prefix wrappers are omitted, because their text is previewed without the
+/// module analysis.
+pub(super) fn identity_wrappers<'a>(input: &'a StyleInput, wrappers: &mut Vec<&'a StyleVariant>) {
+    match input {
+        StyleInput::Class(class) => class_wrappers(class, wrappers),
+        StyleInput::Array(inputs) => {
+            for input in inputs {
+                identity_wrappers(input, wrappers);
+            }
+        }
+        StyleInput::Conditional { branches, .. } => {
+            for input in branches.values().flatten() {
+                identity_wrappers(input, wrappers);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Appends the ref and container wrappers inside `class`, as [`identity_wrappers`]
+/// describes.
+fn class_wrappers<'a>(class: &'a ClassExpression, wrappers: &mut Vec<&'a StyleVariant>) {
+    match class {
+        ClassExpression::Rule(rule) => rule_wrappers(rule, wrappers),
+        ClassExpression::Array(classes) => {
+            for class in classes {
+                class_wrappers(class, wrappers);
+            }
+        }
+        ClassExpression::Conditional { branches, .. } => {
+            for class in branches.values().flatten() {
+                class_wrappers(class, wrappers);
+            }
+        }
+        ClassExpression::Group { entries, .. } => {
+            for entry in entries {
+                if let GroupEntry::Class(class) = entry {
+                    class_wrappers(class, wrappers);
+                }
+            }
+        }
+        ClassExpression::ClassValue { .. } => {}
+    }
+}
+
+/// Appends the ref and container wrappers inside `rule`, as [`identity_wrappers`]
+/// describes.
+fn rule_wrappers<'a>(rule: &'a RuleExpression, wrappers: &mut Vec<&'a StyleVariant>) {
+    match rule {
+        RuleExpression::Array(inputs) | RuleExpression::Group { inputs, .. } => {
+            for input in inputs {
+                rule_wrappers(input, wrappers);
+            }
+        }
+        RuleExpression::Conditional { branches, .. } => {
+            for input in branches.values().flatten() {
+                rule_wrappers(input, wrappers);
+            }
+        }
+        RuleExpression::Variant { variant, inputs } => {
+            variant_wrappers(variant, wrappers);
+            for input in inputs {
+                rule_wrappers(input, wrappers);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Appends `variant` when it is a ref or container wrapper, or the ref and container
+/// wrappers of its alternatives.
+fn variant_wrappers<'a>(variant: &'a StyleVariant, wrappers: &mut Vec<&'a StyleVariant>) {
+    match variant {
+        StyleVariant::Prefix(_) => {}
+        StyleVariant::Ref { .. } | StyleVariant::Container { .. } => wrappers.push(variant),
+        StyleVariant::Alternatives(sequences) => {
+            for variant in sequences.iter().flatten() {
+                variant_wrappers(variant, wrappers);
+            }
+        }
+    }
+}
+
 /// Selects rule-bearing occurrences inside `class` in traversal order. Conditional
 /// plans retain the test and branch shape; class values and group text have no plans.
 fn class_plans(class: &ClassExpression) -> Vec<ClassPlan> {

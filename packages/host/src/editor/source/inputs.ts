@@ -65,7 +65,23 @@ export class SourceIndex {
 
     for (const { source, ast } of this.#bindings.files.values()) {
       walk(ast, (node) => {
+        if (
+          ts.isTaggedTemplateExpression(node) &&
+          ts.isNoSubstitutionTemplateLiteral(node.template) &&
+          this.asset(source, node.tag)?.identity.kind === "ref"
+        ) {
+          this.#literal(source, node.template, "", "elementVariants");
+          return;
+        }
+
         if (!ts.isCallExpression(node)) {
+          return;
+        }
+        if (this.asset(source, node.expression)?.identity.kind === "ref") {
+          const [argument] = node.arguments;
+          if (node.arguments.length === 1 && ts.isStringLiteralLike(argument)) {
+            this.#literal(source, argument, "", "elementVariants");
+          }
           return;
         }
 
@@ -257,6 +273,21 @@ export class SourceIndex {
    */
   asset(source: PreparedSource, node: ts.Node): NativeAssetRecord | undefined {
     return this.#bindings.asset(source, node);
+  }
+
+  /**
+   * Recognizes a call of an imported Stillwind style producer or of one of its methods,
+   * such as `style()` or `style.when()`.
+   *
+   * @param node - Call in one of this index's checker ASTs.
+   * @returns Whether the callee is a supported `style` import or a method of one.
+   */
+  styleCall(node: ts.CallExpression): boolean {
+    return (
+      this.#bindings.styleImport(node.expression) ||
+      (ts.isPropertyAccessExpression(node.expression) &&
+        this.#bindings.styleImport(node.expression.expression))
+    );
   }
 
   /**
