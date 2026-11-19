@@ -1,4 +1,4 @@
-//! `stillwind/module-css` import recognition.
+//! `stillwind/module-css` import, re-export and dynamic import recognition.
 //!
 //! The module-css import is a value import: a type-only binding must not count,
 //! while a mixed clause with at least one value specifier must. Spans must cover
@@ -8,9 +8,10 @@ use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::parse;
 use stillwind_source::{FileId, ModuleId, SourceFile};
 
-/// Only value imports of the module-css entry point are recorded.
+/// Only value imports, value re-exports and dynamic imports of the module-css entry
+/// point are recorded.
 #[test]
-fn explicit_module_css_tracks_value_import_literals_only() {
+fn explicit_module_css_tracks_value_module_requests_only() {
     for (text, expected) in [
         ("import css from 'stillwind/module-css';", 1),
         ("import * as css from 'stillwind/module-css';", 1),
@@ -25,6 +26,18 @@ fn explicit_module_css_tracks_value_import_literals_only() {
             "import {type Foo, default as css} from 'stillwind/module-css';",
             1,
         ),
+        ("export { css } from 'stillwind/module-css';", 1),
+        (
+            "export { css as toolbarCss } from 'stillwind/module-css';",
+            1,
+        ),
+        ("export * from 'stillwind/module-css';", 1),
+        ("export * as css from 'stillwind/module-css';", 1),
+        ("export type { Css } from 'stillwind/module-css';", 0),
+        ("export { type Css } from 'stillwind/module-css';", 0),
+        ("export type * from 'stillwind/module-css';", 0),
+        ("const module = import('stillwind/module-css');", 1),
+        ("type Module = typeof import('stillwind/module-css');", 0),
         ("const text = 'stillwind/module-css';", 0),
         ("import css from 'stillwind/module\\u002dcss';", 1),
     ] {

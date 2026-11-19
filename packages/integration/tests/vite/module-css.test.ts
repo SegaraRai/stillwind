@@ -92,6 +92,45 @@ globalThis.props = style(base, 'blue');
   expect(cssValue.indexOf("red")).toBeLessThan(cssValue.indexOf("blue"));
 });
 
+test("a named re-export of the module CSS value provides that module's styles", async () => {
+  const output = await buildProject({
+    "root.css": "@utility red { color: red; } @stillwind-slot utilities;",
+    "toolbar.ts": `
+import { style } from 'stillwind/react';
+export { css as toolbarCss } from 'stillwind/module-css';
+export const toolbar = style('red');
+`,
+    "main.ts": `
+import { toolbarCss } from './toolbar';
+globalThis.value = toolbarCss;
+`,
+  });
+  const globals: { value?: string } = {};
+  runInNewContext(entryChunk(output).code, {
+    globalThis: globals,
+  });
+
+  expect(globals.value).toMatch(/color:\s*red/);
+});
+
+test("a dynamic import of the module CSS value provides that module's styles", async () => {
+  const output = await buildProject({
+    "root.css": "@utility red { color: red; } @stillwind-slot utilities;",
+    "main.ts": `
+import { style } from 'stillwind/react';
+globalThis.props = style('red');
+globalThis.value = import('stillwind/module-css').then((module) => module.css);
+`,
+  });
+  const javascript = output
+    .filter((item) => item.type === "chunk")
+    .map((chunk) => chunk.code)
+    .join("\n");
+
+  expect(javascript).toMatch(/color:\s*red/);
+  expect(javascript).not.toContain("requires a Stillwind compiler integration");
+});
+
 test("the same relative image URL in two modules resolves from each module's directory", async () => {
   const output = await buildProject({
     "root.css": '@import "../../core/index.css";',

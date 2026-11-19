@@ -1,9 +1,9 @@
 //! Import edits use binding identity, never a generated-text name search.
 //!
 //! [`collect`] turns one program into [`ModuleImports`]: the macro import declarations
-//! with their specifiers and reference spans, the `module-css` import literals, and
-//! every local name the module binds or reads. The reserved name set exists so a host
-//! can rename without colliding.
+//! with their specifiers and reference spans, the `module-css` literals of imports,
+//! re-exports and dynamic imports, and every local name the module binds or reads.
+//! The reserved name set exists so a host can rename without colliding.
 //!
 //! References are attributed through Oxc symbol ids rather than by matching text, so a
 //! shadowed or aliased binding cannot be mistaken for an import. Spans point at the
@@ -14,8 +14,9 @@ use std::collections::{BTreeSet, HashMap};
 
 use lean_string::{LeanStr, ToLeanStr};
 use oxc::ast::ast::{
-    BindingIdentifier, IdentifierReference, ImportDeclaration, ImportDeclarationSpecifier,
-    ModuleExportName, Program,
+    BindingIdentifier, ExportAllDeclaration, ExportFromDeclaration, Expression,
+    IdentifierReference, ImportDeclaration, ImportDeclarationSpecifier, ImportExpression,
+    ModuleExportName, Program, StringLiteral,
 };
 use oxc::ast_visit::{Visit, walk};
 use oxc::semantic::{Scoping, SymbolId};
@@ -68,7 +69,8 @@ struct Collector<'s> {
     names: BTreeSet<LeanStr>,
     /// Macro import declarations in source order.
     imports: Vec<MacroImport>,
-    /// Spans of value imports of `stillwind/module-css`.
+    /// Source literal spans of value imports, re-exports and dynamic imports of
+    /// `stillwind/module-css`.
     module_css: Vec<Span>,
     /// Symbol of each import specifier, parallel to [`Self::imports`].
     symbols: Vec<Vec<Option<SymbolId>>>,
@@ -80,6 +82,18 @@ impl Collector<'_> {
     /// Stamps an Oxc span with this collector's file id.
     fn span(&self, span: OxcSpan) -> Span {
         Span::new(self.file, span.start, span.end)
+    }
+
+    /// Records `source` as a module-css literal when it names the module-css entry
+    /// point.
+    ///
+    /// The caller must pass `is_value = false` when the declaration loads no runtime
+    /// value, because a type-only declaration is erased and its literal must stay
+    /// unchanged.
+    fn record_module_css(&mut self, source: &StringLiteral<'_>, is_value: bool) {
+        if is_value && source.value == MODULE_CSS_IMPORT {
+            self.module_css.push(self.span(source.span));
+        }
     }
 }
 
@@ -110,15 +124,16 @@ impl<'a> Visit<'a> for Collector<'_> {
     /// one of its specifiers is the `style` macro, so an unrelated import from the same
     /// entry point is ignored.
     fn visit_import_declaration(&mut self, declaration: &ImportDeclaration<'a>) {
-        if declaration.source.value == MODULE_CSS_IMPORT && !declaration.import_kind.is_type()
-            && declaration.specifiers.as_ref().is_none_or(|specifiers| {
-                specifiers.is_empty() || specifiers.iter().any(|specifier| {
-                    !matches!(specifier, ImportDeclarationSpecifier::ImportSpecifier(specifier) if specifier.import_kind.is_type())
-                })
-            })
-        {
-            self.module_css.push(self.span(declaration.source.span));
-        }
+        self.record_module_css(
+            &declaration.source,
+            !declaration.import_kind.is_type()
+                && declaration.specifiers.as_ref().is_none_or(|specifiers| {
+                    specifiers.is_empty()
+                        || specifiers.iter().any(|specifier| {
+                            !matches!(specifier, ImportDeclarationSpecifier::ImportSpecifier(specifier) if specifier.import_kind.is_type())
+                        })
+                }),
+        );
         if let Some(adapter) = declaration
             .source
             .value
@@ -163,5 +178,37 @@ impl<'a> Visit<'a> for Collector<'_> {
             }
         }
         walk::walk_import_declaration(self, declaration);
+    }
+
+    /// Records a module-css literal in `export { ... } from`.
+    ///
+    /// The declaration counts under the same rule as an import: it must not be
+    /// `export type`, and it must have no specifiers or at least one value specifier.
+    fn visit_export_from_declaration(&mut self, declaration: &ExportFromDeclaration<'a>) {
+        self.record_module_css(
+            &declaration.source,
+            !declaration.export_kind.is_type()
+                && (declaration.specifiers.is_empty()
+                    || declaration
+                        .specifiers
+                        .iter()
+                        .any(|specifier| !specifier.export_kind.is_type())),
+        );
+        walk::walk_export_from_declaration(self, declaration);
+    }
+
+    /// Records a module-css literal in `export * from` and `export * as name from`.
+    fn visit_export_all_declaration(&mut self, declaration: &ExportAllDeclaration<'a>) {
+        self.record_module_css(&declaration.source, !declaration.export_kind.is_type());
+        walk::walk_export_all_declaration(self, declaration);
+    }
+
+    /// Records a module-css literal in a dynamic `import()` whose source is a string
+    /// literal.
+    fn visit_import_expression(&mut self, expression: &ImportExpression<'a>) {
+        if let Expression::StringLiteral(source) = &expression.source {
+            self.record_module_css(source, true);
+        }
+        walk::walk_import_expression(self, expression);
     }
 }
