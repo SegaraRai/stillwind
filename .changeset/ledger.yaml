@@ -123,6 +123,11 @@
     - unchanged-modules-skip
     - unparsed-spaces-drop
     - webpack-shared-project
+"@stillwind/language-server@0.11.0":
+  dir: packages/language-server
+  intents:
+    - ref-variant-hover
+    - variant-key-hover
 "@stillwind/language-server@0.5.0":
   dir: packages/language-server
   intents:
@@ -160,6 +165,11 @@
   dir: packages/projection
   intents:
     - typed-badges-show
+"@stillwind/vscode-extension@0.11.0":
+  dir: packages/vscode-extension
+  intents:
+    - ref-variant-hover
+    - variant-key-hover
 "@stillwind/vscode-extension@0.2.0":
   dir: packages/vscode-extension
   intents:
@@ -222,6 +232,10 @@ stillwind@0.10.0:
     - logical-corner-replacements
     - logical-uniform-sizes
     - scope-preview-empty-declarations
+stillwind@0.11.0:
+  dir: packages/core
+  intents:
+    - module-css-reexport
 stillwind@0.2.0:
   dir: packages/core
   intents:
