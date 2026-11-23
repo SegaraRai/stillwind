@@ -96,6 +96,10 @@ const candidateArgs = {
     required: false,
     description: "Check exact names, or search with * patterns",
   },
+  "names-only": {
+    type: "boolean",
+    description: "List matching names without CSS previews",
+  },
 } as const;
 
 const lspArgs = {
@@ -234,6 +238,7 @@ const subCommands = {
       await runDesignCommand("utilities", data as OutputOptions, args.config, {
         kind: "utilities",
         targets: args._,
+        namesOnly: args["names-only"],
       });
     },
   }),
@@ -248,6 +253,7 @@ const subCommands = {
       await runDesignCommand("variants", data as OutputOptions, args.config, {
         kind: "variants",
         targets: args._,
+        namesOnly: args["names-only"],
       });
     },
   }),

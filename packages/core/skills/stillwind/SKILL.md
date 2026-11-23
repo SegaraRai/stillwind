@@ -49,8 +49,9 @@ Markdown version of each page.
   to read the tokens of the project. When a value is missing, ask the user before you
   add a token.
 - Run `stillwind utilities <name>` to check a utility before you use it, such as
-  `stillwind utilities p-4 hover:bg-accent`. A `*` pattern searches names, but it omits
-  numeric and arbitrary values. `stillwind variants` works in the same way.
+  `stillwind utilities p-4 hover:bg-accent`. A `*` pattern searches names and shows
+  functional shapes such as `p-<number>` and `p-[<length-percentage>]`; add `--names-only`
+  to list names without CSS previews. `stillwind variants` works in the same way.
 - When you know the CSS but not the utility, pass the declaration as an arbitrary property,
   such as `stillwind utilities '[padding:16px]' '[&:focus]:[display:flex]'`, and use the
   canonical spelling that the output names. An arbitrary property in the source is only an

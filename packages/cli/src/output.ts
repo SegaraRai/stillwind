@@ -223,30 +223,36 @@ export function renderResult(
   }
   const projects = new Set([...result.tokens, ...result.candidates].map(({ project }) => project));
   const tag = (project: number) => (projects.size > 1 ? ` [project ${project + 1}]` : "");
-  for (const { project, name, value, source } of result.tokens) {
+  for (const { project, name, value, resolvedValue, source } of result.tokens) {
     lines.push(
-      `${clean(name)}: ${clean(value)}${source === "default" ? " (default)" : ""}${tag(project)}`,
+      `${clean(name)}: ${clean(value)}${resolvedValue ? ` /* ${clean(resolvedValue)} */` : ""}${source === "default" ? " (default)" : ""}${tag(project)}`,
     );
   }
   for (const { project, name, kind, valid, css, suggestion, canonical } of result.candidates) {
     if (valid) {
-      lines.push(`${clean(name)}${kind === "marker" ? " (marker)" : ""}${tag(project)}`);
-      lines.push(
-        ...clean(css)
-          .trimEnd()
-          .split("\n")
-          .map((line) => (line ? `  ${line}` : "")),
-      );
+      const label = kind === "marker" ? " (marker)" : kind === "pattern" ? " (pattern)" : "";
+      lines.push(`${clean(name)}${label}${tag(project)}`);
+      if (css) {
+        lines.push(
+          ...clean(css)
+            .trimEnd()
+            .split("\n")
+            .map((line) => (line ? `  ${line}` : "")),
+        );
+      }
       if (canonical) {
         lines.push(`  help: The canonical spelling is ${clean(canonical)}.`);
+      }
+      if (css) {
+        lines.push("");
       }
     } else {
       lines.push(`${clean(name)}${tag(project)}: ${paint(`unknown ${kind}`, "red", color)}`);
       if (suggestion) {
         lines.push(`  help: Did you mean ${clean(suggestion)}?`);
       }
+      lines.push("");
     }
-    lines.push("");
   }
   for (const target of result.unmatched) {
     lines.push(`${clean(target)}: ${paint("no match", "red", color)}`);

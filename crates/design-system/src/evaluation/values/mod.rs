@@ -30,8 +30,8 @@ mod theme;
 mod token_values;
 
 pub use domains::{
-    NumericDomain, NumericKind, named_domain_values, placeholder_namespaces,
-    unresolvable_value_namespaces,
+    NumericDomain, NumericKind, functional_domain_shapes, named_domain_values,
+    placeholder_namespaces, unresolvable_value_namespaces,
 };
 pub use token_values::{ThemeValueMismatch, theme_value_mismatch};
 

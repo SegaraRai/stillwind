@@ -276,6 +276,53 @@ pub fn named_domain_values(body: &str, theme: &ThemeIndex) -> Vec<LeanString> {
     names
 }
 
+/// Returns placeholder shapes for the non-enumerable `--value(...)` domains of `body`.
+///
+/// Numeric domains produce `<integer>`, `<number>`, or `<percentage>`; declared scales
+/// whose scale token is active produce `<number>`; `--fraction()` produces `<fraction>`;
+/// and CSS grammar hints such as `[length]` produce `[<length>]` (or `[<value>]` for
+/// `[any]`). Named keywords and theme namespaces are omitted because
+/// [`named_domain_values`] enumerates them. Shapes can repeat.
+#[must_use]
+pub fn functional_domain_shapes(body: &str, theme: &ThemeIndex) -> Vec<LeanString> {
+    let mut shapes = Vec::new();
+    let mut body = body.to_lean_string();
+    let _ = expand_placeholder(&mut body, "--value", |domains| {
+        for domain in split_top_level(domains, |token| matches!(token, Token::Comma)) {
+            let domain = domain.trim();
+            if let Some(numeric) = NumericDomain::parse(domain) {
+                shapes.push(match numeric.kind {
+                    NumericKind::Integer => LeanString::from("<integer>"),
+                    NumericKind::Number => LeanString::from("<number>"),
+                    NumericKind::Percentage => LeanString::from("<percentage>"),
+                });
+                continue;
+            }
+            if let Some(namespace) = theme.namespaces().scale_domain(domain) {
+                if theme.scale(&namespace.name).is_some() {
+                    shapes.push(LeanString::from("<number>"));
+                }
+                continue;
+            }
+            if domain == "--fraction()" {
+                shapes.push(LeanString::from("<fraction>"));
+                continue;
+            }
+            if let Some(hint) = domain.strip_prefix('[').and_then(|s| s.strip_suffix(']'))
+                && ValueDomain::from_hint(hint).is_some()
+            {
+                shapes.push(if hint == "any" {
+                    LeanString::from("[<value>]")
+                } else {
+                    format!("[<{hint}>]").into()
+                });
+            }
+        }
+        Some(LeanStr::new())
+    });
+    shapes
+}
+
 /// Returns the theme namespaces that the `function` placeholders in the utility body
 /// `body` accept. `function` is `--value` or `--modifier`. For example,
 /// `--value(--color-*, integer)` gives `--color-`.

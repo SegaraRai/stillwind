@@ -95,6 +95,11 @@ export declare class NativeDesignSystemLoader {
  */
 export declare class NativeEditorQuery {
   /**
+   * Returns placeholder patterns for functional utilities matching `prefix`, such as
+   * `p-<number>` and `p-[<length>]`.
+   */
+  functionalUtilityPatterns(prefix: string): Array<string>
+  /**
    * Returns the canonical spelling of `candidate`, using the lint options of the
    * project. Returns null when `candidate` is already canonical, or when no
    * replacement produces the same CSS.
@@ -2370,6 +2375,11 @@ export interface NativeThemeToken {
   name: string
   /** The CSS value as written, including references to other tokens. */
   value: string
+  /**
+   * The CSS value with known theme `var()` references substituted. Absent when the
+   * value contains no resolvable theme references.
+   */
+  resolvedValue?: string
   /**
    * Whether an ordinary `@theme` definition overrides this definition. This is true
    * for definitions from `@theme default` and from the theme configuration of a

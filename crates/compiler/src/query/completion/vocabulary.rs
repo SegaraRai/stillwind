@@ -9,8 +9,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_design_system::{
-    StillwindVariantValueType, named_domain_values, placeholder_namespaces,
-    stillwind_utility_token_prefixes,
+    StillwindVariantValueType, functional_domain_shapes, named_domain_values,
+    placeholder_namespaces, stillwind_utility_token_prefixes,
 };
 
 use crate::query::{CandidateContext, DesignSystemQuery};
@@ -65,6 +65,34 @@ impl DesignSystemQuery {
         }
         vocabulary.retain(|label| label.starts_with(prefix));
         vocabulary
+    }
+
+    /// Returns placeholder patterns for functional utilities whose prefix matches `prefix`,
+    /// such as `p-<number>` and `p-[<length>]`.
+    ///
+    /// Patterns describe the non-enumerable value domains that completion omits, in lexical
+    /// order.
+    #[must_use]
+    pub fn functional_utility_patterns(&self, prefix: &str) -> BTreeSet<LeanStr> {
+        let theme = self.context.design_system.theme();
+        let mut patterns = BTreeSet::new();
+        for (name, definitions) in self.context.design_system.utilities().iter() {
+            let Some(root) = name.strip_suffix('*') else {
+                continue;
+            };
+            if !root.starts_with(prefix) && !prefix.starts_with(root) {
+                continue;
+            }
+            for definition in definitions {
+                for shape in functional_domain_shapes(&definition.body, theme) {
+                    let pattern = format_args!("{root}{shape}").to_lean_str();
+                    if pattern.starts_with(prefix) {
+                        patterns.insert(pattern);
+                    }
+                }
+            }
+        }
+        patterns
     }
 
     /// Returns the variant labels that start with `partial`, each preceded by

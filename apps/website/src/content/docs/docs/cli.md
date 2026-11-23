@@ -176,16 +176,23 @@ leading `--`, because the CLI reads `--color-*` as an option.
 `project` tokens come from an ordinary [`@theme`](/docs/at-rules/theme). `default` tokens
 come from `@theme default` or from a plugin, and an ordinary `@theme` can override them.
 
-Each token shows its value as written, including references to other tokens.
+Each token shows its value as written, including references to other tokens. When
+the value references known theme tokens, text output appends the resolved value in
+a comment and JSON output includes `resolvedValue`.
 
 ## stillwind utilities
 
 ```sh
 vp exec stillwind utilities p-4 hover:bg-accent
 vp exec stillwind utilities 'bg-*' '*-panel'
+vp exec stillwind utilities 'p-*' --names-only
 ```
 
 `utilities` shows the CSS of each utility. It reads no source files.
+
+| Option         | Effect                                    |
+| -------------- | ----------------------------------------- |
+| `--names-only` | Lists matching names without CSS previews |
 
 An argument without `*` is an exact check, and it can include variants, numeric values, and
 arbitrary values. An unknown name shows the closest spelling when one is close enough. A valid
@@ -193,19 +200,20 @@ name also shows its canonical spelling when a different spelling produces the sa
 `[padding:16px]` shows `p-4`. The `canonical` field of the JSON output contains that spelling.
 
 An argument with `*` searches the names that editors complete, and a `*` inside brackets or
-parentheses does not count. **A search omits numeric and arbitrary values.** For example,
-`p-*` lists `p-px` but not `p-4`, so check such a value with its exact name. Without an
-argument, `utilities` lists every name.
+parentheses does not count. A search also includes placeholder patterns for functional
+utilities' non-enumerable domains, such as `p-<number>` and `p-[<length-percentage>]` (`kind: "pattern"`
+in JSON), so you can see which numeric or arbitrary values a family accepts before checking an
+exact name. Without an argument, `utilities` lists every name.
 
 ## stillwind variants
 
 ```sh
 vp exec stillwind variants hover
-vp exec stillwind variants 'group-*'
+vp exec stillwind variants 'group-*' --names-only
 ```
 
-`variants` shows the selectors and at-rules that each variant adds. Its arguments work as in
-`utilities`. Write a variant name without the trailing `:`.
+`variants` shows the selectors and at-rules that each variant adds. Its arguments and
+`--names-only` option work as in `utilities`. Write a variant name without the trailing `:`.
 
 ## stillwind lsp
 
@@ -394,12 +402,14 @@ occurrence requires failed. `css` can be empty for an occurrence with findings, 
 is empty when `documentation` describes a marker class. `runtimeNames` lists the runtime
 expressions that supply view-transition names, and it is absent when there are none.
 
-Each token contains `project`, `name`, `value`, `source`, and `inline`. `inline` is `true`
+Each token contains `project`, `name`, `value`, `source`, and `inline`, and
+`resolvedValue` when `value` references known theme tokens. `inline` is `true`
 when utilities write the value of the token instead of a reference to it.
 
 Each candidate contains `project`, `name`, `kind`, `valid`, and `css`. `kind` is `"utility"`,
-`"variant"`, or `"marker"`, and `css` is empty for an unknown name and for a marker class
-without CSS. An unknown name can contain `suggestion`, the closest valid spelling.
+`"variant"`, `"marker"`, or `"pattern"`, and `css` is empty for an unknown name, a pattern,
+a marker class without CSS, or `--names-only`. An unknown name can contain `suggestion`, the
+closest valid spelling.
 
 File paths are absolute. Locations in reports and previews use URIs and zero-based UTF-16
 positions, and their ends are exclusive.

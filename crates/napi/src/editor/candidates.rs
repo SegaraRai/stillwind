@@ -241,6 +241,17 @@ pub fn decode_arbitrary_value(value: String) -> String {
 #[napi]
 #[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
 impl NativeEditorQuery {
+    /// Returns placeholder patterns for functional utilities matching `prefix`, such as
+    /// `p-<number>` and `p-[<length>]`.
+    #[napi]
+    pub fn functional_utility_patterns(&self, prefix: String) -> Vec<String> {
+        self.query
+            .functional_utility_patterns(&prefix)
+            .into_iter()
+            .map(|pattern| pattern.to_string())
+            .collect()
+    }
+
     /// Returns the canonical spelling of `candidate`, using the lint options of the
     /// project. Returns null when `candidate` is already canonical, or when no
     /// replacement produces the same CSS.

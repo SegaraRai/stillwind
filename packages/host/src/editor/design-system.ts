@@ -20,6 +20,8 @@ export type DesignSystemRequest =
       kind: "utilities" | "variants";
       /** Decoded candidates. A `*` outside brackets and parentheses makes a pattern. */
       targets: readonly string[];
+      /** Omits formatted CSS previews from returned candidates. */
+      namesOnly?: boolean;
     };
 
 /**
@@ -35,6 +37,8 @@ export interface DesignToken {
   name: string;
   /** CSS value as written, including references to other tokens. */
   value: string;
+  /** CSS value with known theme `var()` references substituted. Absent when unchanged. */
+  resolvedValue?: string;
   /** Origin of the active definition. */
   source: DesignTokenSource;
   /** Whether utilities write the value of the token instead of a reference to it. */
@@ -42,16 +46,16 @@ export interface DesignToken {
 }
 
 /**
- * One utility, variant, or marker class, with its CSS.
+ * One utility, variant, marker class, or functional utility pattern, with its CSS.
  */
 export interface DesignCandidate {
   /** Decoded candidate. Variant names have no trailing colon. */
   name: string;
   /** Kind of input that the name selects. */
-  kind: "utility" | "variant" | "marker";
+  kind: "utility" | "variant" | "marker" | "pattern";
   /** Whether the name resolves in this design system. */
   valid: boolean;
-  /** Formatted CSS. It is empty for an invalid name and for a marker without CSS. */
+  /** Formatted CSS. It is empty for an invalid name, a pattern, a marker without CSS, or namesOnly. */
   css: string;
   /** Closest valid spelling of an invalid name. Absent when no spelling is close enough. */
   suggestion?: string;
@@ -120,9 +124,10 @@ function theme(
 ): DesignSystemResult {
   const tokens = context.query
     .themeTokens()
-    .map(({ name, value, fallback, inline }): DesignToken => ({
+    .map(({ name, value, resolvedValue, fallback, inline }): DesignToken => ({
       name,
       value,
+      ...(resolvedValue ? { resolvedValue } : {}),
       source: fallback ? "default" : "project",
       inline,
     }))
@@ -159,6 +164,7 @@ function describe(
   annotations: DesignSystemContext["annotations"],
   name: string,
   kind: "utilities" | "variants",
+  namesOnly: boolean,
 ): DesignCandidate {
   const css = kind === "variants" ? candidates.variant(name, "utility") : candidates.preview(name);
   const marker = kind === "utilities" ? candidates.marker(name) : null;
@@ -167,7 +173,7 @@ function describe(
       name,
       kind: kind === "variants" ? "variant" : marker ? "marker" : "utility",
       valid: true,
-      css: css ? query.formatCss(css, annotations) : "",
+      css: !namesOnly && css ? query.formatCss(css, annotations) : "",
     };
   }
   // A variant resolves only with a utility, which a suggestion must not keep.
@@ -217,13 +223,14 @@ async function candidates(
   context: DesignSystemContext,
   request: Extract<DesignSystemRequest, { kind: "utilities" | "variants" }>,
 ): Promise<DesignSystemResult> {
-  const { kind } = request;
+  const { kind, namesOnly = false } = request;
   const catalog = new CandidateQueries(context.query);
   const targets = request.targets.length ? request.targets : ["*"];
   const exact = targets.filter((target) => !isPattern(target));
   const patterns: {
     target: string;
     names: string[];
+    shapes: string[];
   }[] = [];
   for (const target of targets.filter(isPattern)) {
     const expression = patternExpression(target);
@@ -239,9 +246,14 @@ async function candidates(
         ? [name]
         : [];
     });
+    const shapes =
+      kind === "utilities"
+        ? context.query.functionalUtilityPatterns(prefix).filter((shape) => expression.test(shape))
+        : [];
     patterns.push({
       target,
       names: [...new Set(names)].sort(),
+      shapes: [...new Set(shapes)].sort(),
     });
   }
 
@@ -258,26 +270,43 @@ async function candidates(
   const seen = new Set(exact);
   const listed: DesignCandidate[] = [];
   const unmatched: string[] = [];
-  for (const { target, names } of patterns) {
+  for (const { target, names, shapes } of patterns) {
     let matched = false;
+    const entries: DesignCandidate[] = [];
     for (const name of names) {
       if (seen.has(name)) {
         matched = true;
         continue;
       }
-      const candidate = describe(query, queries, context.annotations, name, kind);
+      const candidate = describe(query, queries, context.annotations, name, kind, namesOnly);
       if (candidate.valid) {
         matched = true;
         seen.add(name);
-        listed.push(candidate);
+        entries.push(candidate);
       }
     }
+    for (const shape of shapes) {
+      if (seen.has(shape)) {
+        matched = true;
+        continue;
+      }
+      matched = true;
+      seen.add(shape);
+      entries.push({
+        name: shape,
+        kind: "pattern",
+        valid: true,
+        css: "",
+      });
+    }
+    entries.sort((a, b) => a.name.localeCompare(b.name));
+    listed.push(...entries);
     if (!matched) {
       unmatched.push(target);
     }
   }
   const named = exact.map((name) => {
-    const candidate = describe(query, queries, context.annotations, name, kind);
+    const candidate = describe(query, queries, context.annotations, name, kind, namesOnly);
     const canonical = candidate.valid ? canonicalSpelling(query, name, kind) : undefined;
     return canonical ? { ...candidate, canonical } : candidate;
   });

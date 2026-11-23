@@ -38,6 +38,17 @@ impl DesignSystemQuery {
             .collect()
     }
 
+    /// Resolves known theme `var()` references in `value` against this snapshot.
+    ///
+    /// Returns `Some` only when substitution changes `value`, and `None` when `value`
+    /// contains no resolvable theme references or exceeds the substitution limits.
+    #[must_use]
+    pub fn resolve_theme_value(&self, value: &str) -> Option<LeanStr> {
+        self.context
+            .resolve_theme_values(value)
+            .filter(|resolved| resolved.as_str() != value)
+    }
+
     /// Returns active shared assets with their source spans and output policies.
     pub fn shared_assets(&self) -> Vec<ThemeValue> {
         self.context

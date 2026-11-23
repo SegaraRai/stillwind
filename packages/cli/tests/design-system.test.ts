@@ -39,7 +39,7 @@ test("theme, utilities, and variants read the design system without source files
     await writeFile(
       path.join(root, "root.css"),
       `@import "stillwind";
-@theme { --color-accent: #123456; --spacing-panel: 3rem; }
+@theme { --color-accent: #123456; --color-alias: var(--color-accent); --spacing-panel: 3rem; }
 @utility surface { color: var(--color-accent); }
 @custom-variant hocus (&:hover, &:focus);`,
     );
@@ -51,6 +51,14 @@ test("theme, utilities, and variants read the design system without source files
         project: 0,
         name: "--color-accent",
         value: "#123456",
+        source: "project",
+        inline: false,
+      },
+      {
+        project: 0,
+        name: "--color-alias",
+        value: "var(--color-accent)",
+        resolvedValue: "#123456",
         source: "project",
         inline: false,
       },
@@ -139,6 +147,20 @@ test("theme, utilities, and variants read the design system without source files
     expect(search.result.candidates.map(({ name }) => name)).toEqual(
       expect.arrayContaining(["bg-accent", "p-panel", "m-panel"]),
     );
+    const patterns = await json(root, ["utilities", "p-*", "--names-only"]);
+    expect(patterns.code).toBe(0);
+    expect(patterns.result.candidates).toEqual(
+      expect.arrayContaining([
+        { project: 0, name: "p-<number>", kind: "pattern", valid: true, css: "" },
+        { project: 0, name: "p-[<length-percentage>]", kind: "pattern", valid: true, css: "" },
+        { project: 0, name: "p-px", kind: "utility", valid: true, css: "" },
+      ]),
+    );
+    expect(patterns.result.candidates.every(({ css }) => css === "")).toBe(true);
+    const patternText = await run(root, ["utilities", "p-*", "--names-only", "--color", "never"]);
+    expect(patternText.code).toBe(0);
+    expect(patternText.stdout).toContain("p-<number> (pattern)");
+    expect(patternText.stdout).not.toContain("padding:");
     const empty = await json(root, ["utilities", "zzz*"]);
     expect(empty.code).toBe(1);
     expect(empty.result.unmatched).toEqual(["zzz*"]);
@@ -159,14 +181,19 @@ test("theme, utilities, and variants read the design system without source files
       },
     ]);
     expect(variants.result.candidates[0].css).toContain("&:hover");
+    const variantNames = await json(root, ["variants", "hoc*", "--names-only"]);
+    expect(variantNames.code).toBe(0);
+    expect(variantNames.result.candidates).toEqual([
+      { project: 0, name: "hocus", kind: "variant", valid: true, css: "" },
+    ]);
     expect((await json(root, ["utilities", "hocus:*"])).result.unmatched).toEqual([]);
 
     expect((await run(root, ["theme", "--color-*"])).code).toBe(2);
     const text = await run(root, ["utilities", "surfce", "--color", "never"]);
     expect(text.stdout).toContain("surfce: unknown utility");
     expect(text.stdout).toContain("help: Did you mean surface?");
-    expect((await run(root, ["theme", "color-accent"])).stdout).toContain(
-      "--color-accent: #123456",
+    expect((await run(root, ["theme", "color-accent", "color-alias"])).stdout).toContain(
+      "--color-alias: var(--color-accent) /* #123456 */",
     );
 
     await writeFile(path.join(root, "root.css"), "@theme {");

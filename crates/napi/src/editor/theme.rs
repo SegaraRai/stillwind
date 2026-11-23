@@ -17,6 +17,9 @@ pub struct NativeThemeToken {
     pub name: String,
     /// The CSS value as written, including references to other tokens.
     pub value: String,
+    /// The CSS value with known theme `var()` references substituted. Absent when the
+    /// value contains no resolvable theme references.
+    pub resolved_value: Option<String>,
     /// Whether an ordinary `@theme` definition overrides this definition. This is true
     /// for definitions from `@theme default` and from the theme configuration of a
     /// plugin.
@@ -97,6 +100,10 @@ impl NativeEditorQuery {
             .into_iter()
             .map(|token| NativeThemeToken {
                 name: token.name.value.to_string(),
+                resolved_value: self
+                    .query
+                    .resolve_theme_value(&token.value.value)
+                    .map(|value| value.to_string()),
                 value: token.value.value.to_string(),
                 fallback: token.precedence != ThemeValuePrecedence::Ordinary,
                 inline: token.mode == ThemeValueMode::Inline,
