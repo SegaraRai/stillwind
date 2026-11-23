@@ -16,6 +16,7 @@
     "@volar/typescript": "^2.4.31",
     "@vue/language-core": "^3.3.14",
     "emnapi": "^2.0.0-beta.3",
+    "stillwind": "workspace:*",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vite-plus": "catalog:",
