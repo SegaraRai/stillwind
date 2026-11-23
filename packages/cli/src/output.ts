@@ -195,7 +195,10 @@ export function renderResult(
         ...clean(
           [
             ...failure,
-            ...diagnostics.map(({ severity, code, message }) => `${severity} ${code}: ${message}`),
+            ...diagnostics.flatMap(({ severity, code, message, docs }) => [
+              `${severity} ${code}: ${message}`,
+              ...(docs ? [`docs: ${docs}`] : []),
+            ]),
             css,
             documentation,
           ]

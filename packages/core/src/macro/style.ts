@@ -53,19 +53,6 @@ export type StillwindDeclarationIdentity<Id extends string> = {
  */
 export type StyleMacro<Props = object> = {
   /**
-   * Internal use only. The checker supplies the final identity argument to track the
-   * completed props value. Application code must use the overload without it.
-   *
-   * @param inputs - Style inputs followed by the declaration identity inserted by the compiler.
-   * The public overload validates authored inputs. This overload adds identity tracking for the checker.
-   * @returns The composed style props with the supplied declaration identity.
-   * @internal
-   */
-  <Inputs extends readonly StyleArgument[], Id extends string>(
-    ...inputs: [...Inputs, StillwindDeclarationIdentity<Id>]
-  ): StyleResult<Id, StyleOutput<Props, Inputs>>;
-
-  /**
    * Compiles static utility branches and combines them with inline custom
    * properties, external classes, and completed style props.
    *
@@ -86,6 +73,19 @@ export type StyleMacro<Props = object> = {
   <Inputs extends readonly StyleArgument[]>(
     ...inputs: Inputs & CheckedStyleInputs<Inputs>
   ): StyleResult<string, StyleOutput<Props, Inputs>>;
+
+  /**
+   * Internal use only. The checker supplies the final identity argument to track the
+   * completed props value. Application code must use the overload without it.
+   *
+   * @param inputs - Style inputs followed by the declaration identity inserted by the compiler.
+   * The public overload validates authored inputs. This overload adds identity tracking for the checker.
+   * @returns The composed style props with the supplied declaration identity.
+   * @internal
+   */
+  <Inputs extends readonly StyleArgument[], Id extends string>(
+    ...inputs: [...Inputs, StillwindDeclarationIdentity<Id>]
+  ): StyleResult<Id, StyleOutput<Props, Inputs>>;
 
   /**
    * Declares an unlabeled DOM identity in a binding initializer.

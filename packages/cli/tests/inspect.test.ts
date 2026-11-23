@@ -140,9 +140,9 @@ test("inspect selects generated CSS by file, line, position, and glob", async ()
         valid: false,
       },
     ]);
-    expect((await run(root, ["inspect", "partial.tsx"])).stdout).toContain(
-      "error unknown-utility: unknown utility `missing`",
-    );
+    const inspectText = (await run(root, ["inspect", "partial.tsx"])).stdout;
+    expect(inspectText).toContain("error unknown-utility: unknown utility `missing`");
+    expect(inspectText).toMatch(/  docs: .*lints[/\\]unknown-utility(\.md)?\r?\n/);
 
     await writeFile(
       path.join(root, "stillwind.config.json"),

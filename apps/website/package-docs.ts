@@ -122,6 +122,63 @@ async function missingReferences(generated: ReadonlyMap<string, string>) {
   return missing;
 }
 
+/**
+ * Builds a single-file Markdown index (`llms.txt`) of every bundled documentation page,
+ * grouped by top-level directory, with relative file paths and frontmatter descriptions.
+ *
+ * @param generated - Map from output paths relative to `docs/` to transformed Markdown text.
+ * @returns The `llms.txt` text for the package `docs/` directory.
+ */
+export function generatePackageIndex(generated: ReadonlyMap<string, string>) {
+  const sections = new Map<string, { file: string; title: string; description: string }[]>();
+  for (const [file, markdown] of generated) {
+    const slash = file.indexOf("/");
+    const section = slash === -1 ? "" : file.slice(0, slash);
+    const { title, description } = readFrontmatter(markdown);
+    const entries = sections.get(section) ?? [];
+    entries.push({ file, title: title || file, description });
+    sections.set(section, entries);
+  }
+  const lines = [
+    "# Stillwind documentation",
+    "",
+    "Index of the Markdown pages bundled in `docs/`. Paths are relative to this file.",
+  ];
+  const order = [...sections.keys()].sort((a, b) =>
+    a === "" ? -1 : b === "" ? 1 : a.localeCompare(b),
+  );
+  for (const section of order) {
+    lines.push("", `## ${section === "" ? "Pages" : section}`, "");
+    const entries = sections.get(section)!.sort((a, b) => {
+      const aIndex = a.file === "index.md" || a.file.endsWith("/index.md");
+      const bIndex = b.file === "index.md" || b.file.endsWith("/index.md");
+      return aIndex !== bIndex ? (aIndex ? -1 : 1) : a.file.localeCompare(b.file);
+    });
+    for (const { file, title, description } of entries) {
+      lines.push(description ? `- [${title}](${file}): ${description}` : `- [${title}](${file})`);
+    }
+  }
+  return `${lines.join("\n")}\n`;
+}
+
+function readFrontmatter(markdown: string) {
+  const block = /^---\n([\s\S]*?)\n---\n/.exec(markdown)?.[1] ?? "";
+  const field = (name: string) => {
+    const raw = new RegExp(`^${name}:\\s*(.+)$`, "m").exec(block)?.[1]?.trim() ?? "";
+    if (raw.startsWith('"') && raw.endsWith('"')) {
+      return raw.slice(1, -1).replace(/\\(.)/g, "$1");
+    }
+    if (raw.startsWith("'") && raw.endsWith("'")) {
+      return raw.slice(1, -1).replace(/''/g, "'");
+    }
+    return raw;
+  };
+  return {
+    title: field("title"),
+    description: field("description"),
+  };
+}
+
 if (import.meta.main) {
   const generated = await generate();
   const missing = await missingReferences(generated);
@@ -134,4 +191,5 @@ if (import.meta.main) {
     await mkdir(path.dirname(absolute), { recursive: true });
     await writeFile(absolute, content);
   }
+  await writeFile(path.join(destination, "llms.txt"), generatePackageIndex(generated));
 }

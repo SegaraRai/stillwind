@@ -26,6 +26,7 @@ it migrates existing styles, it explains the options and asks how far to go.
 | Path                           | Content                                                      |
 | ------------------------------ | ------------------------------------------------------------ |
 | `docs/`                        | This documentation as Markdown                               |
+| `docs/llms.txt`                | Index of every bundled Markdown page with relative paths     |
 | `skills/setup-stillwind/`      | A skill that sets up Stillwind in a project without styles   |
 | `skills/migrate-to-stillwind/` | A skill that migrates Tailwind CSS or other CSS to Stillwind |
 | `skills/stillwind/`            | A skill for everyday work in a project that uses Stillwind   |

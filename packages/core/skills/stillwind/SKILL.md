@@ -7,7 +7,8 @@ description: Write and fix styles in a project that uses Stillwind, by loading t
 
 Read only the pages that the task needs. Use the documentation of the installed package
 in `node_modules/stillwind/docs/`, so that it matches the project's
-Stillwind version. The `docs/` paths below are relative to the package root.
+Stillwind version. The `docs/` paths below are relative to the package root, and
+`docs/llms.txt` lists every bundled page.
 When this skill is installed without a local package, follow the skill's link to
 its real directory and use `../../docs/` in the same package. If the skill was copied
 without the package, start from https://stillwind.dev/docs/llms.txt, which lists the
@@ -18,7 +19,7 @@ Markdown version of each page.
 | Task                                                   | Pages                                                               |
 | ------------------------------------------------------ | ------------------------------------------------------------------- |
 | Set up a project, choose an integration                | `docs/index.md`, `docs/integrations.md`                             |
-| Migrate existing styles                                | `../migrate-to-stillwind/SKILL.md`                                  |
+| Migrate existing styles                                | `node_modules/stillwind/skills/migrate-to-stillwind/SKILL.md`       |
 | Recommended practices and mistakes that produce no CSS | `docs/guides/recommended-practices.md`                              |
 | Utilities, variants, conditions, runtime values        | `docs/guides/style.md`, `docs/macros/style.md`                      |
 | Shared styles, states, and component options           | `docs/guides/reusable-styles.md`, `docs/macros/cva.md`              |
@@ -66,8 +67,13 @@ Markdown version of each page.
   the `docs` field of a finding names that page. Do not add a suppression comment or
   relax the `lint` setting unless the user agrees. A suppression comment names the rule
   and gives the reason after `--`.
-- When `conflicting-utilities` reports a pair of classes from a plugin or CSS package,
-  follow "Conflicts with plugin classes" in `../migrate-to-stillwind/SKILL.md`. For a
-  pair that the plugin intends, you can change the rule options without asking first,
-  and you report the change.
+- When `conflicting-utilities` reports a pair of classes from a plugin or CSS package
+  (or a plugin class and a core utility), check the installed plugin's documentation or
+  examples. If the plugin intends both classes on the same element (such as `btn` with
+  `btn-outline`, or `form-input` with `px-4`), update the `conflicting-utilities` options
+  in `stillwind.config.ts` without asking first and report the change: set
+  `allowShorthandOverrides: true` when the finding's note names it, or add the base class
+  to `ignoredUtilities`. See "Plugins" in `docs/lints/conflicting-utilities.md` for
+  examples. If the classes are alternatives or belong on different elements, fix the code;
+  if the plugin's usage is unclear, ask the user.
 - Check the result in the browser when a change can affect the layout.
