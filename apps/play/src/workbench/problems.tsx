@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { style } from "stillwind/react";
 import type * as vscode from "vscode";
 
@@ -44,14 +45,22 @@ export function countProblems(problems: Problem[]): { errors: number; warnings: 
 export function SeverityIcon({ severity }: { severity: vscode.DiagnosticSeverity }) {
   const base = style("icon-control shrink-0");
   if (severity === ERROR) {
-    return <span aria-label="Error" {...style(base, "icon-lucide--circle-x text-danger")} />;
+    return (
+      <span role="img" aria-label="Error" {...style(base, "icon-lucide--circle-x text-danger")} />
+    );
   }
   if (severity === WARNING) {
     return (
-      <span aria-label="Warning" {...style(base, "icon-lucide--triangle-alert text-warning")} />
+      <span
+        role="img"
+        aria-label="Warning"
+        {...style(base, "icon-lucide--triangle-alert text-warning")}
+      />
     );
   }
-  return <span aria-label="Information" {...style(base, "icon-lucide--info text-accent")} />;
+  return (
+    <span role="img" aria-label="Information" {...style(base, "icon-lucide--info text-accent")} />
+  );
 }
 
 /**
@@ -67,6 +76,7 @@ export function ProblemList({
   problems: Problem[];
   onSelect: (file: string, range: vscode.Range) => void;
 }) {
+  const [collapsed, setCollapsed] = useState(new Set<string>());
   const groups = new Map<string, Problem[]>();
   for (const problem of problems) {
     groups.set(problem.uri.path, [...(groups.get(problem.uri.path) ?? []), problem]);
@@ -83,59 +93,89 @@ export function ProblemList({
         </p>
       ) : (
         <ul>
-          {[...groups].map(([file, items]) => (
-            <li key={file}>
-              <div {...style("flex px-4 block-5.5 items-center gap-1.5 text-ui")}>
-                <span
-                  aria-hidden="true"
-                  {...style("icon-control icon-lucide--chevron-down text-muted")}
-                />
-                <span
-                  data-type={getFileInfo(file).type}
-                  {...style(fileIcon, "icon-control shrink-0")}
-                />
-                <span {...style("text-foreground")}>{file.split("/").at(-1)}</span>
-                <span {...style("truncate text-caption text-subtle")}>
-                  {file.replace("/workspace/", "").split("/").slice(0, -1).join("/")}
-                </span>
-                <span
+          {[...groups].map(([file, items]) => {
+            const open = !collapsed.has(file);
+            return (
+              <li key={file}>
+                <button
+                  type="button"
+                  aria-expanded={open}
+                  onClick={() => {
+                    const next = new Set(collapsed);
+                    if (open) {
+                      next.add(file);
+                    } else {
+                      next.delete(file);
+                    }
+                    setCollapsed(next);
+                  }}
                   {...style(
-                    "px-1.5 min-inline-4.5 text-center text-foreground text-label font-semibold bg-surface-muted rounded-full",
+                    "flex px-4 block-5.5 inline-full items-center gap-1.5 text-start text-ui cursor-pointer",
+                    { "hover:": "bg-surface-muted/60" },
                   )}
                 >
-                  {items.length}
-                </span>
-              </div>
-              <ul>
-                {items.map(({ diagnostic }, index) => {
-                  const code =
-                    typeof diagnostic.code === "object" ? diagnostic.code.value : diagnostic.code;
-                  return (
-                    <li key={index}>
-                      <button
-                        type="button"
-                        onClick={() => onSelect(file, diagnostic.range)}
-                        {...style(
-                          "flex py-0.5 ps-11 pe-4 inline-full min-block-5.5 items-baseline gap-1.5 text-start text-ui cursor-pointer",
-                          { "hover:": "bg-surface-muted/60" },
-                        )}
-                      >
-                        <span {...style("self-center")}>
-                          <SeverityIcon severity={diagnostic.severity} />
-                        </span>
-                        <span {...style("min-inline-0 text-foreground")}>{diagnostic.message}</span>
-                        <span {...style("shrink-0 text-caption text-subtle whitespace-nowrap")}>
-                          {diagnostic.source}
-                          {code !== undefined && `(${code})`} [Ln {diagnostic.range.start.line + 1},
-                          Col {diagnostic.range.start.character + 1}]
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </li>
-          ))}
+                  <span
+                    aria-hidden="true"
+                    {...style(
+                      "icon-control icon-lucide--chevron-right text-muted [transition:rotate_100ms]",
+                      open && "rotate-90",
+                    )}
+                  />
+                  <span
+                    aria-hidden="true"
+                    data-type={getFileInfo(file).type}
+                    {...style(fileIcon, "icon-control shrink-0")}
+                  />
+                  <span {...style("text-foreground")}>{file.split("/").at(-1)}</span>
+                  <span {...style("truncate text-caption text-subtle")}>
+                    {file.replace("/workspace/", "").split("/").slice(0, -1).join("/")}
+                  </span>
+                  <span
+                    {...style(
+                      "px-1.5 min-inline-4.5 text-center text-foreground text-label font-semibold bg-surface-muted rounded-full",
+                    )}
+                  >
+                    {items.length}
+                  </span>
+                </button>
+                {open && (
+                  <ul>
+                    {items.map(({ diagnostic }, index) => {
+                      const code =
+                        typeof diagnostic.code === "object"
+                          ? diagnostic.code.value
+                          : diagnostic.code;
+                      return (
+                        <li key={index}>
+                          <button
+                            type="button"
+                            onClick={() => onSelect(file, diagnostic.range)}
+                            {...style(
+                              "flex py-0.5 ps-11 pe-4 inline-full min-block-5.5 items-baseline gap-1.5 text-start text-ui cursor-pointer",
+                              { "hover:": "bg-surface-muted/60" },
+                            )}
+                          >
+                            <span {...style("self-center")}>
+                              <SeverityIcon severity={diagnostic.severity} />
+                            </span>
+                            <span {...style("min-inline-0 text-foreground")}>
+                              {diagnostic.message}
+                            </span>
+                            <span {...style("shrink-0 text-caption text-subtle whitespace-nowrap")}>
+                              {diagnostic.source}
+                              {code !== undefined && `(${code})`} [Ln{" "}
+                              {diagnostic.range.start.line + 1}, Col{" "}
+                              {diagnostic.range.start.character + 1}]
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

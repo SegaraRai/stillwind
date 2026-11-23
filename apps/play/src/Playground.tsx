@@ -24,6 +24,22 @@ const navLink = style(
   "inline-flex items-center text-muted whitespace-nowrap rounded-control hover:text-foreground",
 );
 
+const LAYOUT_STORAGE_KEY = "stillwind:play:layout";
+
+function readSavedLayout(): {
+  sidebar?: number;
+  results?: number;
+  panel?: number;
+  panelCollapsed?: boolean;
+} {
+  try {
+    const raw = localStorage.getItem(LAYOUT_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as ReturnType<typeof readSavedLayout>) : {};
+  } catch {
+    return {};
+  }
+}
+
 /** Preference that the theme button selects next. */
 const nextTheme = {
   system: "light",
@@ -62,9 +78,18 @@ export default function Playground() {
   const viewNav = useRef<HTMLElement>(null);
   const [filesOpen, setFilesOpen] = useState(false);
   const [viewport, setViewport] = useState<Viewport>("desktop");
-  const [sidebar, setSidebar] = useState(224);
-  const [results, setResults] = useState(() => Math.max(480, Math.round(window.innerWidth * 0.38)));
-  const [panel, setPanel] = useState(176);
+  const defaultSidebar = 224;
+  const defaultResults = () => Math.max(480, Math.round(window.innerWidth * 0.38));
+  const defaultPanel = 176;
+  const [sidebar, setSidebar] = useState(() => readSavedLayout().sidebar ?? defaultSidebar);
+  const [results, setResults] = useState(() => readSavedLayout().results ?? defaultResults());
+  const [panel, setPanel] = useState(() => readSavedLayout().panel ?? defaultPanel);
+  const [panelCollapsed, setPanelCollapsed] = useState(
+    () => readSavedLayout().panelCollapsed ?? false,
+  );
+  const [pendingPreset, setPendingPreset] = useState<{ id: string; title: string }>();
+  const confirmDialog = useRef<HTMLDialogElement>(null);
+  const [formatted, setFormatted] = useState(false);
   const [start, setStart] = useState<Start>();
   const [notice, setNotice] = useState<string>();
   const [shared, setShared] = useState(false);
@@ -262,6 +287,51 @@ export default function Playground() {
     select(file);
   };
 
+  const renameFile = async (file: string, name: string) => {
+    if (!workspace.current) {
+      return;
+    }
+    const renamed = await workspace.current.rename(file, name);
+    setFiles([...workspace.current.files.keys()]);
+    select(renamed);
+  };
+
+  const deleteFileEntry = async (file: string) => {
+    if (!workspace.current) {
+      return;
+    }
+    try {
+      const next = await workspace.current.remove(file);
+      setFiles([...workspace.current.files.keys()]);
+      if (active === file) {
+        select(next);
+      }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    }
+  };
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        LAYOUT_STORAGE_KEY,
+        JSON.stringify({ sidebar, results, panel, panelCollapsed }),
+      );
+    } catch {}
+  }, [sidebar, results, panel, panelCollapsed]);
+
+  useEffect(() => {
+    const dialog = confirmDialog.current;
+    if (!dialog) {
+      return;
+    }
+    if (pendingPreset && !dialog.open) {
+      dialog.showModal();
+    } else if (!pendingPreset && dialog.open) {
+      dialog.close();
+    }
+  }, [pendingPreset]);
+
   // A pasted link or an edited fragment selects another workspace, which needs a new page load.
   useEffect(() => {
     const reload = () => location.reload();
@@ -277,6 +347,27 @@ export default function Playground() {
     return () => clearTimeout(timer);
   }, [shared]);
 
+  useEffect(() => {
+    if (!formatted) {
+      return;
+    }
+    const timer = setTimeout(() => setFormatted(false), 1500);
+    return () => clearTimeout(timer);
+  }, [formatted]);
+
+  useEffect(() => {
+    if (!filesOpen) {
+      return;
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setFilesOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [filesOpen]);
+
   /** Opens a preset in a new page load, after confirming that edits may be discarded. */
   const openPreset = (id: string) => {
     const current = workspace.current?.files;
@@ -287,7 +378,8 @@ export default function Playground() {
       (current.size !== original.size ||
         [...current].some(([path, text]) => original.get(path) !== text));
     const title = presets.find((preset) => preset.id === id)?.title ?? id;
-    if (modified && !window.confirm(`Discard your changes and open ${title}?`)) {
+    if (modified) {
+      setPendingPreset({ id, title });
       return;
     }
     location.hash = `preset=${id}`;
@@ -315,7 +407,10 @@ export default function Playground() {
   return (
     <div
       {...style(
-        "grid block-dvh grid-cols-[minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)_auto_auto]",
+        "grid block-dvh grid-cols-[minmax(0,1fr)]",
+        notice
+          ? "grid-rows-[auto_auto_minmax(0,1fr)_auto_auto]"
+          : "grid-rows-[auto_minmax(0,1fr)_auto_auto]",
       )}
     >
       <header
@@ -331,7 +426,7 @@ export default function Playground() {
             aria-label="Stillwind home"
             {...style("inline-flex items-center rounded-control")}
           >
-            <span aria-label="Stillwind" role="img" {...style("text-heading stillwind-logo")} />
+            <span aria-hidden="true" {...style("text-heading stillwind-logo")} />
           </a>
           <span aria-hidden="true" {...style("block-5 border-border border-s")} />
           <span {...style("text-heading-small text-muted font-medium")}>Playground</span>
@@ -440,31 +535,26 @@ export default function Playground() {
             )}
           />
         </button>
-        {notice && (
-          <p
-            role="note"
-            title={notice}
-            {...style({
-              "": "flex min-inline-0 items-center gap-1.5 text-caption text-warning",
-              "max-header:": "pbe-2 order-last basis-full",
-            })}
-          >
-            <span
-              aria-hidden="true"
-              {...style("icon-inline icon-lucide--triangle-alert shrink-0")}
-            />
-            <span {...style("truncate")}>{notice}</span>
-            <button
-              type="button"
-              aria-label="Dismiss"
-              onClick={() => setNotice(undefined)}
-              {...style("shrink-0 icon-button")}
-            >
-              <span aria-hidden="true" {...style("icon-inline icon-lucide--x")} />
-            </button>
-          </p>
-        )}
       </header>
+      {notice && (
+        <div
+          role="note"
+          {...style(
+            "flex px-4 py-1.5 items-center gap-2 text-caption text-warning bg-background border-divider border-be",
+          )}
+        >
+          <span aria-hidden="true" {...style("icon-inline icon-lucide--triangle-alert shrink-0")} />
+          <span {...style("min-inline-0 flex-1")}>{notice}</span>
+          <button
+            type="button"
+            aria-label="Dismiss"
+            onClick={() => setNotice(undefined)}
+            {...style("shrink-0 icon-button")}
+          >
+            <span aria-hidden="true" {...style("icon-inline icon-lucide--x")} />
+          </button>
+        </div>
+      )}
       <div
         {...style({
           "": "grid min-block-0 grid-cols-[minmax(0,var(--sidebar))_minmax(0,1fr)]",
@@ -479,24 +569,37 @@ export default function Playground() {
             "max-inline:": ["z-10 col-start-1 row-start-1", !filesOpen && "hidden"],
           })}
         >
-          <Explorer files={files} active={active} onSelect={select} onAdd={add} />
+          <Explorer
+            files={files}
+            active={active}
+            ready={start != null}
+            onSelect={select}
+            onAdd={add}
+            onRename={renameFile}
+            onDelete={deleteFileEntry}
+            onClose={() => setFilesOpen(false)}
+          />
         </div>
         <div
           {...style({
             "": "relative grid min-block-0 min-inline-0 grid-rows-[minmax(0,1fr)_var(--panel)] border-divider border-s",
-            "max-workbench:": "grid-rows-[minmax(0,1fr)_10rem]",
+            "max-workbench:": panelCollapsed
+              ? "grid-rows-[minmax(0,1fr)_2.25rem]"
+              : "grid-rows-[minmax(0,1fr)_10rem]",
             "max-inline:": "col-start-1 row-start-1 grid-rows-[minmax(0,1fr)] border-s-0",
-            "--panel": `${panel}px`,
+            "--panel": panelCollapsed ? "2.25rem" : `${panel}px`,
           })}
         >
           <Sash
             label="Resize explorer"
             orientation="vertical"
+            hideBelow="inline"
             value={sidebar}
             min={160}
             max={480}
             direction={1}
             onChange={setSidebar}
+            onReset={() => setSidebar(defaultSidebar)}
           />
           <div
             {...style({
@@ -531,13 +634,10 @@ export default function Playground() {
                 >
                   <span aria-hidden="true" {...style("icon-control icon-lucide--folder-tree")} />
                 </button>
-                <div
-                  role="tablist"
-                  aria-label="Open editors"
-                  {...style("flex items-stretch select-none")}
-                >
-                  <div role="tab" aria-selected="true" {...style("cursor-default workbench-tab")}>
+                <div {...style("flex items-stretch select-none")}>
+                  <div data-active {...style("cursor-default workbench-tab")}>
                     <span
+                      aria-hidden="true"
                       data-type={getFileInfo(active).type}
                       {...style(fileIcon, "icon-control shrink-0")}
                     />
@@ -547,17 +647,28 @@ export default function Playground() {
                 <div {...style("flex px-2 flex-1 items-center justify-end gap-1")}>
                   <button
                     type="button"
+                    title="Format this file"
+                    disabled={!start}
                     onClick={async () => {
                       try {
                         await workspace.current?.format();
+                        setFormatted(true);
                       } catch (error) {
                         setError(String(error));
                       }
                     }}
                     {...style("select-none text-button")}
                   >
-                    <span aria-hidden="true" {...style("icon-inline icon-lucide--wand-sparkles")} />
-                    <span>Format</span>
+                    <span
+                      aria-hidden="true"
+                      {...style(
+                        "icon-inline",
+                        formatted
+                          ? "icon-lucide--check text-success"
+                          : "icon-lucide--wand-sparkles",
+                      )}
+                    />
+                    <span>{formatted ? "Formatted" : "Format"}</span>
                   </button>
                   <button
                     type="button"
@@ -577,8 +688,35 @@ export default function Playground() {
                   </button>
                 </div>
               </div>
-              <nav
-                aria-label="Breadcrumb"
+              {error && view === "code" && (
+                <div
+                  role="alert"
+                  {...style(
+                    "flex overflow-auto px-3 py-2 max-block-32 shrink-0 items-start gap-2 text-caption text-foreground bg-danger/10 border-danger/40 border-be inline:hidden",
+                  )}
+                >
+                  <span
+                    aria-hidden="true"
+                    {...style("icon-control icon-lucide--circle-x mbs-px shrink-0 text-danger")}
+                  />
+                  <pre
+                    {...style("min-inline-0 flex-1 wrap-anywhere whitespace-pre-wrap code-font")}
+                  >
+                    {error}
+                  </pre>
+                  <button
+                    type="button"
+                    aria-label="Dismiss error"
+                    title="Dismiss"
+                    onClick={() => setError(undefined)}
+                    {...style("shrink-0 icon-button")}
+                  >
+                    <span aria-hidden="true" {...style("icon-inline icon-lucide--x")} />
+                  </button>
+                </div>
+              )}
+              <div
+                aria-label="File path"
                 {...style(
                   "flex px-3 block-6 shrink-0 items-center gap-0.5 text-caption text-muted select-none",
                 )}
@@ -593,6 +731,7 @@ export default function Playground() {
                     )}
                     {index === segments.length - 1 && (
                       <span
+                        aria-hidden="true"
                         data-type={getFileInfo(segment).type}
                         {...style(fileIcon, "icon-control shrink-0")}
                       />
@@ -602,8 +741,27 @@ export default function Playground() {
                     </span>
                   </span>
                 ))}
-              </nav>
-              <div ref={editor} {...style("min-block-0 flex-1")} />
+              </div>
+              <div {...style("relative min-block-0 flex-1")}>
+                {!start && (
+                  <div
+                    {...style(
+                      "absolute inset-0 grid place-items-center text-caption text-muted pointer-events-none",
+                    )}
+                  >
+                    <span {...style("flex items-center gap-2")}>
+                      <span
+                        aria-hidden="true"
+                        {...style(
+                          "icon-inline icon-lucide--loader-circle text-accent animate-spin",
+                        )}
+                      />
+                      Loading editor…
+                    </span>
+                  </div>
+                )}
+                <div ref={editor} {...style("block-full inline-full")} />
+              </div>
             </section>
             <div
               {...style({
@@ -620,6 +778,7 @@ export default function Playground() {
                 max={1200}
                 direction={-1}
                 onChange={setResults}
+                onReset={() => setResults(defaultResults())}
               />
               <ResultPane
                 tab={tab}
@@ -631,6 +790,7 @@ export default function Playground() {
                 output={output}
                 previewReady={outputReady && result != null}
                 error={error}
+                onDismissError={() => setError(undefined)}
               />
             </div>
           </div>
@@ -640,15 +800,18 @@ export default function Playground() {
               view !== "problems" && view !== "output" && "max-inline:hidden",
             )}
           >
-            <Sash
-              label="Resize panel"
-              orientation="horizontal"
-              value={panel}
-              min={96}
-              max={600}
-              direction={-1}
-              onChange={setPanel}
-            />
+            {!panelCollapsed && (
+              <Sash
+                label="Resize panel"
+                orientation="horizontal"
+                value={panel}
+                min={96}
+                max={600}
+                direction={-1}
+                onChange={setPanel}
+                onReset={() => setPanel(defaultPanel)}
+              />
+            )}
             <Panel
               tab={panelTab}
               onTab={setPanelTab}
@@ -658,6 +821,8 @@ export default function Playground() {
               channel={channel}
               onChannel={setChannel}
               outputHost={channelHost}
+              collapsed={panelCollapsed}
+              onToggleCollapse={() => setPanelCollapsed((value) => !value)}
             />
           </div>
         </div>
@@ -730,19 +895,78 @@ export default function Playground() {
           />
           {status}
         </span>
-        <span
-          aria-label={`${errors} errors, ${warnings} warnings`}
-          {...style("flex px-2 items-center gap-1")}
+        <button
+          type="button"
+          aria-label={`${errors} errors, ${warnings} warnings. Show problems.`}
+          title="Show problems"
+          onClick={() => {
+            setPanelTab("problems");
+            setPanelCollapsed(false);
+            setView("problems");
+            setFilesOpen(false);
+          }}
+          {...style(
+            "flex px-2 items-center gap-1 cursor-pointer hover:text-foreground hover:bg-surface-muted",
+          )}
         >
           <span aria-hidden="true" {...style("icon-inline icon-lucide--circle-x")} />
           {errors}
           <span aria-hidden="true" {...style("icon-inline icon-lucide--triangle-alert ms-1")} />
           {warnings}
+        </button>
+        <span role="status" aria-live="polite" {...style("sr-only")}>
+          {shared ? "Link copied to clipboard" : formatted ? "Formatted" : ""}
         </span>
         <span {...style("flex ms-auto px-3 items-center max-inline:hidden")}>
           {getFileInfo(active).label}
         </span>
       </footer>
+      <dialog
+        ref={confirmDialog}
+        aria-labelledby="confirm-preset-title"
+        onCancel={(event) => {
+          event.preventDefault();
+          setPendingPreset(undefined);
+        }}
+        {...style(
+          "m-auto p-4 inline-[min(24rem,calc(100%-2rem))] text-foreground bg-surface rounded-panel border border-border shadow-overlay backdrop:bg-foreground/30",
+        )}
+      >
+        <h2 id="confirm-preset-title" {...style("text-small font-semibold")}>
+          Discard your changes?
+        </h2>
+        <p {...style("mbs-2 text-muted text-ui")}>
+          Opening {pendingPreset?.title} will discard your edits in the current workspace.
+        </p>
+        <div {...style("flex mbs-4 justify-end gap-2")}>
+          <button
+            type="button"
+            onClick={() => setPendingPreset(undefined)}
+            {...style(
+              "px-3 py-1.5 text-muted text-ui bg-surface-muted rounded-control cursor-pointer hover:text-foreground",
+            )}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (!pendingPreset) {
+                return;
+              }
+              const id = pendingPreset.id;
+              setPendingPreset(undefined);
+              location.hash = `preset=${id}`;
+              location.reload();
+            }}
+            {...style(
+              "px-3 py-1.5 text-action-foreground text-ui bg-action rounded-control cursor-pointer hover:bg-action-hover",
+            )}
+          >
+            Discard and open
+          </button>
+        </div>
+      </dialog>
     </div>
   );
 }

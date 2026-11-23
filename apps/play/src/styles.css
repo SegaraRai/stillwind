@@ -87,7 +87,7 @@ contains the document defaults and the utilities that several workbench parts sh
   }
 }
 
-/* Tab in the result pane and the editor tab strip. The active tab uses `aria-selected`. */
+/* Tab in the result pane and the editor tab strip. Active tabs use `aria-selected` or `data-active`. */
 @utility workbench-tab {
   @apply relative inline-flex shrink-0 items-center gap-1.5 block-full px-3 text-caption text-muted whitespace-nowrap border-e border-divider cursor-pointer max-inline:px-2;
 
@@ -96,6 +96,11 @@ contains the document defaults and the utilities that several workbench parts sh
   }
 
   @variant aria-selected {
+    @apply text-foreground bg-editor;
+    @apply before:absolute before:inset-x-0 before:inset-bs-0 before:block-0.5 before:bg-accent;
+  }
+
+  @variant data-active {
     @apply text-foreground bg-editor;
     @apply before:absolute before:inset-x-0 before:inset-bs-0 before:block-0.5 before:bg-accent;
   }

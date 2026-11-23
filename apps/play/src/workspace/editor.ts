@@ -1,7 +1,7 @@
 import { getService, IExtensionService, initialize } from "@codingame/monaco-vscode-api";
 import { registerAssets } from "@codingame/monaco-vscode-api/assets";
 import { ExtensionHostKind, registerExtension } from "@codingame/monaco-vscode-api/extensions";
-import { createModelReference, writeFile } from "@codingame/monaco-vscode-api/monaco";
+import { createModelReference, deleteFile, writeFile } from "@codingame/monaco-vscode-api/monaco";
 import { URI } from "@codingame/monaco-vscode-api/vscode/vs/base/common/uri";
 import {
   isIMenuItem,
@@ -303,7 +303,9 @@ export class PlaygroundWorkspace {
   async add(name: string): Promise<string> {
     const path = normalizeWorkspacePath(name);
     if (!path || !/\.(?:[cm]?[jt]s|tsx|jsx|css|json)$/.test(path)) {
-      throw new Error("Use a relative JS, TS, TSX, CSS, or JSON filename inside the workspace");
+      throw new Error(
+        "Use a relative JS, TS, JSX, TSX, CSS, or JSON filename inside the workspace",
+      );
     }
     const file = `/workspace/${path}`;
     if (this.files.has(file)) {
@@ -315,6 +317,60 @@ export class PlaygroundWorkspace {
     this.select(file);
     this.#changed();
     return file;
+  }
+
+  /**
+   * Renames an existing workspace file and preserves its buffer contents.
+   *
+   * @param file - Absolute virtual path of the existing file.
+   * @param name - New relative path under the workspace.
+   * @returns Absolute virtual path of the renamed file.
+   */
+  async rename(file: string, name: string): Promise<string> {
+    const path = normalizeWorkspacePath(name);
+    if (!path || !/\.(?:[cm]?[jt]s|tsx|jsx|css|json)$/.test(path)) {
+      throw new Error(
+        "Use a relative JS, TS, JSX, TSX, CSS, or JSON filename inside the workspace",
+      );
+    }
+    const target = `/workspace/${path}`;
+    if (target === file) {
+      return file;
+    }
+    if (this.files.has(target)) {
+      throw new Error("This file already exists");
+    }
+    const content = this.files.get(file) ?? "";
+    await writeFile(URI.file(target), content);
+    this.files.set(target, content);
+    await this.#reference(target);
+    this.#references.get(file)?.dispose();
+    this.#references.delete(file);
+    await deleteFile(URI.file(file));
+    this.files.delete(file);
+    this.select(target);
+    this.#changed();
+    return target;
+  }
+
+  /**
+   * Deletes a workspace file when at least one other file remains.
+   *
+   * @param file - Absolute virtual path of the file to remove.
+   * @returns Absolute virtual path of the remaining file selected next.
+   */
+  async remove(file: string): Promise<string> {
+    if (this.files.size <= 1) {
+      throw new Error("Cannot delete the last file in the workspace");
+    }
+    this.#references.get(file)?.dispose();
+    this.#references.delete(file);
+    await deleteFile(URI.file(file));
+    this.files.delete(file);
+    const next = this.files.keys().next().value!;
+    this.select(next);
+    this.#changed();
+    return next;
   }
 
   /**

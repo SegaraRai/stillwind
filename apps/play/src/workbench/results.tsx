@@ -127,6 +127,7 @@ export function ResultPane({
   output,
   previewReady,
   error,
+  onDismissError,
 }: {
   tab: ResultTab;
   onTab: (tab: ResultTab) => void;
@@ -137,6 +138,7 @@ export function ResultPane({
   output: Output | undefined;
   previewReady: boolean;
   error: string | undefined;
+  onDismissError?: () => void;
 }) {
   return (
     <section
@@ -147,6 +149,16 @@ export function ResultPane({
         <div
           role="tablist"
           aria-label="Result views"
+          onKeyDown={(event) => {
+            if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") {
+              return;
+            }
+            event.preventDefault();
+            const index = TABS.findIndex(([id]) => id === tab);
+            const delta = event.key === "ArrowRight" ? 1 : -1;
+            const next = TABS[(index + delta + TABS.length) % TABS.length]![0];
+            onTab(next);
+          }}
           {...style(
             "flex overflow-x-auto min-inline-0 flex-1 items-stretch scrollbar-none select-none",
           )}
@@ -154,9 +166,12 @@ export function ResultPane({
           {TABS.map(([id, label]) => (
             <button
               key={id}
+              id={`result-tab-${id}`}
               type="button"
               role="tab"
+              tabIndex={tab === id ? 0 : -1}
               aria-selected={tab === id}
+              aria-controls={id === "preview" ? "result-panel-preview" : "result-panel-output"}
               onClick={() => onTab(id)}
               {...style("workbench-tab")}
             >
@@ -178,7 +193,11 @@ export function ResultPane({
         </div>
         <div {...style("flex px-2 shrink-0 items-center justify-end gap-1")}>
           {tab === "preview" ? (
-            <div {...style("flex items-center gap-1 max-inline:hidden")}>
+            <div
+              role="group"
+              aria-label="Preview viewport"
+              {...style("flex items-center gap-1 max-inline:hidden")}
+            >
               {VIEWPORTS.map(([id, label]) => (
                 <button
                   key={id}
@@ -219,7 +238,7 @@ export function ResultPane({
         <div
           role="alert"
           {...style(
-            "flex overflow-auto px-3 py-2 max-block-40 shrink-0 gap-2 text-caption text-foreground bg-danger/10 border-danger/40 border-be",
+            "flex overflow-auto px-3 py-2 max-block-40 shrink-0 items-start gap-2 text-caption text-foreground bg-danger/10 border-danger/40 border-be",
             { class: "runtime-error" },
           )}
         >
@@ -227,21 +246,50 @@ export function ResultPane({
             aria-hidden="true"
             {...style("icon-control icon-lucide--circle-x mbs-px shrink-0 text-danger")}
           />
-          <pre {...style("min-inline-0 wrap-anywhere whitespace-pre-wrap code-font")}>{error}</pre>
+          <pre {...style("min-inline-0 flex-1 wrap-anywhere whitespace-pre-wrap code-font")}>
+            {error}
+          </pre>
+          {onDismissError && (
+            <button
+              type="button"
+              aria-label="Dismiss error"
+              title="Dismiss"
+              onClick={onDismissError}
+              {...style("shrink-0 icon-button")}
+            >
+              <span aria-hidden="true" {...style("icon-inline icon-lucide--x")} />
+            </button>
+          )}
         </div>
       )}
       <div
+        id="result-panel-preview"
+        role="tabpanel"
+        aria-labelledby="result-tab-preview"
         {...style(
-          "overflow-auto p-4 min-block-0 flex-1 place-items-center stage-grid",
+          "relative overflow-auto p-4 min-block-0 flex-1 place-items-center stage-grid",
           tab === "preview" ? "grid" : "hidden",
         )}
       >
+        {!previewReady && !error && (
+          <p
+            {...style(
+              "absolute flex items-center gap-2 text-caption text-muted pointer-events-none",
+            )}
+          >
+            <span
+              aria-hidden="true"
+              {...style("icon-inline icon-lucide--loader-circle text-accent animate-spin")}
+            />
+            Building preview…
+          </p>
+        )}
         <iframe
           ref={frame}
           title="Stillwind Playground Preview"
           sandbox="allow-forms allow-scripts"
           {...style(
-            "block-full inline-full min-block-70 bg-frame rounded-panel shadow-overlay [transition:max-inline-size_200ms,opacity_300ms]",
+            "block-full inline-full min-block-70 bg-frame rounded-panel shadow-overlay [transition:max-inline-size_200ms,opacity_300ms] max-workbench:min-block-0",
             !previewReady && "opacity-0",
             {
               desktop: "max-inline-full",
@@ -252,6 +300,9 @@ export function ResultPane({
         />
       </div>
       <div
+        id="result-panel-output"
+        role="tabpanel"
+        aria-labelledby={`result-tab-${tab}`}
         ref={outputHost}
         {...style("min-block-0 flex-1", tab === "preview" ? "hidden" : "block")}
       />
@@ -260,30 +311,47 @@ export function ResultPane({
 }
 
 function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
+  const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
   useEffect(() => {
-    if (!copied) {
+    if (state === "idle") {
       return;
     }
-    const timer = setTimeout(() => setCopied(false), 1500);
+    const timer = setTimeout(() => setState("idle"), 1500);
     return () => clearTimeout(timer);
-  }, [copied]);
+  }, [state]);
+  const label = state === "copied" ? "Copied" : state === "failed" ? "Copy failed" : "Copy";
   return (
-    <button
-      type="button"
-      title={copied ? "Copied" : "Copy"}
-      aria-label={copied ? "Copied" : "Copy"}
-      onClick={async () => {
-        await navigator.clipboard.writeText(text);
-        setCopied(true);
-      }}
-      {...style("icon-button")}
-    >
-      <span
-        aria-hidden="true"
-        {...style("icon-control", copied ? "icon-lucide--check text-success" : "icon-lucide--copy")}
-      />
-    </button>
+    <>
+      <button
+        type="button"
+        title={label}
+        aria-label={label}
+        onClick={async () => {
+          try {
+            await navigator.clipboard.writeText(text);
+            setState("copied");
+          } catch {
+            setState("failed");
+          }
+        }}
+        {...style("icon-button")}
+      >
+        <span
+          aria-hidden="true"
+          {...style(
+            "icon-control",
+            {
+              copied: "icon-lucide--check text-success",
+              failed: "icon-lucide--circle-x text-danger",
+              idle: "icon-lucide--copy",
+            }[state],
+          )}
+        />
+      </button>
+      <span role="status" aria-live="polite" {...style("sr-only")}>
+        {state === "copied" ? "Copied to clipboard" : state === "failed" ? "Copy failed" : ""}
+      </span>
+    </>
   );
 }
 

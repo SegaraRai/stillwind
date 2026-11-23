@@ -14,7 +14,7 @@ tokens to style Monaco.
   --color-surface-muted: light-dark(#e6edf9, #283752);
   --color-foreground: light-dark(#202b35, #e4edff);
   --color-muted: light-dark(#596a78, #a8b8d4);
-  --color-subtle: light-dark(#7d8b99, #74859f);
+  --color-subtle: light-dark(#596a78, #94a5be);
   --color-border: light-dark(#cad5e8, #3d506f);
   --color-divider: light-dark(#dbe3f0, #233049);
   --color-action: light-dark(#354fa2, #b6cdff);

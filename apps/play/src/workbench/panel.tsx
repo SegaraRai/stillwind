@@ -34,6 +34,8 @@ export function Panel({
   channel,
   onChannel,
   outputHost,
+  collapsed = false,
+  onToggleCollapse,
 }: {
   tab: PanelTab;
   onTab: (tab: PanelTab) => void;
@@ -43,7 +45,15 @@ export function Panel({
   channel: string | undefined;
   onChannel: (id: string) => void;
   outputHost: Ref<HTMLDivElement>;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }) {
+  const selectTab = (next: PanelTab) => {
+    onTab(next);
+    if (collapsed && onToggleCollapse) {
+      onToggleCollapse();
+    }
+  };
   return (
     <section
       aria-label="Panel"
@@ -56,29 +66,41 @@ export function Panel({
         <div
           role="tablist"
           aria-label="Panel views"
+          onKeyDown={(event) => {
+            if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+              event.preventDefault();
+              selectTab(tab === "problems" ? "output" : "problems");
+            }
+          }}
           {...style("flex min-inline-0 flex-1 items-stretch select-none max-inline:hidden")}
         >
           <button
+            id="panel-tab-problems"
             type="button"
             role="tab"
+            tabIndex={tab === "problems" ? 0 : -1}
             aria-selected={tab === "problems"}
-            onClick={() => onTab("problems")}
+            aria-controls="panel-content-problems"
+            onClick={() => selectTab("problems")}
             {...style("workbench-tab")}
           >
             Problems
             <span {...counter}>{problems.length}</span>
           </button>
           <button
+            id="panel-tab-output"
             type="button"
             role="tab"
+            tabIndex={tab === "output" ? 0 : -1}
             aria-selected={tab === "output"}
-            onClick={() => onTab("output")}
+            aria-controls="panel-content-output"
+            onClick={() => selectTab("output")}
             {...style("workbench-tab")}
           >
             Output
           </button>
         </div>
-        {tab === "output" && (
+        {tab === "output" && !collapsed && (
           <div {...style("flex px-2 shrink-0 items-center max-inline:flex-1")}>
             <select
               aria-label="Output channel"
@@ -97,13 +119,49 @@ export function Panel({
             </select>
           </div>
         )}
+        {onToggleCollapse && (
+          <div {...style("flex pe-2 shrink-0 items-center max-inline:hidden")}>
+            <button
+              type="button"
+              title={collapsed ? "Expand Panel" : "Collapse Panel"}
+              aria-label={collapsed ? "Expand Panel" : "Collapse Panel"}
+              aria-expanded={!collapsed}
+              onClick={onToggleCollapse}
+              {...style("icon-button")}
+            >
+              <span
+                aria-hidden="true"
+                {...style(
+                  "icon-control",
+                  collapsed ? "icon-lucide--chevron-up" : "icon-lucide--chevron-down",
+                )}
+              />
+            </button>
+          </div>
+        )}
       </div>
-      {tab === "problems" && <ProblemList problems={problems} onSelect={onSelect} />}
+      {!collapsed && tab === "problems" && (
+        <div
+          id="panel-content-problems"
+          role="tabpanel"
+          aria-labelledby="panel-tab-problems"
+          {...style("flex min-block-0 flex-1 flex-col")}
+        >
+          <ProblemList problems={problems} onSelect={onSelect} />
+        </div>
+      )}
       <div
+        id="panel-content-output"
+        role="tabpanel"
+        aria-labelledby="panel-tab-output"
         ref={outputHost}
-        {...style("min-block-0 flex-1 bg-editor", tab === "output" ? "block" : "hidden", {
-          class: "channel-output",
-        })}
+        {...style(
+          "min-block-0 flex-1 bg-editor",
+          !collapsed && tab === "output" ? "block" : "hidden",
+          {
+            class: "channel-output",
+          },
+        )}
       />
     </section>
   );

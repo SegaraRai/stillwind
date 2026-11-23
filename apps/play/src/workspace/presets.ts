@@ -27,7 +27,7 @@ export const presets: Preset[] = [
   },
   {
     id: "release-checklist",
-    title: "Release checklist",
+    title: "Release Checklist",
   },
 ].map(({ id, title }) => {
   const prefix = `../../examples/${id}/`;

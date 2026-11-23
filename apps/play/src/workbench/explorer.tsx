@@ -41,11 +41,21 @@ function buildTree(files: string[]): TreeNode[] {
   return sort(root.children!);
 }
 
+const fileRow = style.ref();
+
 const row = style(
   "flex ps-(--indent) pe-2 block-5.5 inline-full items-center gap-1.5 text-start text-muted text-ui whitespace-nowrap cursor-pointer",
   {
     "hover:": "text-foreground bg-surface-muted/60",
     "aria-[current=page]:": "text-foreground bg-selection",
+  },
+);
+
+const fileButton = style(
+  "flex ps-(--indent) pe-2 block-5.5 min-inline-0 flex-1 items-center gap-1.5 text-start text-muted text-ui whitespace-nowrap cursor-pointer",
+  {
+    [fileRow("hover")]: "text-foreground",
+    "aria-[current=page]:": "text-foreground",
   },
 );
 
@@ -61,17 +71,27 @@ const row = style(
 export function Explorer({
   files,
   active,
+  ready = true,
   onSelect,
   onAdd,
+  onRename,
+  onDelete,
+  onClose,
 }: {
   files: string[];
   active: string;
+  ready?: boolean;
   onSelect: (file: string) => void;
   onAdd: (name: string) => Promise<void>;
+  onRename?: (file: string, name: string) => Promise<void>;
+  onDelete?: (file: string) => Promise<void>;
+  onClose?: () => void;
 }) {
   const [collapsed, setCollapsed] = useState(new Set<string>());
   const [draft, setDraft] = useState<string>();
+  const [renaming, setRenaming] = useState<{ file: string; value: string }>();
   const [error, setError] = useState<string>();
+  const hasFolders = files.some((file) => file.slice(WORKSPACE.length).includes("/"));
 
   const submit = async () => {
     const name = draft?.trim();
@@ -88,24 +108,147 @@ export function Explorer({
     }
   };
 
+  const submitRename = async () => {
+    if (!renaming || !onRename) {
+      setRenaming(undefined);
+      return;
+    }
+    const name = renaming.value.trim();
+    if (!name || `${WORKSPACE}${name}` === renaming.file) {
+      setRenaming(undefined);
+      setError(undefined);
+      return;
+    }
+    try {
+      await onRename(renaming.file, name);
+      setRenaming(undefined);
+      setError(undefined);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    }
+  };
+
   const render = (nodes: TreeNode[], depth: number): ReactNode =>
     nodes.map((node) => {
       if (!node.children) {
+        if (renaming?.file === node.path) {
+          return (
+            <li key={node.path} {...style("relative")}>
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void submitRename();
+                }}
+                {...style("flex px-2 block-5.5 items-center gap-1.5 select-auto")}
+              >
+                <span {...style("inline-4 shrink-0")} />
+                <span
+                  aria-hidden="true"
+                  data-type={getFileInfo(renaming.value).type}
+                  {...style(fileIcon, "icon-control shrink-0")}
+                />
+                <input
+                  autoFocus
+                  aria-label="Rename file path"
+                  aria-invalid={error ? true : undefined}
+                  spellCheck={false}
+                  value={renaming.value}
+                  onChange={(event) => {
+                    setRenaming({ file: node.path, value: event.target.value });
+                    setError(undefined);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") {
+                      setRenaming(undefined);
+                      setError(undefined);
+                    }
+                  }}
+                  onBlur={() => {
+                    setRenaming(undefined);
+                    setError(undefined);
+                  }}
+                  {...style(
+                    "px-1 block-5.5 min-inline-0 flex-1 text-foreground text-ui bg-editor border border-accent outline-none",
+                    { "aria-invalid:": "border-danger" },
+                  )}
+                />
+              </form>
+              {error && (
+                <p
+                  role="alert"
+                  {...style(
+                    "absolute inset-x-2 inset-bs-full z-10 px-2 py-1 text-caption text-foreground bg-surface border border-danger shadow-overlay",
+                  )}
+                >
+                  {error}
+                </p>
+              )}
+            </li>
+          );
+        }
+        const isActive = node.path === active;
         return (
-          <li key={node.path}>
+          <li
+            key={node.path}
+            data-active={isActive || undefined}
+            {...style(fileRow, "flex items-center", {
+              "hover:": "bg-surface-muted/60",
+              "data-active:": "bg-selection",
+            })}
+          >
             <button
               type="button"
-              aria-current={node.path === active ? "page" : undefined}
+              aria-current={isActive ? "page" : undefined}
               onClick={() => onSelect(node.path)}
-              {...style(row, { "--indent": `${0.5 + depth * 0.75}rem` })}
+              {...style(fileButton, { "--indent": `${0.5 + depth * 0.75}rem` })}
             >
               <span {...style("inline-4 shrink-0")} />
               <span
+                aria-hidden="true"
                 data-type={getFileInfo(node.name).type}
                 {...style(fileIcon, "icon-control shrink-0")}
               />
               <span {...style("truncate")}>{node.name}</span>
             </button>
+            {ready && (onRename || (onDelete && files.length > 1)) && (
+              <span
+                {...style("flex pe-1 shrink-0 items-center opacity-0 transition-opacity", {
+                  [fileRow("hover")]: "opacity-100",
+                  [fileRow("focus-within")]: "opacity-100",
+                  [fileRow("data-active")]: "opacity-100",
+                })}
+              >
+                {onRename && (
+                  <button
+                    type="button"
+                    title={`Rename ${node.name}`}
+                    aria-label={`Rename ${node.name}`}
+                    onClick={() => {
+                      setDraft(undefined);
+                      setError(undefined);
+                      setRenaming({
+                        file: node.path,
+                        value: node.path.slice(WORKSPACE.length),
+                      });
+                    }}
+                    {...style("icon-button")}
+                  >
+                    <span aria-hidden="true" {...style("icon-inline icon-lucide--pencil")} />
+                  </button>
+                )}
+                {onDelete && files.length > 1 && (
+                  <button
+                    type="button"
+                    title={`Delete ${node.name}`}
+                    aria-label={`Delete ${node.name}`}
+                    onClick={() => void onDelete(node.path)}
+                    {...style("icon-button")}
+                  >
+                    <span aria-hidden="true" {...style("icon-inline icon-lucide--trash-2")} />
+                  </button>
+                )}
+              </span>
+            )}
           </li>
         );
       }
@@ -159,6 +302,7 @@ export function Explorer({
           type="button"
           title="New File"
           aria-label="New File"
+          disabled={!ready}
           onClick={() => {
             setDraft("");
             setError(undefined);
@@ -171,6 +315,7 @@ export function Explorer({
           type="button"
           title="Collapse Folders"
           aria-label="Collapse Folders"
+          disabled={!hasFolders}
           onClick={() =>
             setCollapsed(new Set(files.flatMap((file) => folders(file.slice(WORKSPACE.length)))))
           }
@@ -178,65 +323,82 @@ export function Explorer({
         >
           <span aria-hidden="true" {...style("icon-control icon-lucide--chevrons-down-up")} />
         </button>
+        {onClose && (
+          <button
+            type="button"
+            title="Close Explorer"
+            aria-label="Close Explorer"
+            onClick={onClose}
+            {...style("icon-button inline:hidden")}
+          >
+            <span aria-hidden="true" {...style("icon-control icon-lucide--x")} />
+          </button>
+        )}
       </div>
       <div {...style("overflow-y-auto pbe-2 min-block-0 flex-1")}>
-        <ul aria-label="Workspace files">
-          {draft !== undefined && (
-            <li {...style("relative")}>
-              <form
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void submit();
-                }}
-                {...style("flex px-2 block-5.5 items-center gap-1.5 select-auto")}
-              >
-                <span {...style("inline-4 shrink-0")} />
-                <span
-                  data-type={getFileInfo(draft).type}
-                  {...style(fileIcon, "icon-control shrink-0")}
-                />
-                <input
-                  autoFocus
-                  aria-label="New file path"
-                  aria-invalid={error ? true : undefined}
-                  placeholder="components/Counter.tsx"
-                  spellCheck={false}
-                  value={draft}
-                  onChange={(event) => {
-                    setDraft(event.target.value);
-                    setError(undefined);
+        {!ready && files.length === 0 ? (
+          <p {...style("px-4 py-2 text-caption text-muted")}>Loading workspace…</p>
+        ) : (
+          <ul aria-label="Workspace files">
+            {draft !== undefined && (
+              <li {...style("relative")}>
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void submit();
                   }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Escape") {
-                      setDraft(undefined);
-                      setError(undefined);
-                    }
-                  }}
-                  onBlur={() => {
-                    if (!draft) {
-                      setDraft(undefined);
-                    }
-                  }}
-                  {...style(
-                    "px-1 block-5.5 min-inline-0 flex-1 text-foreground text-ui bg-editor border border-accent outline-none placeholder:text-subtle",
-                    { "aria-invalid:": "border-danger" },
-                  )}
-                />
-              </form>
-              {error && (
-                <p
-                  role="alert"
-                  {...style(
-                    "absolute inset-x-2 inset-bs-full z-10 px-2 py-1 text-caption text-foreground bg-surface border border-danger shadow-overlay",
-                  )}
+                  {...style("flex px-2 block-5.5 items-center gap-1.5 select-auto")}
                 >
-                  {error}
-                </p>
-              )}
-            </li>
-          )}
-          {render(buildTree(files), 0)}
-        </ul>
+                  <span {...style("inline-4 shrink-0")} />
+                  <span
+                    aria-hidden="true"
+                    data-type={getFileInfo(draft).type}
+                    {...style(fileIcon, "icon-control shrink-0")}
+                  />
+                  <input
+                    autoFocus
+                    aria-label="New file path"
+                    aria-invalid={error ? true : undefined}
+                    placeholder="components/Counter.tsx"
+                    spellCheck={false}
+                    value={draft}
+                    onChange={(event) => {
+                      setDraft(event.target.value);
+                      setError(undefined);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Escape") {
+                        setDraft(undefined);
+                        setError(undefined);
+                      }
+                    }}
+                    onBlur={() => {
+                      if (!draft) {
+                        setDraft(undefined);
+                      }
+                      setError(undefined);
+                    }}
+                    {...style(
+                      "px-1 block-5.5 min-inline-0 flex-1 text-foreground text-ui bg-editor border border-accent outline-none placeholder:text-subtle",
+                      { "aria-invalid:": "border-danger" },
+                    )}
+                  />
+                </form>
+                {error && (
+                  <p
+                    role="alert"
+                    {...style(
+                      "absolute inset-x-2 inset-bs-full z-10 px-2 py-1 text-caption text-foreground bg-surface border border-danger shadow-overlay",
+                    )}
+                  >
+                    {error}
+                  </p>
+                )}
+              </li>
+            )}
+            {render(buildTree(files), 0)}
+          </ul>
+        )}
       </div>
     </aside>
   );

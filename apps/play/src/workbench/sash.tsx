@@ -18,6 +18,8 @@ export function Sash({
   max,
   direction,
   onChange,
+  onReset,
+  hideBelow = "workbench",
 }: {
   label: string;
   orientation: "vertical" | "horizontal";
@@ -26,6 +28,8 @@ export function Sash({
   max: number;
   direction: 1 | -1;
   onChange: (value: number) => void;
+  onReset?: () => void;
+  hideBelow?: "workbench" | "inline";
 }) {
   const clamp = (next: number) => Math.round(Math.min(max, Math.max(min, next)));
   return (
@@ -56,6 +60,7 @@ export function Sash({
         handle.addEventListener("pointerup", end);
         handle.addEventListener("pointercancel", end);
       }}
+      onDoubleClick={onReset}
       onKeyDown={(event) => {
         const step = event.shiftKey ? 64 : 16;
         const grow = orientation === "vertical" ? "ArrowRight" : "ArrowDown";
@@ -66,11 +71,12 @@ export function Sash({
         }
       }}
       {...style(
-        "absolute z-10 touch-none [transition:background-color_150ms] max-workbench:hidden",
+        "absolute z-10 touch-none [transition:background-color_150ms]",
+        hideBelow === "inline" ? "max-inline:hidden" : "max-workbench:hidden",
         "hover:bg-accent hover:[transition:background-color_150ms_300ms] focus-visible:bg-accent focus-visible:outline-none active:bg-accent",
         {
-          "data-[orientation=vertical]:": "inset-y-0 -inset-s-0.5 inline-1 cursor-col-resize",
-          "data-[orientation=horizontal]:": "inset-x-0 -inset-bs-0.5 block-1 cursor-row-resize",
+          "data-[orientation=vertical]:": "inset-y-0 -inset-s-1 inline-2 cursor-col-resize",
+          "data-[orientation=horizontal]:": "inset-x-0 -inset-bs-1 block-2 cursor-row-resize",
         },
       )}
     />
