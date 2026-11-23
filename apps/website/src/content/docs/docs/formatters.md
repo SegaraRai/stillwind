@@ -68,8 +68,38 @@ The plugin only sorts. To replace utilities with their canonical spellings, run
 
 ## Other formatters
 
-Run `stillwind fmt` first. It sorts utilities and keeps the source layout, and the
-formatter then controls whitespace:
+To format in one pass with `stillwind fmt` and `stillwind check`, configure a
+project [`hooks`](/docs/configuration#hooks) entry that transforms each buffer in
+memory after Stillwind sorts utilities:
+
+```ts title="stillwind.config.ts"
+import { format as oxfmt } from "oxfmt";
+import { defineConfig, defineHook } from "stillwind/config";
+
+export default defineConfig({
+  projects: [
+    {
+      css: "./src/stillwind.css",
+      files: ["src/**/*.{ts,tsx,vue,svelte,astro}"],
+      hooks: [
+        defineHook({
+          name: "oxfmt",
+          async format(file) {
+            const result = await oxfmt(file.path, file.code);
+            if (result.errors.length) {
+              throw new Error(result.errors.map((error) => error.message).join("\n"));
+            }
+            return result.code;
+          },
+        }),
+      ],
+    },
+  ],
+});
+```
+
+Without a hook, run `stillwind fmt` first. It sorts utilities and keeps the
+source layout, and the formatter then controls whitespace:
 
 ```sh
 vp exec stillwind fmt

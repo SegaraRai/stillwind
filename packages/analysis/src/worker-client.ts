@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import type { DesignSystemRequest, EditorRequest, WorkspaceResult } from "@stillwind/host";
 
+import type { HookRunOptions } from "./hooks.ts";
 import {
   RewriteFailure,
   type RewriteBatchResult,
@@ -42,6 +43,8 @@ export type WorkerRequest =
       inputs: readonly RewriteInput[];
       /** Selects one sort pass, lint fixes that must converge, or converged fixes followed by sorting. */
       operation: RewriteOperation;
+      /** Optional hook execution mode for CLI commands. Omission skips project hooks. */
+      hooks?: HookRunOptions;
     }
   | {
       /** Serialized discriminator for preparing a batch of targets. */
@@ -291,11 +294,13 @@ export class AnalysisWorker {
   rewrite(
     inputs: readonly RewriteInput[],
     operation: RewriteOperation,
+    hooks?: HookRunOptions,
   ): Promise<RewriteBatchResult> {
     return this.request({
       method: "rewrite",
       inputs,
       operation,
+      hooks,
     });
   }
 

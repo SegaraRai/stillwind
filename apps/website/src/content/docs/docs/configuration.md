@@ -95,10 +95,11 @@ Paths in `css`, `files`, `exclude`, and `tsconfig` are relative to `root`.
 
 ### Checks and sorting
 
-| Field  | Value                                                                                      |
-| ------ | ------------------------------------------------------------------------------------------ |
-| `lint` | Presets and rules; see [Lint](#lint)                                                       |
-| `sort` | Where `stillwind fmt` sorts utilities, or `false` to disable them; see [Sorting](#sorting) |
+| Field   | Value                                                                                      |
+| ------- | ------------------------------------------------------------------------------------------ |
+| `lint`  | Presets and rules; see [Lint](#lint)                                                       |
+| `sort`  | Where `stillwind fmt` sorts utilities, or `false` to disable them; see [Sorting](#sorting) |
+| `hooks` | Project hooks for in-memory formatting in the CLI; see [Hooks](#hooks)                     |
 
 ### Generated CSS
 
@@ -308,6 +309,52 @@ only that rule keeps `stillwind fmt` working.
 
 The CLI checks the files that `files` selects. File patterns on the command line
 narrow that set; they cannot add files outside it.
+
+## Hooks
+
+Each project may define a `hooks` array of `AnalysisHook` objects for the CLI
+`fmt` and `check` commands. Hooks run in array order and operate on in-memory
+buffers, so `--check` compares the final formatted text without writing to disk.
+Build integrations, the language server, `stillwind lint`, and
+`prettier-plugin-stillwind` do not run project hooks.
+
+```ts title="stillwind.config.ts"
+import { format as oxfmt } from "oxfmt";
+import { defineConfig, defineHook } from "stillwind/config";
+
+const oxfmtHook = defineHook({
+  name: "oxfmt",
+  async format(file) {
+    const result = await oxfmt(file.path, file.code);
+    if (result.errors.length) {
+      throw new Error(result.errors.map((error) => error.message).join("\n"));
+    }
+    return result.code;
+  },
+});
+
+export default defineConfig({
+  projects: [
+    {
+      css: "./src/stillwind.css",
+      files: ["src/**/*.{ts,tsx,vue,svelte,astro}"],
+      hooks: [oxfmtHook],
+    },
+  ],
+});
+```
+
+| Callback   | Runs on                                      | Role                                                                              |
+| ---------- | -------------------------------------------- | --------------------------------------------------------------------------------- |
+| `setup`    | Hooks before `format` callbacks run          | Initializes per-project resources once for the command                            |
+| `teardown` | Initialized hooks in reverse order           | Releases resources after callbacks finish, including when an earlier step fails   |
+| `format`   | `fmt`, `fmt --check`, `check`, `check --fix` | Transforms one buffer `(file, context) => string \| void` after Stillwind sorting |
+
+In a monorepo, import shared hooks into each project so running the CLI from the
+workspace root or from a package directory produces the same result. When a file
+belongs to overlapping projects that share the same `format` hook references in
+the same order, the pipeline runs once; conflicting outputs from different hooks
+fail that target.
 
 ## Several projects
 

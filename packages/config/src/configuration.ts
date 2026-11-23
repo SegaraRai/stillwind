@@ -9,6 +9,7 @@ import {
   type BaseConfig,
   type BuildOptions,
 } from "./compiler.ts";
+import type { AnalysisHook } from "./hooks.ts";
 import {
   nonemptyStringList,
   nonemptyStrings,
@@ -43,6 +44,8 @@ export interface AnalysisProjectConfig extends BaseConfig, BuildOptions {
   typeFacts?: false;
   /** Comments that editor previews add after values. Omission uses the defaults of each field. */
   preview?: PreviewOptions;
+  /** Project-scoped formatting hooks executed in array order by CLI `fmt` and `check`. */
+  hooks?: readonly AnalysisHook[];
 }
 
 /**
@@ -95,7 +98,7 @@ export function captureProjectConfig(config: AnalysisProjectConfig): CapturedPro
     return config;
   }
 
-  const { naming, sources, projection, plugins, tailwind, ...settings } = config;
+  const { naming, sources, projection, plugins, hooks, tailwind, ...settings } = config;
   const data = structuredClone(settings);
 
   const capturedSources =
@@ -114,17 +117,10 @@ export function captureProjectConfig(config: AnalysisProjectConfig): CapturedPro
 
   const captured: CapturedProjectConfig = {
     ...data,
-    ...(plugins
-      ? {
-          plugins: [...plugins],
-        }
-      : {}),
+    ...(plugins ? { plugins: [...plugins] } : {}),
+    ...(hooks ? { hooks: [...hooks] } : {}),
     // A Tailwind configuration can contain plugin functions, which `structuredClone` rejects.
-    ...(tailwind
-      ? {
-          tailwind,
-        }
-      : {}),
+    ...(tailwind ? { tailwind } : {}),
     ...(naming
       ? {
           naming: {
@@ -290,6 +286,16 @@ const projectSchema = strictObject({
       ),
     }),
   ),
+  hooks: v.optional(
+    v.array(
+      strictObject({
+        name: nonemptyText,
+        setup: v.optional(v.function()),
+        teardown: v.optional(v.function()),
+        format: v.optional(v.function()),
+      }),
+    ),
+  ),
   sources: v.optional(
     v.pipe(
       v.custom<Record<string, unknown>>(object, "must be an object"),
@@ -401,6 +407,7 @@ export function validateConfig(value: unknown): StillwindConfig {
       sources: _sources,
       projection: _projection,
       typeFacts: _typeFacts,
+      hooks: _hooks,
       ...compiler
     } = project;
     validateCompilerConfig(compiler, `projects[${index}]`);

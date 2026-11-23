@@ -351,6 +351,7 @@ export function compilerConfig(project: AnalysisProjectConfig): BaseConfig & Bui
     sources: _sources,
     projection: _projection,
     typeFacts: _typeFacts,
+    hooks: _hooks,
     ...config
   } = project;
   return config;

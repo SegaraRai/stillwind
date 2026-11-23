@@ -9,6 +9,8 @@ import {
   type StillwindConfig,
   type StillwindConfigExport,
 } from "./configuration.ts";
+import { defineHook } from "./hooks.ts";
+import { compilerConfig } from "./resolution.ts";
 
 test("captured project settings own their data and share only provider functions", () => {
   const naming = () => "card";
@@ -429,4 +431,66 @@ test("validation rejects duplicate project names", () => {
       ],
     }),
   ).toThrow("Duplicate Stillwind project name");
+});
+
+test("project hooks validate, keep hook object identity when captured, and are omitted from compilerConfig", () => {
+  const hook = defineHook({
+    name: "oxfmt",
+    format: ({ code }) => code,
+  });
+  const hooks = [hook];
+  const project = {
+    css: "theme.css",
+    files: ["*.tsx"],
+    hooks,
+  };
+  expect(
+    validateConfig({
+      projects: [project],
+    }).projects[0],
+  ).toBe(project);
+
+  const captured = captureProjectConfig(project);
+  hooks.push(
+    defineHook({
+      name: "extra",
+    }),
+  );
+  expect(captured.hooks).toEqual([hook]);
+  expect(captured.hooks?.[0]).toBe(hook);
+  expect("hooks" in compilerConfig(project)).toBe(false);
+
+  expect(() =>
+    validateConfig({
+      projects: [
+        {
+          css: "theme.css",
+          files: ["*.tsx"],
+          hooks: [{ name: "" }],
+        },
+      ],
+    }),
+  ).toThrow();
+  expect(() =>
+    validateConfig({
+      projects: [
+        {
+          css: "theme.css",
+          files: ["*.tsx"],
+          hooks: [{ name: "bad", format: "cmd" }],
+        },
+      ],
+    }),
+  ).toThrow();
+  expect(() =>
+    validateConfig({
+      projects: [
+        {
+          css: "theme.css",
+          files: ["*.tsx"],
+          hooks: [{ name: "bad", unknown: true }],
+        },
+      ],
+    }),
+  ).toThrow();
 });

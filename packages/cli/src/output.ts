@@ -268,6 +268,9 @@ export function renderResult(
       if (info.plugins.length) {
         lines.push(`  plugins: ${info.plugins.map(clean).join(", ")}`);
       }
+      if (info.hooks.length) {
+        lines.push(`  hooks: ${info.hooks.map(clean).join(", ")}`);
+      }
       lines.push(`  sort: ${info.sort ? "enabled" : "disabled"}`);
       lines.push(`  typeFacts: ${info.typeFacts ? "enabled" : "disabled"}`);
       const entries = Object.entries(info.lint);

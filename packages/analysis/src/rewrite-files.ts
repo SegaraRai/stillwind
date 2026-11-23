@@ -4,6 +4,7 @@ import path from "node:path";
 import { findConfiguration } from "@stillwind/config/node";
 import type { WorkspaceResult } from "@stillwind/host";
 
+import type { HookRunOptions } from "./hooks.ts";
 import type { RewriteFileFailure, RewriteInput, RewriteOperation } from "./rewrite.ts";
 import { AnalysisWorker } from "./worker-client.ts";
 import { writeChangedFiles } from "./write.ts";
@@ -48,6 +49,7 @@ export async function rewriteFiles(
   options: RewriteOptions,
   operation: RewriteOperation,
   write: boolean,
+  hooks?: HookRunOptions,
 ): Promise<RewriteFilesResult> {
   const config = resolveRewriteConfig(options);
   const worker = new AnalysisWorker();
@@ -84,7 +86,7 @@ export async function rewriteFiles(
         });
       }
     }
-    const batch = await worker.rewrite(inputs, operation);
+    const batch = await worker.rewrite(inputs, operation, hooks);
     failures.push(...batch.failures);
     const changes = batch.outputs.map((output) => ({
       file: output.file,

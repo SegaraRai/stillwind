@@ -30,7 +30,10 @@ export async function format(
     check?: boolean;
   } = {},
 ): Promise<FormatResult> {
-  const result = await rewriteFiles(options, "sort", !options.check);
+  const result = await rewriteFiles(options, "sort", !options.check, {
+    command: "fmt",
+    mode: options.check ? "check" : "write",
+  });
   return {
     ...result,
     exitCode: result.failures.length ? 2 : options.check && result.changed.length ? 1 : 0,

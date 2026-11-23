@@ -250,6 +250,39 @@ export class SourceRewriter {
   }
 
   /**
+   * Re-analyzes surviving rewrite outputs after external hooks modify their text, so Stillwind
+   * diagnostics match the final buffer contents and positions.
+   *
+   * @param inputs - Original rewrite inputs, used to restore unmodified or failed targets.
+   * @param outputs - Surviving outputs whose `code` has been updated by hooks. Their `results`
+   * arrays are replaced in place.
+   * @throws If installing, preparing, analyzing, or closing buffers fails.
+   */
+  async reanalyze(
+    inputs: readonly RewriteInput[],
+    outputs: readonly RewriteResult[],
+  ): Promise<void> {
+    if (!outputs.length) {
+      return;
+    }
+    const replacements = new Map(outputs.map((output) => [output.file, output.code]));
+    const version = ++this.#version;
+    try {
+      for (const input of inputs) {
+        this.workspace.update(input.file, replacements.get(input.file) ?? input.source, version);
+      }
+      await this.workspace.prepare?.(outputs.map((output) => output.file));
+      for (const output of outputs) {
+        output.results = await this.workspace.analyze(output.file);
+      }
+    } finally {
+      for (const input of inputs) {
+        this.workspace.closeDocument(input.file);
+      }
+    }
+  }
+
+  /**
    * Analyzes one installed buffer and requires matching project answers to produce the same text.
    *
    * @param input - Buffer already installed in the workspace for the current pass.

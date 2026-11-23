@@ -42,6 +42,10 @@ export async function check(
     options,
     options.fix ? "fixes-and-sort" : "sort",
     !!options.fix,
+    {
+      command: "check",
+      mode: options.fix ? "write" : "check",
+    },
   );
   const hasErrors = result.results.some(({ result: entry }) =>
     entry.reports.some((report) => report.severity === "error"),

@@ -4,8 +4,20 @@ import process from "node:process";
 import { resolveLintConfig } from "@stillwind/config";
 import { AnalysisWorkspace } from "@stillwind/host";
 
+import {
+  applyFormatHooks,
+  hasActiveHooks,
+  ProjectHookSession,
+  type HookRunOptions,
+} from "./hooks.ts";
 import type { ActiveLintRule, ProjectInfo } from "./info.ts";
-import { RewriteFailure, SourceRewriter } from "./rewrite.ts";
+import {
+  RewriteFailure,
+  SourceRewriter,
+  type RewriteBatchResult,
+  type RewriteInput,
+  type RewriteOperation,
+} from "./rewrite.ts";
 import type { WorkerRequest } from "./worker-client.ts";
 
 let workspace: AnalysisWorkspace | undefined;
@@ -83,7 +95,13 @@ async function handle(request: WorkerRequest): Promise<unknown> {
     }
 
     case "rewrite":
-      return rewriter!.rewrite(request.inputs, request.operation);
+      return runRewriteWithHooks(
+        workspace,
+        rewriter!,
+        request.inputs,
+        request.operation,
+        request.hooks,
+      );
 
     case "lint":
       return workspace.lint(request.patterns ? [...request.patterns] : undefined);
@@ -122,6 +140,7 @@ async function handle(request: WorkerRequest): Promise<unknown> {
           exclude: [...(project.config.exclude ?? [])],
           matchedFiles: matched.length,
           plugins: (project.config.plugins ?? []).map((plugin) => plugin.name),
+          hooks: (project.config.hooks ?? []).map((hook) => hook.name),
           sort: project.config.sort !== false,
           typeFacts: project.config.typeFacts !== false,
           lint,
@@ -155,5 +174,46 @@ async function handle(request: WorkerRequest): Promise<unknown> {
       await workspace.close();
       workspace = undefined;
       return undefined;
+  }
+}
+
+/**
+ * Runs Stillwind rewriting followed by configured project `format` hooks for CLI `fmt` and `check`
+ * commands.
+ */
+async function runRewriteWithHooks(
+  currentWorkspace: AnalysisWorkspace,
+  currentRewriter: SourceRewriter,
+  inputs: readonly RewriteInput[],
+  operation: RewriteOperation,
+  hooks: HookRunOptions | undefined,
+): Promise<RewriteBatchResult> {
+  const batch = await currentRewriter.rewrite(inputs, operation);
+  if (!hooks || !hasActiveHooks(currentWorkspace.projects)) {
+    return batch;
+  }
+
+  const originals = new Map(inputs.map((input) => [input.file, input.source]));
+  const session = await ProjectHookSession.open(
+    currentWorkspace.projects,
+    hooks.command,
+    hooks.mode,
+  );
+  try {
+    const formatted = await applyFormatHooks(currentWorkspace.projects, batch, originals, session);
+    if (
+      hooks.mode === "write" &&
+      hooks.command === "check" &&
+      formatted.changed &&
+      formatted.outputs.length
+    ) {
+      await currentRewriter.reanalyze(inputs, formatted.outputs);
+    }
+    return {
+      outputs: formatted.outputs,
+      failures: formatted.failures,
+    };
+  } finally {
+    await session.close();
   }
 }

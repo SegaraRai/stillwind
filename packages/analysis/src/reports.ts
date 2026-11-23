@@ -1,3 +1,5 @@
+import { lintRules } from "@stillwind/config";
+
 import type { WorkspaceResult } from "./workspace.ts";
 
 /**
@@ -43,5 +45,5 @@ export function documentationUrl(code: string): string | undefined {
  * @returns `errors` for compiler codes, `lints` for lint rule names, and otherwise undefined.
  */
 export function documentationSection(code: string): "errors" | "lints" | undefined {
-  return /^SW\d+$/.test(code) ? "errors" : /^[a-z][a-z-]*$/.test(code) ? "lints" : undefined;
+  return /^SW\d+$/.test(code) ? "errors" : Object.hasOwn(lintRules, code) ? "lints" : undefined;
 }

@@ -29,6 +29,8 @@ export interface ProjectInfo {
   matchedFiles: number;
   /** Names of configured Stillwind plugins. */
   plugins: string[];
+  /** Names of configured project analysis hooks. */
+  hooks: string[];
   /** Whether utility sorting is enabled. */
   sort: boolean;
   /** Whether TypeScript type facts are enabled. */

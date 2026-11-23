@@ -29,6 +29,14 @@ export {
   type StillwindConfigExport,
   type StillwindConfigFactory,
 } from "./configuration.ts";
+export {
+  defineHook,
+  type AnalysisHook,
+  type FormatHookFile,
+  type HookCommand,
+  type HookContext,
+  type HookMode,
+} from "./hooks.ts";
 export { lintPresets } from "./lint-presets.ts";
 export { lintRules, type LintCategory, type LintRule } from "./lint-rules.ts";
 export {
