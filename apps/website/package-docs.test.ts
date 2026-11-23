@@ -75,3 +75,49 @@ test("builds a bundled llms.txt index grouped by section with relative paths", (
     ].join("\n"),
   );
 });
+
+test("adds a package-manager note for vp commands and a top Contents list for long pages", () => {
+  const filler = "a".repeat(2000);
+  const markdown = `> Documentation Index
+> Fetch the complete documentation index at: https://stillwind.dev/llms.txt
+
+# CLI
+
+Intro.
+
+\`\`\`sh
+vp exec stillwind check
+# ## ignored heading inside fence
+\`\`\`
+
+## Commands
+
+${filler}
+
+## stillwind check
+
+${filler}
+
+## stillwind fmt
+
+${filler}
+
+## stillwind lint
+
+${filler}
+
+## Exit codes
+
+${filler}
+
+Source: https://stillwind.dev/docs/cli`;
+
+  const output = transformPackageMarkdown(markdown, "cli.md", new Map());
+  expect(output).toContain(
+    "# CLI\n\n> Command examples use `vp` (Vite+); substitute your project's package manager (such as `pnpm`, `npm`, or `bun`).\n\nIntro.",
+  );
+  expect(output).toContain(
+    "```\n\n## Contents\n\n- [Commands](#commands)\n- [stillwind check](#stillwind-check)\n- [stillwind fmt](#stillwind-fmt)\n- [stillwind lint](#stillwind-lint)\n- [Exit codes](#exit-codes)\n\n## Commands",
+  );
+  expect(output).not.toContain("ignored heading inside fence](#");
+});

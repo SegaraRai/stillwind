@@ -44,10 +44,17 @@ function fileFor(route: string, all: ReadonlySet<string>) {
   return parent ? `${route}/index.md` : `${route}.md`;
 }
 
+const packageManagerNote =
+  "> Command examples use `vp` (Vite+); substitute your project's package manager (such as `pnpm`, `npm`, or `bun`).";
+const contentsThresholdBytes = 8000;
+const contentsMinimumHeadings = 5;
+
 /**
  * Removes the parts that only make sense on the website and turns site links into
  * relative file links. Links to other site files, such as `llms.txt`, point to the
  * deployed website because the package does not contain those files.
+ * For bundled Markdown pages, adds a package-manager substitution note when shell
+ * examples use `vp`, and inserts a `## Contents` section at the top of long pages.
  * `file` identifies the output file, and `files` maps docs routes to output files.
  * Throws when the index notice is missing or a page link has no output file.
  */
@@ -81,7 +88,89 @@ export function transformPackageMarkdown(
   if (origin !== siteOrigin && body.includes(origin)) {
     throw new Error(`${file}: ${origin} remains after the conversion`);
   }
-  return body;
+  return decorateBundledMarkdown(body);
+}
+
+/**
+ * Inserts a package-manager note (when fenced shell blocks invoke `vp`) after the page's
+ * `# ` heading, and a `## Contents` list (for long pages) before the first `## ` heading.
+ */
+function decorateBundledMarkdown(markdown: string): string {
+  const { headings, firstHeadingOffset, usesVp } = scanMarkdownStructure(markdown);
+  let output = markdown;
+  if (
+    firstHeadingOffset !== null &&
+    markdown.length >= contentsThresholdBytes &&
+    headings.length >= contentsMinimumHeadings
+  ) {
+    const slugCounts = new Map<string, number>();
+    const items = headings.map((heading) => {
+      const base = headingSlug(heading);
+      const seen = slugCounts.get(base) ?? 0;
+      slugCounts.set(base, seen + 1);
+      const slug = seen === 0 ? base : `${base}-${seen}`;
+      return `- [${heading}](#${slug})`;
+    });
+    output = `${output.slice(0, firstHeadingOffset)}## Contents\n\n${items.join("\n")}\n\n${output.slice(firstHeadingOffset)}`;
+  }
+  if (usesVp) {
+    const titleMatch = /^# .+\n/m.exec(output);
+    if (titleMatch) {
+      const insertAt = titleMatch.index + titleMatch[0].length;
+      output = `${output.slice(0, insertAt)}\n${packageManagerNote}\n${output.slice(insertAt)}`;
+    }
+  }
+  return output;
+}
+
+function scanMarkdownStructure(markdown: string) {
+  const headings: string[] = [];
+  let firstHeadingOffset: number | null = null;
+  let usesVp = false;
+  let fence: string | null = null;
+  let offset = 0;
+  for (const line of markdown.split("\n")) {
+    const lineStart = offset;
+    offset += line.length + 1;
+    const fenceMatch = /^(`{3,}|~{3,})/.exec(line);
+    if (fenceMatch) {
+      const marker = fenceMatch[1]!;
+      if (fence === null) {
+        fence = marker[0]!.repeat(marker.length);
+      } else if (line.startsWith(fence)) {
+        fence = null;
+      }
+      continue;
+    }
+    if (fence !== null) {
+      if (/^\s*vp\s+(?:i|install|add|exec|run)\b/.test(line)) {
+        usesVp = true;
+      }
+      continue;
+    }
+    const headingMatch = /^## (.+)$/.exec(line);
+    if (headingMatch) {
+      if (firstHeadingOffset === null) {
+        firstHeadingOffset = lineStart;
+      }
+      headings.push(headingMatch[1]!.trim());
+    }
+  }
+  return {
+    headings,
+    firstHeadingOffset,
+    usesVp,
+  };
+}
+
+function headingSlug(heading: string): string {
+  return heading
+    .toLowerCase()
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/[^\p{L}\p{N}\s-]/gu, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
 }
 
 async function generate() {
