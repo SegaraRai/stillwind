@@ -393,3 +393,109 @@ test("actions distinguish autofixable edits from manual suggestions", () => {
   expect(manualText).toContain("Manual suggestions are available for 1 diagnostic.");
   expect(manualText).not.toContain("Run stillwind lint --fix");
 });
+
+test("JSON exposes relative 1-based locations, summary.byCode, and --limit truncation", () => {
+  const sameEdit = {
+    location,
+    replacement: "fixed",
+  };
+  const warningReport = {
+    ...report,
+    code: "prefer-sorted-utilities",
+    severity: "warning",
+    actions: [{ title: "Sort utilities", edits: [sameEdit] }],
+  };
+  const documentReport = {
+    ...report,
+    code: "SW13002",
+    primary: {
+      scope: "document" as const,
+      location,
+    },
+  };
+  const multi = {
+    ...analysis,
+    results: [
+      {
+        ...analysis.results[0],
+        result: {
+          ...analysis.results[0].result,
+          reports: [report, warningReport, documentReport],
+        },
+      },
+    ],
+  };
+
+  const full = cliResult("lint", multi, {
+    cwd: options.cwd,
+  });
+  expect(full.diagnostics[0]).toMatchObject({
+    file: path.basename(file),
+    line: 3,
+    column: 4,
+  });
+  expect(full.diagnostics[2]).toMatchObject({
+    file: path.basename(file),
+  });
+  expect(full.diagnostics[2].line).toBeUndefined();
+  expect(full.diagnostics[2].column).toBeUndefined();
+  expect(Object.keys(full.summary.byCode)).toEqual([
+    "SW13002",
+    "prefer-sorted-utilities",
+    "unknown-utility",
+  ]);
+  expect(full.summary.byCode).toEqual({
+    SW13002: {
+      errors: 1,
+      warnings: 0,
+      autofixable: 0,
+      docs: "https://stillwind.dev/docs/errors/SW13002",
+    },
+    "prefer-sorted-utilities": {
+      errors: 0,
+      warnings: 1,
+      autofixable: 1,
+      docs: "https://stillwind.dev/docs/lints/prefer-sorted-utilities",
+    },
+    "unknown-utility": {
+      errors: 1,
+      warnings: 0,
+      autofixable: 0,
+      docs: "https://stillwind.dev/docs/lints/unknown-utility",
+    },
+  });
+  expect(full.summary.omittedDiagnostics).toBe(0);
+
+  const limitedZero = cliResult("lint", multi, {
+    cwd: options.cwd,
+    limit: 0,
+  });
+  expect(limitedZero.diagnostics).toEqual([]);
+  expect(limitedZero.exitCode).toBe(1);
+  expect(limitedZero.summary).toMatchObject({
+    errors: 2,
+    warnings: 1,
+    autofixable: 1,
+    omittedDiagnostics: 3,
+    byCode: full.summary.byCode,
+  });
+  const zeroText = renderResult(limitedZero, {
+    ...options,
+    limit: 0,
+  });
+  expect(zeroText).toContain("... 3 more diagnostics omitted (--limit 0).");
+  expect(zeroText).toContain("Automatic fixes are available for 1 diagnostic.");
+
+  const limitedOne = cliResult("lint", multi, {
+    cwd: options.cwd,
+    limit: 1,
+  });
+  expect(limitedOne.diagnostics).toHaveLength(1);
+  expect(limitedOne.summary.omittedDiagnostics).toBe(2);
+  expect(
+    renderResult(limitedOne, {
+      ...options,
+      limit: 1,
+    }),
+  ).toContain("... 2 more diagnostics omitted (--limit 1).");
+});

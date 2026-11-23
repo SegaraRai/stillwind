@@ -50,6 +50,7 @@ is disabled.
 | `--fix`              | Applies the enabled automatic fixes, sorts utilities, and saves changes |
 | `--quiet`            | Hides warnings, and keeps their count in the summary                    |
 | `--max-warnings <n>` | Fails when the number of warnings exceeds `n`, a non-negative integer   |
+| `--limit <n>`        | Shows at most `n` diagnostics (`0` prints only the summary)             |
 
 `check` also accepts the [shared options](#shared-options) and
 [globs](#select-files). The `files` format is not available.
@@ -102,6 +103,7 @@ this website.
 | `--fix`              | Applies the enabled automatic fixes, and saves the changed files      |
 | `--quiet`            | Hides warnings, and keeps their count in the summary                  |
 | `--max-warnings <n>` | Fails when the number of warnings exceeds `n`, a non-negative integer |
+| `--limit <n>`        | Shows at most `n` diagnostics (`0` prints only the summary)           |
 
 `lint` also accepts the [shared options](#shared-options) and
 [globs](#select-files).
@@ -381,6 +383,8 @@ failures:
     "unmatched": 0,
     "autofixable": 0,
     "suggestions": 0,
+    "omittedDiagnostics": 0,
+    "byCode": {},
     "warningLimitExceeded": false
   },
   "exitCode": 0
@@ -391,7 +395,7 @@ failures:
 | ------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `command`     | The command name, or `null` when the CLI failed before it selected a command                                     |
 | `config`      | The configuration path, or `null` when the CLI failed before the analysis                                        |
-| `diagnostics` | The findings; `--quiet` removes warnings from this list                                                          |
+| `diagnostics` | The findings; `--quiet` removes warnings and `--limit` truncates this list                                       |
 | `failures`    | The execution failures                                                                                           |
 | `changed`     | The files that the command changed; with `check` (without `--fix`) or `fmt --check`, the files that need sorting |
 | `previews`    | The generated CSS that `inspect` selected; empty for other commands                                              |
@@ -399,14 +403,19 @@ failures:
 | `tokens`      | The tokens that `theme` selected; empty for other commands                                                       |
 | `candidates`  | The names that `utilities` or `variants` selected; empty for other commands                                      |
 | `unmatched`   | The arguments of `theme`, `utilities`, or `variants` without a match in any project                              |
-| `summary`     | Counts for the fields above; `warnings` includes warnings that `--quiet` hides                                   |
+| `summary`     | Counts for the fields above; includes full `errors`, `warnings`, `byCode`, and `omittedDiagnostics` counts       |
 | `exitCode`    | The [exit code](#exit-codes)                                                                                     |
 
-Each diagnostic contains `project`, a zero-based project index, and `report`. The
-report contains the message, its locations, notes, and suggested edits (`actions`).
+Each diagnostic contains `project`, a zero-based project index, `file` (a slash-separated path
+relative to the working directory, or absolute on another filesystem volume), 1-based `line` and
+`column` for range diagnostics (omitted for document-level diagnostics), and `report`. The
+report contains the message, its zero-based locations, notes, and suggested edits (`actions`).
 Each action has an `autofix` boolean: `true` when `--fix` applies it automatically,
 and `false` for manual suggestions. `summary.autofixable` counts diagnostics with an
-automatic fix, and `summary.suggestions` counts diagnostics with manual suggestions.
+automatic fix, `summary.suggestions` counts diagnostics with manual suggestions,
+`summary.omittedDiagnostics` counts diagnostics omitted by `--limit`, and `summary.byCode`
+aggregates `{ errors, warnings, autofixable, docs? }` per diagnostic code across all findings
+before `--quiet` or `--limit` filtering.
 
 When `inspect` returns no previews and no execution failures, `emptyReason` explains why:
 `"no-styles"`, `"line-out-of-range"`, `"column-out-of-range"`, or `"no-match-at-position"`.
@@ -419,13 +428,13 @@ Findings in `previews` contain `docs` in the same way.
 Each failure contains `message` and `details`, and it can contain `project` and
 `file`. `details` lists the dependency problems that caused the failure.
 
-Each preview contains `project`, `location`, `source`, `css`, `valid`, and `diagnostics`.
-`location` contains the range of the occurrence, and `source` contains the text of that
-range. `diagnostics` lists the `severity`, `code`, and `message` of each finding in the
-range. `valid` is `false` when the list contains an error or when a style that the
-occurrence requires failed. `css` can be empty for an occurrence with findings, and it
-is empty when `documentation` describes a marker class. `runtimeNames` lists the runtime
-expressions that supply view-transition names, and it is absent when there are none.
+Each preview contains `project`, `file`, 1-based `line` and `column`, `location`, `source`,
+`css`, `valid`, and `diagnostics`. `location` contains the zero-based range of the occurrence,
+and `source` contains the text of that range. `diagnostics` lists the `severity`, `code`, and
+`message` of each finding in the range. `valid` is `false` when the list contains an error or
+when a style that the occurrence requires failed. `css` can be empty for an occurrence with
+findings, and it is empty when `documentation` describes a marker class. `runtimeNames` lists
+the runtime expressions that supply view-transition names, and it is absent when there are none.
 
 Each token contains `project`, `name`, `value`, `source`, and `inline`, and
 `resolvedValue` when `value` references known theme tokens. `inline` is `true`
@@ -436,5 +445,6 @@ Each candidate contains `project`, `name`, `kind`, `valid`, and `css`. `kind` is
 a marker class without CSS, or `--names-only`. An unknown name can contain `suggestion`, the
 closest valid spelling.
 
-File paths are absolute. Locations in reports and previews use URIs and zero-based UTF-16
-positions, and their ends are exclusive.
+Paths in `config`, `changed`, and `failures` are absolute; `file` on diagnostics and previews is
+relative to the working directory with `/` separators. Nested `location` objects in reports and
+previews use URIs and zero-based UTF-16 positions, and their ends are exclusive.

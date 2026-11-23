@@ -1,3 +1,7 @@
+import path from "node:path";
+import process from "node:process";
+import { fileURLToPath } from "node:url";
+
 import { lintReports } from "@stillwind/analysis";
 import type {
   DesignSystemAnswer,
@@ -25,6 +29,12 @@ export type CliAction = RawReport["actions"][number] & {
 };
 
 export type CliDiagnostic = Omit<ReturnType<typeof lintReports>[number], "report"> & {
+  /** Workspace-relative POSIX path of the primary location (or absolute on another volume). */
+  file: string;
+  /** One-based start line of the primary location when scope is `"range"`. */
+  line?: number;
+  /** One-based UTF-16 start column of the primary location when scope is `"range"`. */
+  column?: number;
   report: Omit<RawReport, "actions"> & {
     actions: CliAction[];
   };
@@ -34,11 +44,26 @@ export type CliDiagnostic = Omit<ReturnType<typeof lintReports>[number], "report
 
 /** A preview whose findings link to the pages that explain their codes. */
 export type CliPreview = Omit<InspectPreview, "diagnostics"> & {
+  /** Workspace-relative POSIX path of the preview location (or absolute on another volume). */
+  file: string;
+  /** One-based start line of the preview range. */
+  line: number;
+  /** One-based UTF-16 start column of the preview range. */
+  column: number;
   diagnostics: (InspectPreview["diagnostics"][number] & {
     /** Absolute path or URL of the page that explains the code. */
     docs?: string;
   })[];
 };
+
+/** Aggregated counts for one diagnostic code or lint rule. */
+export interface CodeSummary {
+  errors: number;
+  warnings: number;
+  autofixable: number;
+  /** Absolute path or URL of the page that explains this code, when available. */
+  docs?: string;
+}
 
 export interface CliFailure {
   project?: number;
@@ -80,6 +105,10 @@ export interface CliResult {
     autofixable: number;
     /** Diagnostics that have manual suggested edits not applied by `--fix`. */
     suggestions: number;
+    /** Number of diagnostics omitted from the `diagnostics` array by `--limit`. */
+    omittedDiagnostics: number;
+    /** Counts grouped by diagnostic code or lint rule, in code order. */
+    byCode: Record<string, CodeSummary>;
     warningLimitExceeded: boolean;
   };
   exitCode: 0 | 1 | 2;
@@ -89,6 +118,21 @@ export interface ResultPolicy {
   check?: boolean;
   quiet?: boolean;
   maxWarnings?: number;
+  limit?: number;
+  cwd?: string;
+}
+
+function relativeFilePath(uri: string, cwd: string): string {
+  let file = uri;
+  if (uri.startsWith("file:")) {
+    try {
+      file = fileURLToPath(uri);
+    } catch {
+      file = uri;
+    }
+  }
+  const relative = path.isAbsolute(file) ? path.relative(cwd, file) || "." : file;
+  return relative.replaceAll("\\", "/");
 }
 
 /**
@@ -133,13 +177,17 @@ export function cliResult(
   policy: ResultPolicy = {},
 ): CliResult {
   const failedFiles = new Set(result.failures?.map((failure) => failure.file));
+  const cwd = policy.cwd ?? process.cwd();
   const root = stillwindRoot(result.config);
   const docs = (code: string) => {
     const page = documentationPage(code, root);
     return page ? { docs: page } : {};
   };
-  const previews = (result.previews ?? []).map((preview) => ({
+  const previews: CliPreview[] = (result.previews ?? []).map((preview) => ({
     ...preview,
+    file: relativeFilePath(preview.location.uri, cwd),
+    line: preview.location.startLine + 1,
+    column: preview.location.startColumn + 1,
     diagnostics: preview.diagnostics.map((diagnostic) => ({
       ...diagnostic,
       ...docs(diagnostic.code),
@@ -154,17 +202,27 @@ export function cliResult(
           ({ result }) => result.status !== "complete" || failedFiles.has(result.entry),
         )
       : result.results,
-  ).map((diagnostic) => ({
-    ...diagnostic,
-    report: {
-      ...diagnostic.report,
-      actions: diagnostic.report.actions.map((action, index) => ({
-        ...action,
-        autofix: isAutofixAction(diagnostic.report, action, index),
-      })),
-    },
-    ...docs(diagnostic.report.code),
-  }));
+  ).map((diagnostic) => {
+    const { primary } = diagnostic.report;
+    return {
+      ...diagnostic,
+      file: relativeFilePath(primary.location.uri, cwd),
+      ...(primary.scope === "range"
+        ? {
+            line: primary.location.startLine + 1,
+            column: primary.location.startColumn + 1,
+          }
+        : {}),
+      report: {
+        ...diagnostic.report,
+        actions: diagnostic.report.actions.map((action, index) => ({
+          ...action,
+          autofix: isAutofixAction(diagnostic.report, action, index),
+        })),
+      },
+      ...docs(diagnostic.report.code),
+    };
+  });
   const failures: CliFailure[] = result.results.flatMap(({ project, result }) =>
     result.status === "complete"
       ? []
@@ -216,12 +274,38 @@ export function cliResult(
   const errors = diagnostics.filter(({ report }) => report.severity === "error").length;
   const warnings = diagnostics.length - errors;
   const warningLimitExceeded = policy.maxWarnings !== undefined && warnings > policy.maxWarnings;
+  const byCodeMap = new Map<string, CodeSummary>();
+  for (const diagnostic of diagnostics) {
+    const { code, severity, actions } = diagnostic.report;
+    const entry = byCodeMap.get(code) ?? {
+      errors: 0,
+      warnings: 0,
+      autofixable: 0,
+      ...(diagnostic.docs ? { docs: diagnostic.docs } : {}),
+    };
+    if (severity === "error") {
+      entry.errors += 1;
+    } else {
+      entry.warnings += 1;
+    }
+    if (actions.some((action) => action.autofix)) {
+      entry.autofixable += 1;
+    }
+    byCodeMap.set(code, entry);
+  }
+  const byCode: Record<string, CodeSummary> = {};
+  for (const code of [...byCodeMap.keys()].sort()) {
+    byCode[code] = byCodeMap.get(code)!;
+  }
+  const visible = policy.quiet
+    ? diagnostics.filter(({ report }) => report.severity === "error")
+    : diagnostics;
+  const shown = policy.limit === undefined ? visible : visible.slice(0, policy.limit);
+  const omittedDiagnostics = visible.length - shown.length;
   return {
     command,
     config: result.config,
-    diagnostics: policy.quiet
-      ? diagnostics.filter(({ report }) => report.severity === "error")
-      : diagnostics,
+    diagnostics: shown,
     failures,
     changed,
     previews,
@@ -252,6 +336,8 @@ export function cliResult(
       suggestions: diagnostics.filter(({ report }) =>
         report.actions.some((action) => !action.autofix),
       ).length,
+      omittedDiagnostics,
+      byCode,
       warningLimitExceeded,
     },
     exitCode: failures.length

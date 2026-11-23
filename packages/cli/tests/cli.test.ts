@@ -43,6 +43,40 @@ test("CLI checks unused files, keeps overlapping project results, and isolates c
     ]);
     expect(json.diagnostics[0].report.code).toBe("unknown-utility");
     expect(json.diagnostics[0].docs).toMatch(/lints[/\\]unknown-utility(\.md)?$/);
+    expect(json.diagnostics[0]).toMatchObject({
+      file: "unused.tsx",
+      line: 1,
+      column: expect.any(Number),
+    });
+    expect(json.summary.byCode).toMatchObject({
+      "unknown-utility": {
+        errors: 2,
+        warnings: 0,
+        autofixable: 0,
+      },
+    });
+    expect(json.summary.omittedDiagnostics).toBe(0);
+
+    const limited = await run(root, ["lint", "--limit", "1", "--format", "json"]);
+    expect(limited.code, limited.stderr).toBe(1);
+    const limitedJson = JSON.parse(limited.stdout) as CliResult;
+    expect(limitedJson.diagnostics).toHaveLength(1);
+    expect(limitedJson.summary).toMatchObject({
+      errors: 2,
+      omittedDiagnostics: 1,
+      byCode: json.summary.byCode,
+    });
+
+    const summaryOnly = await run(root, ["lint", "--limit", "0", "--format", "json"]);
+    expect(summaryOnly.code, summaryOnly.stderr).toBe(1);
+    const summaryOnlyJson = JSON.parse(summaryOnly.stdout) as CliResult;
+    expect(summaryOnlyJson.diagnostics).toEqual([]);
+    expect(summaryOnlyJson.summary).toMatchObject({
+      errors: 2,
+      omittedDiagnostics: 2,
+      byCode: json.summary.byCode,
+    });
+
     const fixed = await run(root, ["lint", "--fix", "--format", "json"]);
     expect(fixed.code, fixed.stderr).toBe(1);
     expect(JSON.parse(fixed.stdout).diagnostics).toEqual(json.diagnostics);
@@ -271,6 +305,9 @@ test("CLI help, version, invalid options and structured failures keep their exit
     ["fmt", "--quiet"],
     ["lint", "--max-warnings", "-1"],
     ["lint", "--max-warnings", "1.5"],
+    ["lint", "--limit", "-1"],
+    ["lint", "--limit", "1.5"],
+    ["check", "--limit", "abc"],
     ["lint", "--format", "xml"],
     ["lint", "--config"],
     ["lsp"],

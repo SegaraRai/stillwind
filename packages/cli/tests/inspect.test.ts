@@ -84,11 +84,16 @@ test("inspect selects generated CSS by file, line, position, and glob", async ()
       },
     });
     expect(file.result.previews[0].css).toContain("color: red");
-    expect(file.result.previews[1].location).toMatchObject({
-      startLine: 2,
-      startColumn: 20,
-      endLine: 4,
-      endColumn: 1,
+    expect(file.result.previews[1]).toMatchObject({
+      file: "entry.tsx",
+      line: 3,
+      column: 21,
+      location: {
+        startLine: 2,
+        startColumn: 20,
+        endLine: 4,
+        endColumn: 1,
+      },
     });
 
     expect((await inspect(root, ["entry.tsx:4"])).previews).toEqual([second]);

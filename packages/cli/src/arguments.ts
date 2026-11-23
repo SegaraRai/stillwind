@@ -55,16 +55,25 @@ export const warningArgs = {
     description: "Fail when the warning count exceeds this non-negative integer",
     valueHint: "count",
   },
+  limit: {
+    type: "string",
+    description: "Show at most this many diagnostics while retaining summary counts",
+    valueHint: "count",
+  },
 } as const;
 
-export function warningLimit(value: string | undefined): number | undefined {
+export function nonNegativeInteger(value: string | undefined, option: string): number | undefined {
   if (value === undefined) {
     return undefined;
   }
   if (!/^\d+$/.test(value) || !Number.isSafeInteger(Number(value))) {
-    throw new Error("Invalid value for --max-warnings: expected a non-negative integer");
+    throw new Error(`Invalid value for ${option}: expected a non-negative integer`);
   }
   return Number(value);
+}
+
+export function warningLimit(value: string | undefined): number | undefined {
+  return nonNegativeInteger(value, "--max-warnings");
 }
 
 export const builtinArgs = {

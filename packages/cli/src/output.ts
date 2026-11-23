@@ -169,6 +169,12 @@ export function renderResult(
       lines.push("");
     }
   }
+  if (options.format === "text" && result.summary.omittedDiagnostics > 0) {
+    lines.push(
+      `... ${count(result.summary.omittedDiagnostics, "more diagnostic")} omitted${options.limit === undefined ? "" : ` (--limit ${options.limit})`}.`,
+    );
+    lines.push("");
+  }
   for (const failure of result.failures) {
     lines.push(renderFailure(failure, options.format === "github", file, color));
   }
@@ -338,12 +344,8 @@ export function renderResult(
                 ? `${count(summary.errors, "error")}, ${count(summary.warnings, "warning")} in ${count(summary.files, "file")}${summary.changed ? (options.check ? `; ${count(summary.changed, "file")} ${summary.changed === 1 ? "needs" : "need"} formatting` : `; updated ${count(summary.changed, "file")}`) : ""}${summary.failures ? `; ${count(summary.failures, "execution failure")}` : ""}.`
                 : `${count(summary.errors, "error")}, ${count(summary.warnings, "warning")} in ${count(summary.files, "file")}${summary.failures ? `; ${count(summary.failures, "execution failure")}` : ""}.`,
     );
-    const autofixable = result.diagnostics.filter(({ report }) =>
-      report.actions.some((action) => action.autofix),
-    ).length;
-    const manualSuggestions = result.diagnostics.filter(({ report }) =>
-      report.actions.some((action) => !action.autofix),
-    ).length;
+    const autofixable = result.summary.autofixable;
+    const manualSuggestions = result.summary.suggestions;
     if ((result.command === "lint" || result.command === "check") && autofixable) {
       lines.push(
         result.command === "check"

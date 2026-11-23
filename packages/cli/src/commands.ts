@@ -8,6 +8,7 @@ import packageJson from "../package.json" with { type: "json" };
 import {
   builtinArgs,
   configArgs,
+  nonNegativeInteger,
   outputArgs,
   parseInvocation,
   readOutputOptions,
@@ -122,9 +123,11 @@ const subCommands = {
     async run({ args, data }) {
       const options = data as OutputOptions;
       const maxWarnings = warningLimit(args["max-warnings"]);
+      const limit = nonNegativeInteger(args.limit, "--limit");
       options.check = !args.fix;
       options.quiet = args.quiet;
       options.maxWarnings = maxWarnings;
+      options.limit = limit;
       const { check } = await import("@stillwind/analysis/node");
       const analysis = await check({
         config: args.config,
@@ -136,6 +139,8 @@ const subCommands = {
         check: !args.fix,
         quiet: args.quiet,
         maxWarnings,
+        limit,
+        cwd: options.cwd,
       });
       await writeResult(result, options);
       process.exitCode = result.exitCode;
@@ -160,6 +165,7 @@ const subCommands = {
       });
       const result = cliResult("fmt", analysis, {
         check: args.check,
+        cwd: options.cwd,
       });
       await writeResult(result, options);
       process.exitCode = result.exitCode;
@@ -175,8 +181,10 @@ const subCommands = {
     async run({ args, data }) {
       const options = data as OutputOptions;
       const maxWarnings = warningLimit(args["max-warnings"]);
+      const limit = nonNegativeInteger(args.limit, "--limit");
       options.quiet = args.quiet;
       options.maxWarnings = maxWarnings;
+      options.limit = limit;
       const { lint } = await import("@stillwind/analysis/node");
       const analysis = await lint({
         config: args.config,
@@ -187,6 +195,8 @@ const subCommands = {
       const result = cliResult("lint", analysis, {
         quiet: args.quiet,
         maxWarnings,
+        limit,
+        cwd: options.cwd,
       });
       await writeResult(result, options);
       process.exitCode = result.exitCode;
@@ -207,7 +217,9 @@ const subCommands = {
         cwd: options.cwd,
         targets: args._,
       });
-      const result = cliResult("inspect", analysis);
+      const result = cliResult("inspect", analysis, {
+        cwd: options.cwd,
+      });
       await writeResult(result, options);
       process.exitCode = result.exitCode;
     },
