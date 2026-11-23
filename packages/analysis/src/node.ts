@@ -13,6 +13,7 @@ export { format, type FormatResult } from "./format.ts";
 export { info, type ActiveLintRule, type InfoResult, type ProjectInfo } from "./info.ts";
 export {
   inspect,
+  type InspectEmptyReason,
   type InspectFailure,
   type InspectPreview,
   type InspectResult,

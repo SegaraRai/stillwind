@@ -98,11 +98,27 @@ test("inspect selects generated CSS by file, line, position, and glob", async ()
     expect((await inspect(root, ["e*.tsx", "entry.tsx:2"])).previews).toEqual([first, second]);
     expect((await inspect(root, [path.join(root, "other.tsx")])).previews).toEqual([other]);
 
-    for (const target of ["entry.tsx:6", "entry.tsx:99", "entry.tsx:2:999"]) {
+    for (const [target, reason] of [
+      ["entry.tsx:2:1", "no-match-at-position"],
+      ["entry.tsx:6", "no-match-at-position"],
+      ["entry.tsx:99", "line-out-of-range"],
+      ["entry.tsx:2:999", "column-out-of-range"],
+    ] as const) {
       const empty = await inspect(root, [target]);
       expect(empty.code, target).toBe(1);
       expect(empty.result.previews).toEqual([]);
+      expect(empty.result.emptyReason, target).toBe(reason);
     }
+    await writeFile(path.join(root, "plain.tsx"), "export const plain = 1;\n");
+    const noStyles = await inspect(root, ["plain.tsx"]);
+    expect(noStyles.code).toBe(1);
+    expect(noStyles.result.emptyReason).toBe("no-styles");
+    expect((await run(root, ["inspect", "plain.tsx"])).stdout).toContain(
+      "contains no Stillwind style calls",
+    );
+    expect((await run(root, ["inspect", "entry.tsx:6"])).stdout).toContain(
+      "No Stillwind style call overlaps the requested position",
+    );
 
     for (const target of ["absent.tsx", "root.css", "entry.tsx:0", "broken.tsx"]) {
       expect((await inspect(root, [target])).code, target).toBe(2);

@@ -292,6 +292,14 @@ export type StyleMacro<Props = object> = {
   ): (props?: CvaSelection<Variants> & CvaClassProps) => CvaResult<Props>;
 };
 
+function uncompiledMacroError(name: string): Error {
+  return new Error(
+    `Stillwind ${name}() is a compile-time macro and cannot run uncompiled. ` +
+      "Configure the Stillwind build integration (placed before JSX transforms) or test runner plugin. " +
+      "See node_modules/stillwind/docs/integrations.md.",
+  );
+}
+
 /**
  * Internal use only. Builds the placeholder exported by each framework entrypoint.
  * The compiler replaces supported macro calls before the application runs.
@@ -305,34 +313,32 @@ export type StyleMacro<Props = object> = {
 export function createStyleMacro<Props>(): StyleMacro<Props> {
   return Object.assign(
     (): never => {
-      throw new Error(
-        "Stillwind style() is a compile-time macro. Configure the Stillwind integration for your build tool.",
-      );
+      throw uncompiledMacroError("style");
     },
     {
       anchorScope(): never {
-        throw new Error("Stillwind style.anchorScope() is a compile-time macro.");
+        throw uncompiledMacroError("style.anchorScope");
       },
       ref(): never {
-        throw new Error("Stillwind style.ref() is a compile-time macro.");
+        throw uncompiledMacroError("style.ref");
       },
       keyframes(): never {
-        throw new Error("Stillwind style.keyframes() is a compile-time macro.");
+        throw uncompiledMacroError("style.keyframes");
       },
       viewTransition(): never {
-        throw new Error("Stillwind style.viewTransition() is a compile-time macro.");
+        throw uncompiledMacroError("style.viewTransition");
       },
       when(): never {
-        throw new Error("Stillwind style.when() is a compile-time macro.");
+        throw uncompiledMacroError("style.when");
       },
       cva(): never {
-        throw new Error("Stillwind style.cva() is a compile-time macro.");
+        throw uncompiledMacroError("style.cva");
       },
       media(): never {
-        throw new Error("Stillwind style.media() is a compile-time macro.");
+        throw uncompiledMacroError("style.media");
       },
       css(): never {
-        throw new Error("Stillwind style.css() is a compile-time macro.");
+        throw uncompiledMacroError("style.css");
       },
     },
   );

@@ -1,6 +1,7 @@
 import { lintReports } from "@stillwind/analysis";
 import type {
   DesignSystemAnswer,
+  InspectEmptyReason,
   InspectPreview,
   LintResult,
   ProjectInfo,
@@ -15,7 +16,18 @@ export type DesignCommand = "theme" | "utilities" | "variants";
 
 export type CliCommand = "check" | "lint" | "fmt" | "inspect" | "info" | DesignCommand | null;
 
-export type CliDiagnostic = ReturnType<typeof lintReports>[number] & {
+type RawReport = ReturnType<typeof lintReports>[number]["report"];
+
+/** One suggested edit action annotated with whether `--fix` applies it automatically. */
+export type CliAction = RawReport["actions"][number] & {
+  /** True when `--fix` applies this action automatically; false for manual suggestions. */
+  autofix: boolean;
+};
+
+export type CliDiagnostic = Omit<ReturnType<typeof lintReports>[number], "report"> & {
+  report: Omit<RawReport, "actions"> & {
+    actions: CliAction[];
+  };
   /** Absolute path or URL of the page that explains the report code. */
   docs?: string;
 };
@@ -45,6 +57,8 @@ export interface CliResult {
   failures: CliFailure[];
   changed: string[];
   previews: CliPreview[];
+  /** Explains why `inspect` produced no previews without failures. Omitted otherwise. */
+  emptyReason?: InspectEmptyReason;
   projects: ProjectInfo[];
   tokens: DesignSystemAnswer["tokens"];
   candidates: DesignSystemAnswer["candidates"];
@@ -62,6 +76,9 @@ export interface CliResult {
     candidates: number;
     invalidCandidates: number;
     unmatched: number;
+    /** Diagnostics that have an automatic fix applied by `--fix`. */
+    autofixable: number;
+    /** Diagnostics that have manual suggested edits not applied by `--fix`. */
     suggestions: number;
     warningLimitExceeded: boolean;
   };
@@ -82,6 +99,27 @@ export function isDesignCommand(command: CliCommand): command is DesignCommand {
 }
 
 /**
+ * Returns whether `--fix` automatically applies `action` for `report`.
+ * Only the first action whose edits are nonempty and stay on the primary document's revision
+ * is applied automatically; subsequent alternatives or cross-document edits are manual suggestions.
+ */
+function isAutofixAction(
+  report: RawReport,
+  action: RawReport["actions"][number],
+  index: number,
+): boolean {
+  return (
+    index === 0 &&
+    action.edits.length > 0 &&
+    action.edits.every(
+      (edit) =>
+        edit.location.uri === report.primary.location.uri &&
+        edit.location.revision === report.primary.location.revision,
+    )
+  );
+}
+
+/**
  * Projects analysis into CLI data before visibility filtering and rendering.
  */
 export function cliResult(
@@ -89,6 +127,7 @@ export function cliResult(
   result: Pick<LintResult, "config" | "results" | "changed"> & {
     failures?: readonly Pick<NonNullable<LintResult["failures"]>[number], "file" | "message">[];
     previews?: InspectPreview[];
+    emptyReason?: InspectEmptyReason;
     projects?: ProjectInfo[];
   } & Partial<Pick<DesignSystemAnswer, "tokens" | "candidates" | "unmatched">>,
   policy: ResultPolicy = {},
@@ -115,7 +154,17 @@ export function cliResult(
           ({ result }) => result.status !== "complete" || failedFiles.has(result.entry),
         )
       : result.results,
-  ).map((diagnostic) => ({ ...diagnostic, ...docs(diagnostic.report.code) }));
+  ).map((diagnostic) => ({
+    ...diagnostic,
+    report: {
+      ...diagnostic.report,
+      actions: diagnostic.report.actions.map((action, index) => ({
+        ...action,
+        autofix: isAutofixAction(diagnostic.report, action, index),
+      })),
+    },
+    ...docs(diagnostic.report.code),
+  }));
   const failures: CliFailure[] = result.results.flatMap(({ project, result }) =>
     result.status === "complete"
       ? []
@@ -176,6 +225,7 @@ export function cliResult(
     failures,
     changed,
     previews,
+    ...(result.emptyReason ? { emptyReason: result.emptyReason } : {}),
     projects,
     tokens,
     candidates,
@@ -196,7 +246,12 @@ export function cliResult(
       candidates: candidates.length,
       invalidCandidates,
       unmatched: unmatched.length,
-      suggestions: diagnostics.filter(({ report }) => report.actions.length > 0).length,
+      autofixable: diagnostics.filter(({ report }) =>
+        report.actions.some((action) => action.autofix),
+      ).length,
+      suggestions: diagnostics.filter(({ report }) =>
+        report.actions.some((action) => !action.autofix),
+      ).length,
       warningLimitExceeded,
     },
     exitCode: failures.length

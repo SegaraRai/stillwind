@@ -379,6 +379,7 @@ failures:
     "candidates": 0,
     "invalidCandidates": 0,
     "unmatched": 0,
+    "autofixable": 0,
     "suggestions": 0,
     "warningLimitExceeded": false
   },
@@ -402,7 +403,13 @@ failures:
 | `exitCode`    | The [exit code](#exit-codes)                                                                                     |
 
 Each diagnostic contains `project`, a zero-based project index, and `report`. The
-report contains the message, its locations, notes, and suggested edits.
+report contains the message, its locations, notes, and suggested edits (`actions`).
+Each action has an `autofix` boolean: `true` when `--fix` applies it automatically,
+and `false` for manual suggestions. `summary.autofixable` counts diagnostics with an
+automatic fix, and `summary.suggestions` counts diagnostics with manual suggestions.
+
+When `inspect` returns no previews and no execution failures, `emptyReason` explains why:
+`"no-styles"`, `"line-out-of-range"`, `"column-out-of-range"`, or `"no-match-at-position"`.
 
 `docs` names the page that explains the report code. It is the absolute path of the page in
 the installed `stillwind` package, which matches that version. When the package has no such

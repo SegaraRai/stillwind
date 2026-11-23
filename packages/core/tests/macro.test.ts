@@ -25,11 +25,13 @@ for (const [framework, load] of frameworks) {
       () => style.anchorScope("none"),
       () => style.keyframes({ from: "opacity-0" }),
       () => style.viewTransition({ old: "opacity-0" }),
+      () => style.when("hover"),
+      () => style.cva("flex"),
       () => style.media("sm"),
       () => style.css("host:block"),
     ]) {
       expect(call).toThrow(
-        /Stillwind style(?:\.(?:ref|anchorScope|keyframes|viewTransition|media|css))?\(\) is a compile-time macro/,
+        /Stillwind style(?:\.(?:ref|anchorScope|keyframes|viewTransition|when|cva|media|css))?\(\) is a compile-time macro.*integrations\.md/,
       );
     }
   }, 30_000);

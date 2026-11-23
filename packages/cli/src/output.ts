@@ -105,7 +105,9 @@ export function renderResult(
         (label) => `related: ${at(label)}${label.message ? `: ${clean(label.message)}` : ""}`,
       ),
       ...report.notes.map((note) => `note: ${clean(note)}`),
-      ...report.actions.map((action) => `help: ${clean(action.title)}`),
+      ...report.actions.map(
+        (action) => `help: ${clean(action.title)} (${action.autofix ? "autofix" : "suggestion"})`,
+      ),
       ...(docs ? [`docs: ${docs}`] : []),
     ];
     if (options.format === "github") {
@@ -155,7 +157,12 @@ export function renderResult(
         addFrame(related);
       }
       lines.push(...report.notes.map((note) => `  note: ${clean(note)}`));
-      lines.push(...report.actions.map((action) => `  help: ${clean(action.title)}`));
+      lines.push(
+        ...report.actions.map(
+          (action) =>
+            `  help: ${clean(action.title)} (${action.autofix ? "autofix" : "suggestion"})`,
+        ),
+      );
       if (docs) {
         lines.push(`  docs: ${docs}`);
       }
@@ -218,7 +225,15 @@ export function renderResult(
       lines.push("");
     }
     if (!result.summary.previews && !result.summary.failures) {
-      lines.push("The selected source has no generated CSS.");
+      lines.push(
+        result.emptyReason === "line-out-of-range"
+          ? "The requested line is outside the selected file."
+          : result.emptyReason === "column-out-of-range"
+            ? "The requested column is outside the selected line."
+            : result.emptyReason === "no-match-at-position"
+              ? "No Stillwind style call overlaps the requested position (the file has styles at another line or column)."
+              : "The selected source contains no Stillwind style calls or generated CSS.",
+      );
     }
   }
   if (result.command === "info" && options.format === "text") {
@@ -323,12 +338,21 @@ export function renderResult(
                 ? `${count(summary.errors, "error")}, ${count(summary.warnings, "warning")} in ${count(summary.files, "file")}${summary.changed ? (options.check ? `; ${count(summary.changed, "file")} ${summary.changed === 1 ? "needs" : "need"} formatting` : `; updated ${count(summary.changed, "file")}`) : ""}${summary.failures ? `; ${count(summary.failures, "execution failure")}` : ""}.`
                 : `${count(summary.errors, "error")}, ${count(summary.warnings, "warning")} in ${count(summary.files, "file")}${summary.failures ? `; ${count(summary.failures, "execution failure")}` : ""}.`,
     );
-    const suggestions = result.diagnostics.filter(({ report }) => report.actions.length > 0).length;
-    if ((result.command === "lint" || result.command === "check") && suggestions) {
+    const autofixable = result.diagnostics.filter(({ report }) =>
+      report.actions.some((action) => action.autofix),
+    ).length;
+    const manualSuggestions = result.diagnostics.filter(({ report }) =>
+      report.actions.some((action) => !action.autofix),
+    ).length;
+    if ((result.command === "lint" || result.command === "check") && autofixable) {
       lines.push(
         result.command === "check"
-          ? `help: Suggested edits are available for ${count(suggestions, "diagnostic")}. Run stillwind check --fix to apply automatic fixes and sort utilities.`
-          : `help: Suggested edits are available for ${count(suggestions, "diagnostic")}. Run stillwind lint --fix to apply automatic fixes.`,
+          ? `help: Automatic fixes are available for ${count(autofixable, "diagnostic")}. Run stillwind check --fix to apply automatic fixes and sort utilities.`
+          : `help: Automatic fixes are available for ${count(autofixable, "diagnostic")}. Run stillwind lint --fix to apply automatic fixes.`,
+      );
+    } else if ((result.command === "lint" || result.command === "check") && manualSuggestions) {
+      lines.push(
+        `help: Manual suggestions are available for ${count(manualSuggestions, "diagnostic")}. Review them in the source; --fix does not apply them automatically.`,
       );
     }
   }

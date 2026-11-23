@@ -322,3 +322,74 @@ test("check renders combined lint findings and formatting status for readonly an
   expect(fixedText).toContain(`${path.basename(file)}: updated`);
   expect(fixedText).toContain("0 errors, 0 warnings in 1 file; updated 1 file.");
 });
+
+test("actions distinguish autofixable edits from manual suggestions", () => {
+  const sameEdit = { location, replacement: "fixed" };
+  const otherEdit = {
+    location: {
+      ...location,
+      uri: pathToFileURL(path.resolve(import.meta.dirname, "other.tsx")).href,
+    },
+    replacement: "manual",
+  };
+  const withBoth = cliResult("lint", {
+    ...analysis,
+    results: [
+      {
+        ...analysis.results[0],
+        result: {
+          ...analysis.results[0].result,
+          reports: [
+            {
+              ...report,
+              actions: [
+                { title: "Auto fix", edits: [sameEdit] },
+                { title: "Alternative", edits: [sameEdit] },
+              ],
+            },
+          ],
+        },
+      },
+    ],
+  });
+  expect(withBoth.diagnostics[0].report.actions.map((action) => action.autofix)).toEqual([
+    true,
+    false,
+  ]);
+  expect(withBoth.summary).toMatchObject({
+    autofixable: 1,
+    suggestions: 1,
+  });
+  const bothText = renderResult(withBoth, options);
+  expect(bothText).toContain("  help: Auto fix (autofix)");
+  expect(bothText).toContain("  help: Alternative (suggestion)");
+  expect(bothText).toContain(
+    "Automatic fixes are available for 1 diagnostic. Run stillwind lint --fix",
+  );
+
+  const manualOnly = cliResult("lint", {
+    ...analysis,
+    results: [
+      {
+        ...analysis.results[0],
+        result: {
+          ...analysis.results[0].result,
+          reports: [
+            {
+              ...report,
+              actions: [{ title: "Edit other file", edits: [otherEdit] }],
+            },
+          ],
+        },
+      },
+    ],
+  });
+  expect(manualOnly.summary).toMatchObject({
+    autofixable: 0,
+    suggestions: 1,
+  });
+  const manualText = renderResult(manualOnly, options);
+  expect(manualText).toContain("  help: Edit other file (suggestion)");
+  expect(manualText).toContain("Manual suggestions are available for 1 diagnostic.");
+  expect(manualText).not.toContain("Run stillwind lint --fix");
+});

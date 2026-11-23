@@ -78,6 +78,13 @@ export interface InspectFailure {
   message: string;
 }
 
+/** Reason why `inspect` returned no previews when no execution failures occurred. */
+export type InspectEmptyReason =
+  | "no-styles"
+  | "line-out-of-range"
+  | "column-out-of-range"
+  | "no-match-at-position";
+
 /**
  * Inspection results with analysis outcomes retained for each project.
  */
@@ -88,6 +95,8 @@ export interface InspectResult {
   results: WorkspaceResult[];
   /** Selected previews in file, project, and source order, without repeated ranges. */
   previews: InspectPreview[];
+  /** Explains why `previews` is empty when `failures` is also empty. */
+  emptyReason?: InspectEmptyReason;
   /** Targets that could not be read. */
   failures: InspectFailure[];
 }
@@ -174,28 +183,42 @@ async function selectPreviews(
   source: string,
   target: InspectTarget,
   reports: ReturnType<typeof lintReports>,
-): Promise<InspectPreview[]> {
+): Promise<{
+  previews: InspectPreview[];
+  emptyReason?: InspectEmptyReason;
+}> {
   const lines = lineOffsets(source);
   const line = target.line === undefined ? undefined : target.line - 1;
   const lineStart = line === undefined ? undefined : lines[line];
   const lineEnd = line === undefined ? undefined : (lines[line + 1] ?? source.length + 1) - 1;
   if (line !== undefined && lineStart === undefined) {
-    return [];
+    return {
+      previews: [],
+      emptyReason: "line-out-of-range",
+    };
   }
   const offset = target.column === undefined ? undefined : lineStart! + target.column - 1;
   if (offset !== undefined && offset > lineEnd!) {
-    return [];
+    return {
+      previews: [],
+      emptyReason: "column-out-of-range",
+    };
   }
   const query = (request: EditorRequest) =>
-    worker.request<WorkspaceEditorResult[]>({ method: "query", file, request });
+    worker.request<WorkspaceEditorResult[]>({
+      method: "query",
+      file,
+      request,
+    });
   const uri = pathToFileURL(file).href;
   let selected: { project: number; range: PreviewRange }[];
+  let fileHasPreviews = false;
   if (offset === undefined) {
-    selected = (
-      await query({
-        kind: "previews",
-      })
-    ).flatMap(({ project, result }) =>
+    const all = await query({
+      kind: "previews",
+    });
+    fileHasPreviews = all.some(({ result }) => (result.previews?.length ?? 0) > 0);
+    selected = all.flatMap(({ project, result }) =>
       (result.previews ?? [])
         .filter(({ start, end }) => line === undefined || (end > lineStart! && start <= lineEnd!))
         .map((range) => ({
@@ -214,12 +237,12 @@ async function selectPreviews(
     if (selected.length < hovers.length) {
       // Failed occurrences and Vue template expressions have no hover, so the listing supplies them.
       const answered = new Set(selected.map(({ project }) => project));
+      const all = await query({
+        kind: "previews",
+      });
+      fileHasPreviews = all.some(({ result }) => (result.previews?.length ?? 0) > 0);
       selected.push(
-        ...(
-          await query({
-            kind: "previews",
-          })
-        ).flatMap(({ project, result }) =>
+        ...all.flatMap(({ project, result }) =>
           answered.has(project)
             ? []
             : (result.previews ?? [])
@@ -232,7 +255,7 @@ async function selectPreviews(
       );
     }
   }
-  return selected.flatMap(
+  const previews = selected.flatMap(
     ({ project, range: { start, end, css, valid = true, documentation, runtimeNames } }) => {
       const diagnostics = reports
         .filter(
@@ -267,6 +290,15 @@ async function selectPreviews(
       ];
     },
   );
+  if (!previews.length) {
+    return {
+      previews,
+      emptyReason: line !== undefined && fileHasPreviews ? "no-match-at-position" : "no-styles",
+    };
+  }
+  return {
+    previews,
+  };
 }
 
 /**
@@ -322,6 +354,7 @@ export async function inspect(
       previews: [],
       failures: [],
     };
+    const emptyReasons = new Set<InspectEmptyReason>();
     for (const file of files) {
       const analyses = await worker.analyze(file);
       result.results.push(...analyses);
@@ -349,7 +382,11 @@ export async function inspect(
       const seen = new Set<string>();
       const previews: InspectPreview[] = [];
       for (const target of selections.get(file)!) {
-        for (const preview of await selectPreviews(worker, file, source, target, reports)) {
+        const selection = await selectPreviews(worker, file, source, target, reports);
+        if (selection.emptyReason) {
+          emptyReasons.add(selection.emptyReason);
+        }
+        for (const preview of selection.previews) {
           const { startLine, startColumn, endLine, endColumn } = preview.location;
           const key = [preview.project, startLine, startColumn, endLine, endColumn].join();
           if (complete.has(preview.project) && !seen.has(key)) {
@@ -366,6 +403,15 @@ export async function inspect(
             a.location.startColumn - b.location.startColumn,
         ),
       );
+    }
+    if (!result.previews.length && !result.failures.length) {
+      result.emptyReason = emptyReasons.has("no-match-at-position")
+        ? "no-match-at-position"
+        : emptyReasons.has("column-out-of-range")
+          ? "column-out-of-range"
+          : emptyReasons.has("line-out-of-range")
+            ? "line-out-of-range"
+            : "no-styles";
     }
     return result;
   } finally {
