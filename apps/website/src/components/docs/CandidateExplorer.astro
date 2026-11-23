@@ -16,7 +16,7 @@ const examples = [
 ];
 const { matches } = lookupCandidates((await documentationCompiler()).query, initial);
 const control = style(
-  "px-control block-11 inline-full min-inline-0 font-normal text-foreground bg-background rounded-control border border-border",
+  "px-control block-11 inline-full min-inline-0 font-normal text-foreground bg-background rounded-control border border-border-strong",
 );
 ---
 
@@ -54,16 +54,18 @@ const control = style(
       ))}
     </div>
   </form>
-  <p role="status" aria-live="polite" {...style("text-caption text-muted")}>
-    Enable JavaScript to look up other utilities and variants. The results show an example.
+  <p role="status" aria-live="polite" {...style("min-block-[1.5em] text-caption text-muted")}>
+    <noscript>
+      Enable JavaScript to look up other utilities and variants. The results show an example.
+    </noscript>
   </p>
   <div data-candidate-results {...style("grid gap-5")}>
     {matches.map((match) => (
       <section {...style("candidate-result")}>
         <div {...style("candidate-result-header")}>
-          <h3 {...style("candidate-result-title")}>
+          <h2 {...style("candidate-result-title")}>
             <code>{match.candidate}</code>
-          </h3>
+          </h2>
           {matchCaption(match) && (
             <p {...style("candidate-result-caption")}>{matchCaption(match)}</p>
           )}

@@ -2,15 +2,18 @@
 import NimbusHead from "@cloudflare/nimbus-docs/components/NimbusHead.astro";
 import { navStateScript } from "@cloudflare/nimbus-docs/runtime";
 import type { Breadcrumb, PrevNext, SidebarItem, TOCItem } from "@cloudflare/nimbus-docs/types";
+import instrumentSans from "@fontsource/instrument-sans/files/instrument-sans-latin-400-normal.woff2?url";
 import { ClientRouter } from "astro:transitions";
 import { style } from "stillwind/astro";
 
+import jetbrainsMono from "../assets/fonts/jetbrains-mono-regular.woff2?url";
 import DocsSidebar from "../components/docs/DocsSidebar.astro";
 import SearchDialog from "../components/docs/SearchDialog.astro";
 import WebMCP from "../components/docs/WebMCP.astro";
 import { documentRoot } from "../components/site/document";
 import SiteHeader from "../components/site/SiteHeader.astro";
 import ThemeHead from "../components/site/ThemeHead.astro";
+import { URL_REPOSITORY } from "../lib/config";
 import { packageManagers, packageManagerStorageKey } from "../lib/docs/package-managers";
 import { breadcrumbList, serializeStructuredData } from "../lib/site/structured-data";
 
@@ -78,6 +81,8 @@ const paginationLink = style(
       document.addEventListener("astro:after-swap", applyPackageManager);
     </script>
     <ClientRouter />
+    <link rel="preload" href={instrumentSans} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={jetbrainsMono} as="font" type="font/woff2" crossorigin />
     <NimbusHead
       title={title}
       description={description}
@@ -111,25 +116,70 @@ const paginationLink = style(
           },
         )}
       >
+        <details {...style("text-ui bg-surface rounded-panel border border-border sidebar:hidden")}>
+          <summary
+            {...style(
+              "flex px-4 py-3 items-center justify-between list-none text-foreground font-medium cursor-pointer [&::-webkit-details-marker]:hidden",
+            )}
+          >
+            <span>Menu</span>
+            <span
+              aria-hidden="true"
+              {...style("icon-lucide--chevron-down shrink-0 [details[open]>summary>&]:rotate-180")}
+            ></span>
+          </summary>
+          <nav
+            aria-label="Documentation (mobile)"
+            {...style("overflow-y-auto px-4 pbs-2 pbe-4 max-block-[60dvh] border-border border-bs")}
+          >
+            <DocsSidebar items={sidebar} />
+            <div {...style("grid mbs-6 pbs-4 gap-2 text-caption border-border border-bs")}>
+              <p {...style("font-mono text-label text-muted tracking-[0.08em] uppercase")}>
+                For agents
+              </p>
+              <a
+                href="/docs/llms.txt"
+                {...style("hover:text-foreground hover:underline hover:underline-offset-4")}
+              >
+                Documentation index{" "}
+                <span aria-hidden="true" {...style("icon-lucide--arrow-right align-middle")}></span>
+              </a>
+              <a
+                href="/llms-full.txt"
+                {...style("hover:text-foreground hover:underline hover:underline-offset-4")}
+              >
+                Full documentation{" "}
+                <span aria-hidden="true" {...style("icon-lucide--arrow-right align-middle")}></span>
+              </a>
+              <a
+                href={URL_REPOSITORY}
+                {...style(
+                  "inline-flex mbs-2 items-center gap-1.5 hover:text-foreground hover:underline hover:underline-offset-4",
+                )}
+              >
+                <span
+                  aria-hidden="true"
+                  {...style("icon-simple-icons--github align-middle")}
+                ></span>
+                <span>GitHub</span>
+              </a>
+            </div>
+          </nav>
+        </details>
         <nav
           aria-label="Documentation"
           data-nb-nav-state="docs"
           {...style(
-            "docs-navigation",
+            "docs-navigation max-sidebar:hidden",
             navigationTransition.for("docs-navigation"),
             {
               [documentRoot("data-floating-header")]:
                 "sidebar:inset-bs-22 sidebar:max-block-[calc(100dvh-120px)]",
             },
-            "max-sidebar:static max-sidebar:pbe-6 max-sidebar:max-block-64 max-sidebar:border-border max-sidebar:border-be",
           )}
         >
           <DocsSidebar items={sidebar} />
-          <div
-            {...style(
-              "grid mbs-9 pbs-6 gap-2.5 text-caption border-border border-bs max-sidebar:hidden",
-            )}
-          >
+          <div {...style("grid mbs-9 pbs-6 gap-2.5 text-caption border-border border-bs")}>
             <p {...style("font-mono text-label text-muted tracking-[0.08em] uppercase")}>
               For agents
             </p>
@@ -138,35 +188,57 @@ const paginationLink = style(
               {...style("hover:text-foreground hover:underline hover:underline-offset-4")}
             >
               Documentation index{" "}
-              <span
-                aria-hidden="true"
-                {...style("icon-lucide--arrow-up-right align-middle")}
-              ></span>
+              <span aria-hidden="true" {...style("icon-lucide--arrow-right align-middle")}></span>
             </a>
             <a
               href="/llms-full.txt"
               {...style("hover:text-foreground hover:underline hover:underline-offset-4")}
             >
               Full documentation{" "}
-              <span
-                aria-hidden="true"
-                {...style("icon-lucide--arrow-up-right align-middle")}
-              ></span>
+              <span aria-hidden="true" {...style("icon-lucide--arrow-right align-middle")}></span>
             </a>
           </div>
         </nav>
         <script is:inline aria-hidden="true" set:html={navStateScript} />
         <main id="main-content" {...style("pbe-15 min-inline-0")}>
           <header {...style("mbe-10")}>
+            {breadcrumbs.length > 1 && (
+              <nav aria-label="Breadcrumb" {...style("mbe-4 text-caption text-muted")}>
+                <ol {...style("flex p-0 flex-wrap items-center gap-1.5 list-none")}>
+                  {breadcrumbs.map((crumb, index) => {
+                    const last = index === breadcrumbs.length - 1;
+                    return (
+                      <li {...style("inline-flex items-center gap-1.5")}>
+                        {index > 0 && <span aria-hidden="true">/</span>}
+                        {last || !crumb.href ? (
+                          <span
+                            aria-current={last ? "page" : undefined}
+                            {...style("text-foreground")}
+                          >
+                            {crumb.label}
+                          </span>
+                        ) : (
+                          <a
+                            href={crumb.href}
+                            {...style(
+                              "hover:text-foreground hover:underline hover:underline-offset-4",
+                            )}
+                          >
+                            {crumb.label}
+                          </a>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ol>
+              </nav>
+            )}
             <h1 {...style("font-display text-title tracking-[-0.045em]")}>{title}</h1>
             {description && <p {...style("mbs-5 text-lead text-muted")}>{description}</p>}
             <div {...style("flex mbs-6 flex-wrap items-center gap-x-5 gap-y-3 text-caption")}>
               <a href={markdownUrl} {...style("underline underline-offset-4")}>
                 View as Markdown{" "}
-                <span
-                  aria-hidden="true"
-                  {...style("icon-lucide--arrow-up-right align-middle")}
-                ></span>
+                <span aria-hidden="true" {...style("icon-lucide--arrow-right align-middle")}></span>
               </a>
               <button
                 type="button"
@@ -179,12 +251,61 @@ const paginationLink = style(
               <span role="status" data-copy-status {...style("text-muted")}></span>
             </div>
           </header>
+          {headings.length > 0 && (
+            <details
+              {...style(
+                "mbe-8 text-ui bg-surface rounded-panel border border-border docs-outline:hidden",
+              )}
+            >
+              <summary
+                {...style(
+                  "flex px-4 py-3 items-center justify-between list-none text-foreground font-medium cursor-pointer [&::-webkit-details-marker]:hidden",
+                )}
+              >
+                <span>On this page</span>
+                <span
+                  aria-hidden="true"
+                  {...style(
+                    "icon-lucide--chevron-down shrink-0 [details[open]>summary>&]:rotate-180",
+                  )}
+                ></span>
+              </summary>
+              <nav
+                aria-label="On this page (compact)"
+                {...style("px-4 pbs-2 pbe-4 border-border border-bs")}
+              >
+                <ul {...style("grid p-0 gap-1.5 list-none")}>
+                  {headings.map((heading) => (
+                    <li
+                      {...style("ps-[calc((var(--heading-depth)-2)*10px)]", {
+                        "--heading-depth": heading.depth,
+                      })}
+                    >
+                      <a
+                        href={`#${heading.slug}`}
+                        {...style(
+                          "block py-1 text-muted hover:text-foreground hover:underline hover:underline-offset-4",
+                        )}
+                      >
+                        {heading.text}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            </details>
+          )}
           <article {...style("docs-prose", { class: "docs-content" })} data-pagefind-body>
             <slot />
           </article>
           <footer {...style("grid mbs-16 gap-6 text-caption text-muted")}>
             {editUrl && (
-              <a href={editUrl} {...style("flex items-center gap-1.5 justify-self-start")}>
+              <a
+                href={editUrl}
+                {...style(
+                  "flex items-center gap-1.5 justify-self-start hover:text-foreground hover:underline hover:underline-offset-4",
+                )}
+              >
                 <span
                   aria-hidden="true"
                   {...style("icon-simple-icons--github align-middle")}
@@ -196,7 +317,7 @@ const paginationLink = style(
               <nav
                 aria-label="Documentation pages"
                 {...style(
-                  "grid pbs-6 grid-cols-2 gap-6 text-foreground text-small font-medium border-border border-bs",
+                  "grid pbs-6 grid-cols-2 gap-6 text-foreground text-small font-medium border-border border-bs max-inline:grid-cols-1",
                 )}
               >
                 {prevNext.prev && (
@@ -215,7 +336,10 @@ const paginationLink = style(
                 )}
                 {prevNext.next && (
                   <a
-                    {...style(paginationLink, "col-start-2 justify-end text-end")}
+                    {...style(
+                      paginationLink,
+                      "inline:col-start-2 inline:justify-end inline:text-end",
+                    )}
                     href={prevNext.next.href}
                     rel="next"
                     aria-label={`Next page: ${prevNext.next.label}`}
@@ -232,11 +356,17 @@ const paginationLink = style(
           </footer>
         </main>
         <nav
+          data-toc-nav
           {...style("docs-navigation", "max-docs-outline:hidden", {
             [documentRoot("data-floating-header")]: "inset-bs-22 max-block-[calc(100dvh-120px)]",
           })}
           aria-label="On this page"
         >
+          {headings.length > 0 && (
+            <p {...style("mbe-3 font-mono text-label text-muted tracking-[0.08em] uppercase")}>
+              On this page
+            </p>
+          )}
           <ul {...style("grid p-0 gap-1.5 list-none")}>
             {headings.map((heading) => (
               <li
@@ -247,7 +377,7 @@ const paginationLink = style(
                 <a
                   href={`#${heading.slug}`}
                   {...style(
-                    "block py-1 text-muted hover:text-foreground hover:underline hover:underline-offset-4",
+                    "block py-1 text-muted hover:text-foreground hover:underline hover:underline-offset-4 aria-[current=location]:text-foreground aria-[current=location]:font-medium",
                   )}
                 >
                   {heading.text}
@@ -275,6 +405,40 @@ const paginationLink = style(
   mount("[data-docs-page]", (page) =>
     mountDocsHeader(page.querySelector<HTMLElement>("[data-header-slot]")!),
   );
+  mount("[data-toc-nav]", (nav) => {
+    const links = [...nav.querySelectorAll<HTMLAnchorElement>('a[href^="#"]')];
+    const targets = links
+      .map((link) => ({
+        link,
+        heading: document.getElementById(link.getAttribute("href")!.slice(1)),
+      }))
+      .filter((entry): entry is { link: HTMLAnchorElement; heading: HTMLElement } =>
+        Boolean(entry.heading),
+      );
+    if (!targets.length) {
+      return () => {};
+    }
+    const update = () => {
+      let current = targets[0]!;
+      for (const entry of targets) {
+        if (entry.heading.getBoundingClientRect().top <= 120) {
+          current = entry;
+        } else {
+          break;
+        }
+      }
+      for (const { link } of targets) {
+        if (link === current.link) {
+          link.setAttribute("aria-current", "location");
+        } else {
+          link.removeAttribute("aria-current");
+        }
+      }
+    };
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    return () => window.removeEventListener("scroll", update);
+  });
   mount("[data-copy-markdown]", (button) => {
     const status = document.querySelector<HTMLElement>("[data-copy-status]")!;
     const copy = async () => {

@@ -9,7 +9,9 @@ import { style } from "stillwind/astro";
     "hidden mx-auto mbs-[12dvh] p-0 inline-[min(40rem,calc(100%-2rem))] max-block-[min(36rem,76dvh)] flex-col text-foreground bg-surface rounded-panel border border-border shadow-lg backdrop:bg-foreground/30 open:flex",
   )}
 >
-  <div {...style("flex px-4 items-center gap-3 border-border border-be")}>
+  <div
+    {...style("flex px-4 items-center gap-3 border-border border-be focus-within:border-action")}
+  >
     <span
       aria-hidden="true"
       {...style("icon-control icon-lucide--search shrink-0 text-muted")}
@@ -33,7 +35,7 @@ import { style } from "stillwind/astro";
       <button
         aria-label="Close search"
         {...style(
-          "px-1.5 py-0.5 font-mono text-label text-muted rounded-inline border border-border cursor-pointer hover:text-foreground",
+          "px-1.5 py-0.5 font-mono text-caption text-muted rounded-inline border border-border cursor-pointer hover:text-foreground",
         )}
       >
         Esc
@@ -41,7 +43,11 @@ import { style } from "stillwind/astro";
     </form>
   </div>
   <div {...style("overflow-y-auto p-2 min-block-40")}>
-    <p data-search-status role="status" {...style("py-8 text-center text-muted text-small")}>
+    <p
+      data-search-status
+      role="status"
+      {...style("py-8 text-center text-muted text-small data-results-present:sr-only")}
+    >
       Type to search the documentation.
     </p>
     <div data-search-results id="search-results" role="listbox" aria-label="Results" hidden></div>

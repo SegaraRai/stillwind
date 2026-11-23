@@ -186,7 +186,7 @@ export const featureTopics = [
           '  new: "delay-150 duration-150",',
         ].join("\n"),
         description:
-          "Pair an article's thumbnail, title, and metadata across its card and reading view. Timing utilities set each snapshot's animation, so the new snapshot fades in after the old one fades out. Call document.startViewTransition() to animate the view change.",
+          "Pair an article's thumbnail, title, and metadata across views with timing utilities, then trigger document.startViewTransition().",
       },
     ],
   },

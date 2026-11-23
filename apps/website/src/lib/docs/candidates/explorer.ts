@@ -35,7 +35,7 @@ export function mountCandidateExplorer(root: HTMLElement): () => void {
       applyStyle(card, style("candidate-result"));
       const header = document.createElement("div");
       applyStyle(header, style("candidate-result-header"));
-      const heading = document.createElement("h3");
+      const heading = document.createElement("h2");
       applyStyle(heading, style("candidate-result-title"));
       const name = document.createElement("code");
       name.textContent = match.candidate;
@@ -78,7 +78,7 @@ export function mountCandidateExplorer(root: HTMLElement): () => void {
         : []),
     ];
     status.textContent = !text.trim()
-      ? "Type a utility, variant, or CSS declarations."
+      ? "Type a utility, variant, or CSS declaration."
       : lookup.matches.length === 0
         ? `No utility, variant, or CSS declaration matches “${text.trim()}”.`
         : partial.length > 0

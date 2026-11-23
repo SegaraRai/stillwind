@@ -106,15 +106,14 @@ const frameworks = [
         </h2>
         <p {...style("max-inline-122.5 text-muted text-small/relaxed")}>
           Keep the component model you know. Add Stillwind to your build and import the style API
-          for your framework. Currently in early development.
+          for your framework. Stillwind is currently in early development.
         </p>
       </div>
       <a
         href={URL_DOCS}
         {...style("shrink-0 text-action-foreground bg-action action-link hover:bg-action-hover")}
       >
-        Read the setup guide{" "}
-        <span aria-hidden="true" {...style("icon-lucide--arrow-up-right")}></span>
+        Read the setup guide <span aria-hidden="true" {...style("icon-lucide--arrow-right")}></span>
       </a>
     </div>
     <nav
@@ -123,7 +122,15 @@ const frameworks = [
     >
       {frameworks.map((framework) => (
         <a
-          href={`/docs/integrations#${framework.name === "Astro" ? "astro" : "vite"}`}
+          href={`/docs/integrations#${
+            framework.name === "Astro"
+              ? "astro"
+              : framework.name === "Svelte"
+                ? "sveltekit"
+                : framework.name === "Vue"
+                  ? "import-style-for-your-framework"
+                  : "vite"
+          }`}
           {...style(frameworkLink, "framework-link")}
         >
           <span
@@ -139,7 +146,7 @@ const frameworks = [
           ></span>
           <span {...style("flex mbs-5 items-center justify-between text-small")}>
             {framework.name}
-            <span aria-hidden="true" {...style("icon-lucide--arrow-up-right text-muted")}></span>
+            <span aria-hidden="true" {...style("icon-lucide--arrow-right text-muted")}></span>
           </span>
           <span translate="no" {...style("block mbs-2 font-mono text-label text-muted")}>
             stillwind/{framework.name.toLowerCase()}
@@ -154,7 +161,7 @@ const frameworks = [
           Use Tailwind CSS v4 utilities, theme variables, and CSS directives. See the{" "}
           <a href="/docs/guides/migrating-from-tailwind" {...style("nav-link")}>
             migration guide{" "}
-            <span aria-hidden="true" {...style("icon-lucide--arrow-up-right align-middle")}></span>
+            <span aria-hidden="true" {...style("icon-lucide--arrow-right align-middle")}></span>
           </a>{" "}
           for configuration and plugin compatibility.
         </p>
@@ -165,7 +172,7 @@ const frameworks = [
           Utility strings, arrays, and conditions fit existing components.{" "}
           <a href="/docs/macros/cva" {...style("nav-link")}>
             CVA-compatible factories{" "}
-            <span aria-hidden="true" {...style("icon-lucide--arrow-up-right align-middle")}></span>
+            <span aria-hidden="true" {...style("icon-lucide--arrow-right align-middle")}></span>
           </a>{" "}
           are available when you need them.
         </p>
@@ -176,7 +183,7 @@ const frameworks = [
           Use{" "}
           <a href="/docs/guides/web-components" {...style("nav-link")}>
             explicit CSS exports{" "}
-            <span aria-hidden="true" {...style("icon-lucide--arrow-up-right align-middle")}></span>
+            <span aria-hidden="true" {...style("icon-lucide--arrow-right align-middle")}></span>
           </a>{" "}
           to place compiled styles in a Shadow DOM or another scope you control.
         </p>

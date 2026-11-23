@@ -1,4 +1,4 @@
-import { applyStyle, style, type StyleProps } from "stillwind/vanilla";
+import { applyStyle, style } from "stillwind/vanilla";
 
 import { loadPagefind, searchDocs, type SearchResult } from "./pagefind";
 
@@ -10,8 +10,10 @@ const option = style(
 );
 const optionTitle = style("block truncate text-foreground text-small font-medium");
 const optionExcerpt = style("line-clamp-2 mbs-1 text-caption text-muted search-excerpt");
-const optionSections = style("grid mbs-1.5 ps-3 border-border border-s");
-const optionSection = style("block truncate py-0.5 text-caption text-muted hover:text-foreground");
+const optionSections = style("grid mbs-1 ps-3 border-border border-s");
+const optionSection = style(
+  "block truncate px-2 py-1 text-caption text-muted rounded-control cursor-pointer hover:text-foreground hover:bg-surface-muted data-highlighted:text-foreground data-highlighted:bg-surface-muted",
+);
 
 /** Detail of the `search:open` event. */
 interface SearchOpenDetail {
@@ -41,9 +43,11 @@ export function mountSearchDialog(dialog: HTMLDialogElement): () => void {
   const highlight = (index: number) => {
     const items = options();
     active = items.length === 0 ? -1 : Math.max(0, Math.min(index, items.length - 1));
-    items.forEach((item, position) =>
-      item.toggleAttribute("data-highlighted", position === active),
-    );
+    items.forEach((item, position) => {
+      const selected = position === active;
+      item.toggleAttribute("data-highlighted", selected);
+      item.setAttribute("aria-selected", String(selected));
+    });
     if (active < 0) {
       input.removeAttribute("aria-activedescendant");
       return;
@@ -52,9 +56,14 @@ export function mountSearchDialog(dialog: HTMLDialogElement): () => void {
     items[active]!.scrollIntoView({ block: "nearest" });
   };
 
+  const navigate = (href: string) => {
+    dialog.close();
+    document.defaultView?.location.assign(href);
+  };
+
   const show = (message: string, results: readonly SearchResult[] = []) => {
     status.textContent = message;
-    status.hidden = results.length > 0;
+    status.toggleAttribute("data-results-present", results.length > 0);
     listbox.replaceChildren(...results.map(renderResult));
     // An empty listbox is invalid, so the listbox is hidden while it has no options.
     listbox.hidden = results.length === 0;
@@ -63,21 +72,17 @@ export function mountSearchDialog(dialog: HTMLDialogElement): () => void {
     input.removeAttribute("aria-activedescendant");
   };
 
-  const link = (text: string, href: string, styles: StyleProps) => {
-    const anchor = document.createElement("a");
-    anchor.href = href;
-    anchor.textContent = text;
-    anchor.tabIndex = -1;
-    applyStyle(anchor, styles);
-    return anchor;
-  };
-
   const renderResult = (result: SearchResult) => {
+    const group = document.createElement("div");
     const item = document.createElement("div");
     item.id = `search-result-${optionCount++}`;
     item.setAttribute("role", "option");
+    item.setAttribute("aria-selected", "false");
+    item.dataset.href = result.url;
     applyStyle(item, option);
-    const title = link(result.title, result.url, optionTitle);
+    const title = document.createElement("span");
+    title.textContent = result.title;
+    applyStyle(title, optionTitle);
     item.append(title);
     if (result.excerpt) {
       const excerpt = document.createElement("p");
@@ -85,22 +90,25 @@ export function mountSearchDialog(dialog: HTMLDialogElement): () => void {
       excerpt.innerHTML = result.excerpt;
       item.append(excerpt);
     }
+    item.addEventListener("click", () => navigate(result.url));
+    group.append(item);
     if (result.sections.length > 0) {
       const sections = document.createElement("div");
       applyStyle(sections, optionSections);
-      sections.append(
-        ...result.sections
-          .slice(0, 3)
-          .map((section) => link(section.title, section.url, optionSection)),
-      );
-      item.append(sections);
-    }
-    item.addEventListener("click", (event) => {
-      if (!(event.target as Element).closest("a")) {
-        title.click();
+      for (const section of result.sections.slice(0, 3)) {
+        const sub = document.createElement("div");
+        sub.id = `search-result-${optionCount++}`;
+        sub.setAttribute("role", "option");
+        sub.setAttribute("aria-selected", "false");
+        sub.dataset.href = section.url;
+        sub.textContent = section.title;
+        applyStyle(sub, optionSection);
+        sub.addEventListener("click", () => navigate(section.url));
+        sections.append(sub);
       }
-    });
-    return item;
+      group.append(sections);
+    }
+    return group;
   };
 
   const search = async (query: string) => {
@@ -109,11 +117,17 @@ export function mountSearchDialog(dialog: HTMLDialogElement): () => void {
       show("Type to search the documentation.");
       return;
     }
+    status.removeAttribute("data-results-present");
     status.textContent = "Searching…";
     try {
       const results = await searchDocs(query);
       if (id === latest) {
-        show(results.length > 0 ? "" : "No results found.", results);
+        show(
+          results.length > 0
+            ? `${results.length} ${results.length === 1 ? "result" : "results"} found.`
+            : "No results found.",
+          results,
+        );
       }
     } catch {
       if (id === latest) {
@@ -142,7 +156,10 @@ export function mountSearchDialog(dialog: HTMLDialogElement): () => void {
       } else if (event.key === "ArrowUp") {
         highlight(active - 1);
       } else if (event.key === "Enter" && active >= 0) {
-        options()[active]!.querySelector("a")!.click();
+        const href = options()[active]?.dataset.href;
+        if (href) {
+          navigate(href);
+        }
       } else {
         return;
       }
@@ -229,7 +246,10 @@ export function mountSearchTrigger(trigger: HTMLElement): () => void {
     navigator.userAgent;
   if (/mac|iphone|ipad|ipod/i.test(platform)) {
     trigger.setAttribute("aria-keyshortcuts", "Meta+K");
-    trigger.querySelector("[data-shortcut-key]")!.textContent = "⌘";
+    const shortcut = trigger.querySelector("[data-shortcut-key]");
+    if (shortcut) {
+      shortcut.textContent = "⌘";
+    }
   }
   return () => {};
 }

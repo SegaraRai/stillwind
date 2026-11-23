@@ -340,7 +340,7 @@ const results = [
                 [story("data-enhanced")]: [
                   "absolute inset-0 col-start-1 row-start-1 opacity-(--detail-opacity,0) pointer-events-none",
                   {
-                    "data-active:": "pointer-events-none",
+                    "data-active:": "pointer-events-auto",
                   },
                 ],
               })}
@@ -580,7 +580,14 @@ const results = [
           })}
         ></div>
       </div>
-      <p {...style("mbs-4 text-end font-mono text-label text-muted")}>
+      <p
+        {...style(
+          "mbs-4 text-end font-mono text-label text-muted transition-opacity motion-reduce:transition-none",
+          {
+            [story("data-scroll-complete")]: "opacity-0",
+          },
+        )}
+      >
         Scroll to explore{" "}
         <span aria-hidden="true" {...style("icon-lucide--arrow-down align-middle")}></span>
       </p>

@@ -17,7 +17,7 @@ let sceneStart = 0;
 /** Example intervals in viewport heights, excluding the gap that switches source examples. */
 export const featureScenes = featureTopics.flatMap((topic, scene) =>
   topic.frames.map((_, frame) => {
-    const duration = scene === 0 ? 0.5 : scene === 2 ? 1.2 : frame === 2 ? 1.4 : 1;
+    const duration = scene === 0 ? 0.35 : scene === 2 ? 0.75 : frame === 2 ? 0.85 : 0.65;
     const start = sceneStart;
     const end = start + duration;
     sceneStart = end + switchLength;

@@ -83,7 +83,7 @@ Reusable presentation utilities and the height conditions for scroll demonstrati
 }
 
 @utility feature-button {
-  @apply inline-flex items-center justify-center gap-2 py-2.5 px-4.5 border border-foreground rounded-control text-small/[1.3] whitespace-nowrap;
+  @apply inline-flex items-center justify-center gap-2 py-2.5 px-4.5 border border-foreground rounded-control text-small/[1.3] whitespace-nowrap cursor-pointer;
 
   @variant focus-visible {
     @apply outline-2 outline-accent outline-offset-4;
@@ -91,7 +91,7 @@ Reusable presentation utilities and the height conditions for scroll demonstrati
 }
 
 @utility demo-action {
-  @apply block inline-max mx-auto mbs-3.5 py-1 text-muted underline-offset-4 text-(length:--text-caption);
+  @apply block inline-max mx-auto mbs-3.5 py-1 text-muted underline-offset-4 text-(length:--text-caption) cursor-pointer;
 }
 
 @utility scoped-example {

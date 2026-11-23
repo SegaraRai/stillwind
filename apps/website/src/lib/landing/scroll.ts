@@ -61,6 +61,7 @@ export function trackScroll(element: HTMLElement, options: ScrollOptions = {}): 
     } else {
       element.style.removeProperty(property);
     }
+    element.removeAttribute?.("data-scroll-complete");
   };
   const update = () => {
     frame = undefined;
@@ -70,6 +71,7 @@ export function trackScroll(element: HTMLElement, options: ScrollOptions = {}): 
     const rect = element.getBoundingClientRect();
     const progress = scrollProgress(rect.top, rect.height, view.innerHeight);
     element.style.setProperty(property, progress.toFixed(5));
+    element.toggleAttribute?.("data-scroll-complete", progress >= 0.98);
     options.onProgress?.(progress);
   };
   const schedule = () => {

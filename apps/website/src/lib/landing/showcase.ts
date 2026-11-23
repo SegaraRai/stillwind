@@ -7,7 +7,7 @@ import { trackScroll } from "./scroll";
 export const showcaseScenes = [0, 1, 2, 2, 2, 3] as const;
 
 /** Scroll distance in viewport heights. */
-export const showcaseScrollLength = (showcaseScenes.length - 1) * 0.8;
+export const showcaseScrollLength = (showcaseScenes.length - 1) * 0.55;
 
 /** Media query that enables the pinned showcase. */
 export const showcaseMedia = style.media(

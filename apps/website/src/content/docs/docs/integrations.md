@@ -59,8 +59,7 @@ For Fresh, use Deno 2.9 or newer and register `fresh()` before `stillwind()` fro
 `@stillwind/integration/fresh` in the Vite configuration. The adapter keeps server
 and island classes consistent. Fresh's legacy Builder is unsupported.
 
-On Linux, and possibly macOS, Fresh development and builds fail with `Bad file descriptor (os error 9)`
-when Stillwind starts the TypeScript checker under Deno.
+> **Known issue (Deno / Fresh):** On Linux, and possibly macOS, Fresh development and builds can fail with `Bad file descriptor (os error 9)` when Stillwind starts the TypeScript checker under Deno.
 
 ## Vanilla JavaScript
 
@@ -253,6 +252,5 @@ The module sets up Vite and server rendering. Do not add the Vite plugin as well
 With webpack and Vue, place `StillwindPlugin` before `VueLoaderPlugin`. With
 standalone Turbopack, list every entry module of the application in `entries`.
 
-The [build integration reference](https://github.com/SegaraRai/stillwind/blob/main/docs/integrations.md)
-describes every option.
+For advanced options and host-specific contracts, see the [integration contract on GitHub](https://github.com/SegaraRai/stillwind/blob/main/docs/integrations.md).
 [How styles compile](/docs/concepts/how-styles-compile) explains how the CSS reaches the page.

@@ -38,16 +38,23 @@ const current = (item: SidebarItem): boolean =>
             ></span>
             {item.label}
           </summary>
-          {item.indexHref && (
-            <a
-              href={item.indexHref}
-              aria-current={item.indexHref === Astro.url.pathname ? "page" : undefined}
-              {...style("docs-navigation-link")}
-            >
-              Overview
-            </a>
-          )}
-          <DocsSidebar items={item.children} parent={groupKey(item.label)} />
+          <DocsSidebar
+            items={
+              item.indexHref
+                ? [
+                    {
+                      type: "link",
+                      label: "Overview",
+                      href: item.indexHref,
+                      order: -1,
+                      isCurrent: item.indexHref === Astro.url.pathname,
+                    },
+                    ...item.children,
+                  ]
+                : item.children
+            }
+            parent={groupKey(item.label)}
+          />
         </details>
       ) : (
         <a

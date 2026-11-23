@@ -13,6 +13,7 @@ Semantic tokens are shared by the website, documentation, and compiled examples.
   --color-foreground: light-dark(#202b35, #e4edff);
   --color-muted: light-dark(#596a78, #a8b8d4);
   --color-border: light-dark(#cad5e8, #3d506f);
+  --color-border-strong: light-dark(#7a8ca6, #6c83a6);
   --color-action: light-dark(#354fa2, #b6cdff);
   --color-action-foreground: light-dark(#f7faff, #172448);
   --color-action-hover: light-dark(#293f88, #96b6ff);
@@ -52,8 +53,8 @@ Semantic tokens are shared by the website, documentation, and compiled examples.
   --container-outline: 13rem;
   --container-prose: 48rem;
 
-  --text-label: 0.625rem;
-  --text-label--line-height: 1.6;
+  --text-label: 0.75rem;
+  --text-label--line-height: 1.5;
   --text-caption: 0.75rem;
   --text-caption--line-height: 1.6;
   --text-ui: 0.8125rem;

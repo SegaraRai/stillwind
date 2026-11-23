@@ -273,6 +273,7 @@ const stops = featureTopics.flatMap((topic, scene) =>
           },
         })}
 
+        role="group"
         aria-label="Examples"
       >
         <button
@@ -324,6 +325,7 @@ const stops = featureTopics.flatMap((topic, scene) =>
           ],
         })}
 
+        role="group"
         aria-label="Examples"
       >
         {stops.map((stop, index) => (
@@ -369,7 +371,7 @@ const stops = featureTopics.flatMap((topic, scene) =>
         })}
       >
         Explore the API{" "}
-        <span aria-hidden="true" {...style("icon-lucide--arrow-up-right align-middle")}></span>
+        <span aria-hidden="true" {...style("icon-lucide--arrow-right align-middle")}></span>
       </a>
     </div>
     <div
@@ -398,11 +400,15 @@ const stops = featureTopics.flatMap((topic, scene) =>
         ></span>
       </div>
       <p
-        {...style("mbs-4 text-end font-mono text-label text-muted", {
-          [features("data-enhanced")]: {
-            "max-inline:": "mbs-2.5",
+        {...style(
+          "mbs-4 text-end font-mono text-label text-muted transition-opacity motion-reduce:transition-none",
+          {
+            [features("data-scroll-complete")]: "opacity-0",
+            [features("data-enhanced")]: {
+              "max-inline:": "mbs-2.5",
+            },
           },
-        })}
+        )}
       >
         Scroll to explore{" "}
         <span aria-hidden="true" {...style("icon-lucide--arrow-down align-middle")}></span>

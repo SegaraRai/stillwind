@@ -249,24 +249,11 @@ const articleExcerpt = "Labels that make forms easier to complete.";
             {articles.map((title, cardIndex) => (
               <div
                 {...style(card, "scoped-example", {
-                  "aria-[pressed=true]:": "border-foreground",
                   "max-inline:": "p-2.5 inline-[calc((100%-12px)/2)]",
                 })}
               >
-                <p
-                  {...style("font-mono text-[9px]/normal text-muted", {
-                    "aria-[pressed=true]:": "border-foreground",
-                  })}
-                >
-                  ARTICLE
-                </p>
-                <p
-                  {...style("min-block-[2lh] text-ui/[1.45]", {
-                    "aria-[pressed=true]:": "border-foreground",
-                  })}
-                >
-                  {title}
-                </p>
+                <p {...style("font-mono text-label/normal text-muted")}>ARTICLE</p>
+                <p {...style("min-block-[2lh] text-ui/[1.45]")}>{title}</p>
                 <button
                   type="button"
                   data-scope-button
@@ -274,8 +261,7 @@ const articleExcerpt = "Labels that make forms easier to complete.";
                   aria-label={"Save " + title}
                   aria-pressed={cardIndex === 0 ? "true" : "false"}
                   {...style(button, "feature-button", {
-                    "aria-pressed:": "text-action-foreground bg-action",
-                    "aria-[pressed=true]:": "border-foreground",
+                    "aria-pressed:": "text-action-foreground bg-action border-foreground",
                     "max-outline:": "min-block-11",
                   })}
                 >
@@ -285,15 +271,9 @@ const articleExcerpt = "Labels that make forms easier to complete.";
                   aria-hidden="true"
                   {...style("opacity-0 transition-opacity", {
                     [button("aria-pressed").in(card)]: "opacity-100",
-                    "aria-[pressed=true]:": "border-foreground",
                   })}
                 >
-                  <span
-                    {...style("icon-lucide--check align-middle", {
-                      "aria-[pressed=true]:": "border-foreground",
-                    })}
-                  ></span>{" "}
-                  Saved
+                  <span {...style("icon-lucide--check align-middle")}></span> Saved
                 </span>
               </div>
             ))}
@@ -499,7 +479,7 @@ const articleExcerpt = "Labels that make forms easier to complete.";
                   {articles[0]}
                 </h3>
                 <p
-                  {...style("font-mono text-[9px]/normal text-muted tracking-[0.01em]")}
+                  {...style("font-mono text-label/normal text-muted tracking-[0.01em]")}
                   data-transition-slot="meta"
                 >
                   {articleMeta}
@@ -545,8 +525,9 @@ const articleExcerpt = "Labels that make forms easier to complete.";
               >
                 <ArticleThumbnail />
               </div>
-              <h3
+              <p
                 data-transition-element="title"
+                aria-hidden="true"
                 {...style("absolute inset-s-0 inset-bs-0 text-lead/[1.4] tracking-[-0.035em]", {
                   "max-inline:": "text-(length:--text-body)",
                   [documentRoot("[&:not([data-astro-transition])]")]: article.for("title"),
@@ -555,11 +536,12 @@ const articleExcerpt = "Labels that make forms easier to complete.";
                 })}
               >
                 {articles[0]}
-              </h3>
+              </p>
               <p
                 data-transition-element="meta"
+                aria-hidden="true"
                 {...style(
-                  "absolute inset-s-0 inset-bs-0 font-mono text-[9px]/normal text-muted tracking-[0.01em]",
+                  "absolute inset-s-0 inset-bs-0 font-mono text-label/normal text-muted tracking-[0.01em]",
                   {
                     [documentRoot("[&:not([data-astro-transition])]")]: article.for("meta"),
                     [features("data-motion-enabled")]:

@@ -40,7 +40,7 @@ Astro's client router animates navigation between pages with view transitions.
     --text-display: clamp(2.125rem, 10.5vw, 2.75rem);
     --text-code-display: clamp(1rem, 4.7vw, 1.5rem);
     --text-code-output: clamp(1.0625rem, 4.7vw, 1.375rem);
-    --text-code-feature: clamp(0.71875rem, 3.3vw, 0.8125rem);
+    --text-code-feature: clamp(0.75rem, 3.3vw, 0.8125rem);
   }
 
   @variant selection {

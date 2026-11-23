@@ -2,11 +2,11 @@ import type { MdastPluginInput } from "@cloudflare/nimbus-docs/types";
 
 /** Package managers in tab order. Documentation pages write their commands for `vp`. */
 export const packageManagers = [
-  { id: "vp", label: "Vite+" },
   { id: "npm", label: "npm" },
   { id: "pnpm", label: "pnpm" },
   { id: "yarn", label: "Yarn" },
   { id: "bun", label: "Bun" },
+  { id: "vp", label: "Vite+" },
 ] as const;
 
 export type PackageManager = (typeof packageManagers)[number]["id"];
@@ -140,7 +140,7 @@ export const packageManagerPlugin: MdastPluginInput = {
               hProperties: {
                 type: "button",
                 role: "tab",
-                ariaSelected: String(id === "vp"),
+                ariaSelected: String(id === "npm"),
                 dataPackageManager: id,
               },
             },
