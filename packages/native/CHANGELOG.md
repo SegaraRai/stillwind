@@ -1,5 +1,18 @@
 # @stillwind/native
 
+## 0.12.0
+
+### Patch Changes
+
+- Updated dependencies:
+  - @stillwind/native-darwin-arm64@0.12.0
+  - @stillwind/native-darwin-x64@0.12.0
+  - @stillwind/native-linux-arm64-gnu@0.12.0
+  - @stillwind/native-linux-x64-gnu@0.12.0
+  - @stillwind/native-wasm32-wasi@0.12.0
+  - @stillwind/native-win32-arm64-msvc@0.12.0
+  - @stillwind/native-win32-x64-msvc@0.12.0
+
 ## 0.11.0
 
 ### Patch Changes

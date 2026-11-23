@@ -1,5 +1,17 @@
 # @stillwind/config
 
+## 0.12.0
+
+### Minor Changes
+
+- Added project-scoped `hooks` (`defineHook` and `AnalysisHook` from `stillwind/config` and `@stillwind/config`) for in-memory formatting in `stillwind fmt` and `stillwind check`. Hooks support `setup`, `teardown`, and per-file `format` callbacks so formatters such as Oxfmt run after Stillwind utility sorting in one pass, including `--check`. `stillwind info` now also lists configured hook names.
+
+### Patch Changes
+
+- Updated dependencies:
+  - @stillwind/native@0.12.0
+  - @stillwind/projection@0.12.0
+
 ## 0.11.0
 
 ### Patch Changes

@@ -1,5 +1,34 @@
 # @stillwind/cli
 
+## 0.12.0
+
+### Minor Changes
+
+- Added `stillwind check` and `stillwind check --fix` to run lint checks and utility sorting in a single analysis pass. `stillwind check` reports lint findings and files that need sorting without saving, and exits with `1` when errors or unsorted files remain. `stillwind check --fix` applies converged automatic fixes and utility sorting, saves changed files, and reports findings for the final sources. `@stillwind/analysis/node` exports the corresponding `check()` function, and `stillwind`'s agent instructions now recommend `stillwind check --fix`.
+
+- Added `stillwind info` (and `info()` in `@stillwind/analysis/node`) to report each project's resolved root, stylesheet path, target and exclude globs, matched file count, registered plugins, sorting and `typeFacts` settings, and active lint rules in text or JSON format without compiling source files.
+
+- Add `--limit <n>` to `stillwind check` and `stillwind lint` to cap displayed diagnostics while preserving full counts and exit codes, add `summary.byCode` and `summary.omittedDiagnostics` to `--format json`, and expose working-directory-relative `file` paths with 1-based `line` and `column` fields directly on JSON diagnostics and inspect previews.
+
+- `stillwind utilities` and `stillwind variants` now accept `--names-only` to list matching names without formatting CSS previews. Pattern searches in `stillwind utilities` now also include placeholder patterns for functional utilities' non-enumerable domains, such as `p-<number>` and `p-[<length-percentage>]` (`kind: "pattern"` in JSON). `stillwind theme` now includes resolved values for tokens that reference other theme variables (`resolvedValue` in JSON, and inline comments in text output).
+
+- Diagnostic actions in CLI output now distinguish automatic fixes from manual suggestions (`actions[].autofix`, `summary.autofixable`, and `(autofix)` / `(suggestion)` labels in text output), and the `--fix` hint is shown only when automatic fixes are available. `stillwind inspect` now explains why no previews were returned (`emptyReason`: `no-styles`, `line-out-of-range`, `column-out-of-range`, or `no-match-at-position`). Uncompiled runtime placeholder errors for every `style.*` macro now include guidance on build integration ordering and `docs/integrations.md`.
+
+- Added project-scoped `hooks` (`defineHook` and `AnalysisHook` from `stillwind/config` and `@stillwind/config`) for in-memory formatting in `stillwind fmt` and `stillwind check`. Hooks support `setup`, `teardown`, and per-file `format` callbacks so formatters such as Oxfmt run after Stillwind utility sorting in one pass, including `--check`. `stillwind info` now also lists configured hook names.
+
+### Patch Changes
+
+- The `stillwind` package now bundles `docs/llms.txt`, a single-file index of all bundled Markdown documentation pages with relative paths and descriptions, and updates `AGENTS_TEMPLATE.md` and `skills/stillwind/SKILL.md` so coding agents can look up design-system tokens, utilities, and generated CSS without broken cross-skill links. The public `style()` overload now appears before the internal checker overload so TypeScript diagnostics report the public signature first. `stillwind inspect` now prints `docs:` lines for findings in text output, matching `stillwind lint`.
+
+- Make editor integrations clearer. The VS Code extension shows a Stillwind status bar item that tells whether the project's `@stillwind/cli` or the bundled language server runs, and opens the output channel on click. A change to `stillwind.configFile` restarts the language server. **Stillwind: Sort Utilities** reports in the status bar when the utilities are already sorted. Stillwind at-rules in CSS files show descriptions and syntax on hover and in completion, and the Command Palette no longer lists internal commands. Diagnostics use `stillwind` as their source, and add the project path only when several projects report on the same file. Color utilities complete with color swatches, completion lists report when the catalog has more entries than they show, resolved completions keep their detail, Quick Fixes link to their diagnostics and mark the primary fix as preferred, and hovers name the project only when several projects give different results. The Prettier `stillwindConfig` option describes every `stillwind.config.*` format.
+
+- Make CLI and build output easier to read. `stillwind --help` now highlights headings and options, lists `--format files` only for `stillwind fmt`, and suggests valid commands and `--help` for an unknown command or option. Text output colors file paths, codes, `note:`, `help:`, and `docs:` labels, shows `[project N]` only when results come from several projects, and gives `stillwind inspect` diagnostics the same colors and docs links. Compiler and lint messages no longer show internal byte offsets or debug values, name the conflicting framework and source format for `SW02001`, show the rejected prefix for `SW01001`, and use consistent punctuation and backticks. Unterminated blocks, nesting overflows, and syntax errors in CSS now point at the failing character instead of the whole stylesheet. When the failing CSS has no document URI, such as CSS that a plugin generates, the error message names that source and the byte offset. Vite reports compile errors in the error overlay with a clickable location and a code frame, and build warnings use the `stillwind: <rule>: <message> (<path>:<line>:<column>)` form.
+
+- Updated dependencies:
+  - @stillwind/analysis@0.12.0
+  - @stillwind/language-server@0.12.0
+  - @stillwind/native@0.12.0
+
 ## 0.11.0
 
 ### Patch Changes
