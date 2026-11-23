@@ -4,9 +4,16 @@ import { fileURLToPath } from "node:url";
 
 import type { DesignSystemRequest, EditorRequest, WorkspaceResult } from "@stillwind/host";
 
-import { RewriteFailure, type RewriteInput, type RewriteBatchResult } from "./rewrite.ts";
+import {
+  RewriteFailure,
+  type RewriteBatchResult,
+  type RewriteInput,
+  type RewriteOperation,
+} from "./rewrite.ts";
 
-/** Requests sent to the process that owns trusted config evaluation and plugin lifetimes. */
+/**
+ * Requests sent to the process that owns trusted config evaluation and plugin lifetimes.
+ */
 export type WorkerRequest =
   | {
       /** Serialized discriminator for replacing the child workspace. */
@@ -33,8 +40,8 @@ export type WorkerRequest =
       method: "rewrite";
       /** Distinct absolute target paths and captured text, retained in result order. */
       inputs: readonly RewriteInput[];
-      /** Selects one sort pass or lint fixes that must converge. */
-      operation: "sort" | "fixes";
+      /** Selects one sort pass, lint fixes that must converge, or converged fixes followed by sorting. */
+      operation: RewriteOperation;
     }
   | {
       /** Serialized discriminator for preparing a batch of targets. */
@@ -99,7 +106,9 @@ export type WorkerRequest =
       method: "close";
     };
 
-/** IPC response correlated with one request. Successful void operations can omit value. */
+/**
+ * IPC response correlated with one request. Successful void operations can omit value.
+ */
 export interface WorkerReply {
   /** Request sequence number assigned by AnalysisWorker. */
   id: number;
@@ -112,7 +121,9 @@ export interface WorkerReply {
   };
 }
 
-/** Isolates configuration and plugin logs from CLI JSON and the LSP stdout transport. */
+/**
+ * Isolates configuration and plugin logs from CLI JSON and the LSP stdout transport.
+ */
 export class AnalysisWorker {
   /** Owned child with IPC enabled. Both output streams are forwarded to the parent's stderr. */
   readonly #child: ChildProcess;
@@ -275,7 +286,7 @@ export class AnalysisWorker {
    */
   rewrite(
     inputs: readonly RewriteInput[],
-    operation: "sort" | "fixes",
+    operation: RewriteOperation,
   ): Promise<RewriteBatchResult> {
     return this.request({
       method: "rewrite",

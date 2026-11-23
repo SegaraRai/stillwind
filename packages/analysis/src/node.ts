@@ -7,6 +7,7 @@
  * language server.
  */
 
+export { check, type CheckResult } from "./check.ts";
 export { format, type FormatResult } from "./format.ts";
 export { designSystem, type DesignSystemAnswer } from "./design-system.ts";
 export {

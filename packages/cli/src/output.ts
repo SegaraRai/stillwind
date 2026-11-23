@@ -165,7 +165,7 @@ export function renderResult(
   for (const failure of result.failures) {
     lines.push(renderFailure(failure, options.format === "github", file, color));
   }
-  if (result.command === "fmt") {
+  if (result.command === "fmt" || result.command === "check") {
     for (const changed of result.changed) {
       if (options.format === "github" && options.check) {
         lines.push(
@@ -177,9 +177,15 @@ export function renderResult(
         );
       } else {
         const location = { uri: changed, startLine: 0, startColumn: 0 };
-        lines.push(
-          `${link(file(changed), location, hyperlinks)}${options.format === "text" ? (options.check ? ": needs formatting" : ": formatted") : ""}`,
-        );
+        const status =
+          options.format !== "text"
+            ? ""
+            : options.check
+              ? ": needs formatting"
+              : result.command === "check"
+                ? ": updated"
+                : ": formatted";
+        lines.push(`${link(file(changed), location, hyperlinks)}${status}`);
       }
     }
   }
@@ -269,12 +275,16 @@ export function renderResult(
                 ? `${count(summary.changed, "file")} ${summary.changed === 1 ? "needs" : "need"} formatting.`
                 : `All selected files are formatted (${summary.files} checked).`
               : `Formatted ${count(summary.changed, "file")} (${summary.files} checked).`
-            : `${count(summary.errors, "error")}, ${count(summary.warnings, "warning")} in ${count(summary.files, "file")}${summary.failures ? `; ${count(summary.failures, "execution failure")}` : ""}.`,
+            : result.command === "check"
+              ? `${count(summary.errors, "error")}, ${count(summary.warnings, "warning")} in ${count(summary.files, "file")}${summary.changed ? (options.check ? `; ${count(summary.changed, "file")} ${summary.changed === 1 ? "needs" : "need"} formatting` : `; updated ${count(summary.changed, "file")}`) : ""}${summary.failures ? `; ${count(summary.failures, "execution failure")}` : ""}.`
+              : `${count(summary.errors, "error")}, ${count(summary.warnings, "warning")} in ${count(summary.files, "file")}${summary.failures ? `; ${count(summary.failures, "execution failure")}` : ""}.`,
     );
     const suggestions = result.diagnostics.filter(({ report }) => report.actions.length > 0).length;
-    if (result.command === "lint" && suggestions) {
+    if ((result.command === "lint" || result.command === "check") && suggestions) {
       lines.push(
-        `help: Suggested edits are available for ${count(suggestions, "diagnostic")}. Run stillwind lint --fix to apply automatic fixes.`,
+        result.command === "check"
+          ? `help: Suggested edits are available for ${count(suggestions, "diagnostic")}. Run stillwind check --fix to apply automatic fixes and sort utilities.`
+          : `help: Suggested edits are available for ${count(suggestions, "diagnostic")}. Run stillwind lint --fix to apply automatic fixes.`,
       );
     }
   }

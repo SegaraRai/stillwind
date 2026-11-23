@@ -8,7 +8,7 @@ import { documentationPage, stillwindRoot } from "./documentation.ts";
  */
 export type DesignCommand = "theme" | "utilities" | "variants";
 
-export type CliCommand = "lint" | "fmt" | "inspect" | DesignCommand | null;
+export type CliCommand = "check" | "lint" | "fmt" | "inspect" | DesignCommand | null;
 
 export type CliDiagnostic = ReturnType<typeof lintReports>[number] & {
   /** Absolute path or URL of the page that explains the report code. */
@@ -102,7 +102,7 @@ export function cliResult(
   const { tokens = [], candidates = [], unmatched = [] } = result;
   const invalidCandidates = candidates.filter(({ valid }) => !valid).length;
   const diagnostics: CliDiagnostic[] = lintReports(
-    command !== "lint"
+    command !== "lint" && command !== "check"
       ? result.results.filter(
           ({ result }) => result.status !== "complete" || failedFiles.has(result.entry),
         )

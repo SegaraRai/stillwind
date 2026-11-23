@@ -402,3 +402,68 @@ test("lint --fix replaces variant headers in stylesheets with @variant", async (
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("check reports lint and sorting together, and check --fix applies fixes and sorting in one pass", async () => {
+  const root = await mkdtemp(path.resolve(import.meta.dirname, "../../host/.test-cli-check-"));
+  try {
+    await writeFile(
+      path.join(root, "stillwind.config.ts"),
+      'import {lintPresets} from "stillwind/config";export default {projects:[{css:"root.css",files:["*.tsx"],typeFacts:false,lint:{extends:[lintPresets.recommended],rules:{"prefer-sorted-utilities":"off"}}}]}',
+    );
+    await writeFile(
+      path.join(root, "root.css"),
+      "@utility block{display:block} @utility p-4{padding:1rem} @custom-variant hover (&:hover); @stillwind-slot utilities;",
+    );
+    const file = path.join(root, "entry.tsx");
+    const source =
+      'import {style} from "stillwind/react";\nexport const a = style("hover:hover:block p-4");\nexport const b = style("missing");\n';
+    await writeFile(file, source);
+
+    const readonly = await run(root, ["check", "--format", "json"]);
+    expect(readonly.code, readonly.stderr).toBe(1);
+    const readonlyJson = JSON.parse(readonly.stdout);
+    expect(readonlyJson.command).toBe("check");
+    expect(readonlyJson.changed.map((changed: string) => path.normalize(changed))).toEqual([file]);
+    expect(
+      readonlyJson.diagnostics.map(({ report }: { report: { code: string } }) => report.code),
+    ).toEqual(expect.arrayContaining(["redundant-variant", "unknown-utility"]));
+    expect(await readFile(file, "utf8")).toBe(source);
+
+    const fixed = await run(root, ["check", "--fix", "--format", "json"]);
+    expect(fixed.code, fixed.stderr).toBe(1);
+    const fixedJson = JSON.parse(fixed.stdout);
+    expect(fixedJson.changed.map((changed: string) => path.normalize(changed))).toEqual([file]);
+    expect(
+      fixedJson.diagnostics.map(({ report }: { report: { code: string } }) => report.code),
+    ).toEqual(["unknown-utility"]);
+    expect(await readFile(file, "utf8")).toBe(
+      'import {style} from "stillwind/react";\nexport const a = style("p-4 hover:block");\nexport const b = style("missing");\n',
+    );
+
+    const cleanSource =
+      'import {style} from "stillwind/react";\nexport const a = style("p-4 block");\n';
+    await writeFile(file, cleanSource);
+    const onlyUnsorted = await run(root, ["check", "--format", "json"]);
+    expect(onlyUnsorted.code, onlyUnsorted.stderr).toBe(1);
+    expect(JSON.parse(onlyUnsorted.stdout)).toMatchObject({
+      diagnostics: [],
+      summary: { errors: 0, warnings: 0, changed: 1 },
+    });
+
+    const sortedFix = await run(root, ["check", "--fix"]);
+    expect(sortedFix.code, sortedFix.stderr).toBe(0);
+    expect(sortedFix.stdout).toContain("entry.tsx: updated");
+    expect(await readFile(file, "utf8")).toBe(
+      'import {style} from "stillwind/react";\nexport const a = style("block p-4");\n',
+    );
+
+    const timestamp = new Date("2020-01-01T00:00:00Z");
+    await utimes(file, timestamp, timestamp);
+    const before = (await stat(file)).mtimeMs;
+    expect((await run(root, ["check"])).code).toBe(0);
+    expect((await run(root, ["check", "--fix"])).code).toBe(0);
+    expect((await stat(file)).mtimeMs).toBe(before);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

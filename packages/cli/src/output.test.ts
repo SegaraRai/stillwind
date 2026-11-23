@@ -277,3 +277,48 @@ test("quiet counts warnings before hiding them and incomplete execution takes pr
     exitCode: 2,
   });
 });
+
+test("check renders combined lint findings and formatting status for readonly and fix modes", () => {
+  const readonly = cliResult(
+    "check",
+    {
+      config: "config.ts",
+      changed: [file],
+      results: analysis.results,
+    },
+    {
+      check: true,
+    },
+  );
+  expect(readonly.exitCode).toBe(1);
+  expect(readonly.diagnostics).toHaveLength(2);
+  const readonlyText = renderResult(readonly, { ...options, check: true });
+  expect(readonlyText).toContain(`${path.basename(file)}:3:4: error unknown-utility`);
+  expect(readonlyText).toContain(`${path.basename(file)}: needs formatting`);
+  expect(readonlyText).toContain("2 errors, 0 warnings in 1 file; 1 file needs formatting.");
+  expect(renderResult(readonly, { ...options, format: "github", check: true })).toContain(
+    "Run stillwind fmt.",
+  );
+
+  const fixed = cliResult(
+    "check",
+    {
+      config: "config.ts",
+      changed: [file],
+      results: [
+        {
+          ...analysis.results[0],
+          result: {
+            ...analysis.results[0].result,
+            reports: [],
+          },
+        },
+      ],
+    },
+    { check: false },
+  );
+  expect(fixed.exitCode).toBe(0);
+  const fixedText = renderResult(fixed, { ...options, check: false });
+  expect(fixedText).toContain(`${path.basename(file)}: updated`);
+  expect(fixedText).toContain("0 errors, 0 warnings in 1 file; updated 1 file.");
+});

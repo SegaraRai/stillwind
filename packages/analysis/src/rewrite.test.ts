@@ -202,3 +202,76 @@ test("source edits use original UTF-16 ranges and reject invalid plans", () => {
     ]),
   ).toThrow("Invalid");
 });
+
+test("fixes-and-sort sorts after fixes converge and re-analyzes when sorting changes buffers", async () => {
+  const buffers = new Map<string, string>();
+  const analyzed: string[] = [];
+  const workspace: ConstructorParameters<typeof SourceRewriter>[0] = {
+    invalidate: vi.fn(),
+    update: (file, source) => {
+      buffers.set(file, source);
+    },
+    closeDocument: vi.fn(),
+    analyze: async (file) => {
+      const current = buffers.get(file)!;
+      analyzed.push(current);
+      return [
+        {
+          project: 0,
+          config: "config",
+          result: {
+            entry: file,
+            revision: analyzed.length,
+            status: "complete",
+            reports: [],
+          },
+        },
+      ];
+    },
+    query: async (file, request) => {
+      const before = buffers.get(file)!;
+      const after =
+        request.kind === "fixes"
+          ? before === "raw"
+            ? "fixed"
+            : before
+          : request.kind === "sort" && before === "fixed"
+            ? "sorted"
+            : before;
+      return [
+        {
+          project: 0,
+          config: "config",
+          result: {
+            revision: fingerprint(before),
+            edits:
+              after === before
+                ? []
+                : [
+                    {
+                      start: 0,
+                      end: before.length,
+                      newText: after,
+                    },
+                  ],
+          },
+        },
+      ];
+    },
+  };
+  const result = await new SourceRewriter(workspace).rewrite(
+    [{ file: "entry.tsx", source: "raw" }],
+    "fixes-and-sort",
+  );
+  expect(result.failures).toEqual([]);
+  expect(result.outputs).toMatchObject([
+    {
+      file: "entry.tsx",
+      code: "sorted",
+      edits: [],
+    },
+  ]);
+  expect(analyzed.at(-1)).toBe("sorted");
+  expect(result.outputs[0].results[0].result.revision).toBe(analyzed.length);
+  expect(workspace.closeDocument).toHaveBeenCalledTimes(1);
+});

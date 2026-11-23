@@ -4,7 +4,7 @@ import path from "node:path";
 import { findConfiguration } from "@stillwind/config/node";
 import type { WorkspaceResult } from "@stillwind/host";
 
-import type { RewriteFileFailure, RewriteInput } from "./rewrite.ts";
+import type { RewriteFileFailure, RewriteInput, RewriteOperation } from "./rewrite.ts";
 import { AnalysisWorker } from "./worker-client.ts";
 import { writeChangedFiles } from "./write.ts";
 
@@ -38,7 +38,7 @@ interface RewriteFilesResult {
  * Computes all replacements before optionally saving changed files. Fixes return final findings.
  *
  * @param options - Configuration discovery and optional filters within configured target scopes.
- * @param operation - Utility sorting or converged lint fixes.
+ * @param operation - Utility sorting, converged lint fixes, or converged lint fixes followed by sorting.
  * @param write - Whether to verify and save changed bytes after every replacement is planned.
  * @returns Configuration, sorted changed paths, findings, and independent target failures.
  * Saving reports only paths whose writes succeeded. Check mode reports planned changes.
@@ -46,7 +46,7 @@ interface RewriteFilesResult {
  */
 export async function rewriteFiles(
   options: RewriteOptions,
-  operation: "sort" | "fixes",
+  operation: RewriteOperation,
   write: boolean,
 ): Promise<RewriteFilesResult> {
   const config = resolveRewriteConfig(options);

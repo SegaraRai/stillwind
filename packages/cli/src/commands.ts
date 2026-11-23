@@ -19,6 +19,19 @@ import {
 import { displayEnabled, writeResult, type OutputOptions } from "./output.ts";
 import { cliResult, failureResult, type CliCommand, type DesignCommand } from "./result.ts";
 
+const checkArgs = {
+  ...targetArgs,
+  ...warningArgs,
+  format: {
+    ...outputArgs.format,
+    options: ["text", "json", "github"] as ("text" | "json" | "github")[],
+  },
+  fix: {
+    type: "boolean",
+    description: "Apply converged automatic fixes and sort utilities",
+  },
+} as const;
+
 const fmtArgs = {
   ...targetArgs,
   check: {
@@ -95,6 +108,35 @@ const lspArgs = {
 } as const;
 
 const subCommands = {
+  check: defineCommand({
+    meta: {
+      name: "check",
+      description: "Check Stillwind lint and utility sorting",
+    },
+    args: checkArgs,
+    plugins: [strictArguments],
+    async run({ args, data }) {
+      const options = data as OutputOptions;
+      const maxWarnings = warningLimit(args["max-warnings"]);
+      options.check = !args.fix;
+      options.quiet = args.quiet;
+      options.maxWarnings = maxWarnings;
+      const { check } = await import("@stillwind/analysis/node");
+      const analysis = await check({
+        config: args.config,
+        cwd: options.cwd,
+        patterns: args._,
+        fix: args.fix,
+      });
+      const result = cliResult("check", analysis, {
+        check: !args.fix,
+        quiet: args.quiet,
+        maxWarnings,
+      });
+      await writeResult(result, options);
+      process.exitCode = result.exitCode;
+    },
+  }),
   fmt: defineCommand({
     meta: {
       name: "fmt",
@@ -264,6 +306,7 @@ export async function runCli(rawArgs = process.argv.slice(2)): Promise<void> {
 
   try {
     const invocation = parseInvocation(rawArgs, {
+      ...checkArgs,
       ...fmtArgs,
       ...lintArgs,
       ...inspectArgs,
@@ -272,6 +315,7 @@ export async function runCli(rawArgs = process.argv.slice(2)): Promise<void> {
       ...lspArgs,
     });
     name =
+      invocation.name === "check" ||
       invocation.name === "fmt" ||
       invocation.name === "lint" ||
       invocation.name === "inspect" ||
@@ -313,7 +357,7 @@ export async function runCli(rawArgs = process.argv.slice(2)): Promise<void> {
       }
       if (!invocation.name) {
         throw new Error(
-          "A command is required: fmt, lint, inspect, theme, utilities, variants, or lsp",
+          "A command is required: check, fmt, lint, inspect, theme, utilities, variants, or lsp",
         );
       }
       await runCommand(subCommands[invocation.name as keyof typeof subCommands] as CommandDef, {

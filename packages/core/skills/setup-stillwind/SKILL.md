@@ -28,8 +28,7 @@ If the project already styles its pages with Tailwind CSS or other CSS, follow
    extensions of the frameworks that the project uses.
 5. Register the integration as the integration page describes. Keep the plugin
    order that it requires, such as Stillwind before the JSX transform.
-6. Add `stillwind lint` and `stillwind fmt --check` to the project's check
-   scripts or CI when the project has them.
+6. Add `stillwind check` to the project's check scripts or CI when the project has them.
 7. A starter template often includes demo styles, such as `App.css`. Ask the
    user whether to rewrite the demo components with `style()` or to remove the
    demo.

@@ -1,7 +1,14 @@
 import type { AnalysisWorkspace, EditorEdit, WorkspaceResult } from "@stillwind/host";
 import { fingerprint } from "@stillwind/native";
 
-/** Failed rewrite planning with the analysis results that prevented writing. */
+/**
+ * Rewrite mode: utility sorting, converged lint fixes, or converged lint fixes followed by sorting.
+ */
+export type RewriteOperation = "sort" | "fixes" | "fixes-and-sort";
+
+/**
+ * Failed rewrite planning with the analysis results that prevented writing.
+ */
 export class RewriteFailure extends Error {
   constructor(
     message: string,
@@ -12,7 +19,9 @@ export class RewriteFailure extends Error {
   }
 }
 
-/** Original buffer and ranges excluded by a formatter adapter. Paths are absolute. */
+/**
+ * Original buffer and ranges excluded by a formatter adapter. Paths are absolute.
+ */
 export interface RewriteInput {
   /** Absolute target path used for workspace membership and dependency resolution. */
   file: string;
@@ -27,7 +36,9 @@ export interface RewriteInput {
   }[];
 }
 
-/** Replacement text and independent project findings for one original buffer. */
+/**
+ * Replacement text and independent project findings for one original buffer.
+ */
 export interface RewriteResult {
   /** Absolute path copied from the corresponding input. */
   file: string;
@@ -39,7 +50,9 @@ export interface RewriteResult {
   results: WorkspaceResult[];
 }
 
-/** A target that could not be read, rewritten, or saved. */
+/**
+ * A target that could not be read, rewritten, or saved.
+ */
 export interface RewriteFileFailure {
   /** Absolute path of the failed target. */
   file: string;
@@ -49,7 +62,9 @@ export interface RewriteFileFailure {
   results: WorkspaceResult[];
 }
 
-/** Independent target outcomes from a shared set of captured buffers. */
+/**
+ * Independent target outcomes from a shared set of captured buffers.
+ */
 export interface RewriteBatchResult {
   /** Successful replacements in input order. */
   outputs: RewriteResult[];
@@ -57,7 +72,9 @@ export interface RewriteBatchResult {
   failures: RewriteFileFailure[];
 }
 
-/** Owns buffer versions while computing changes against one workspace. Calls must be serialized. */
+/**
+ * Owns buffer versions while computing changes against one workspace. Calls must be serialized.
+ */
 export class SourceRewriter {
   /** Increasing version assigned to every buffer in each rewrite pass. */
   #version = 0;
@@ -82,18 +99,20 @@ export class SourceRewriter {
    * buffers are removed even when rewriting fails. Preparation runs once before each pass's per-file queries.
    *
    * @param inputs - Distinct absolute paths and complete text. Only sorting uses protected ranges.
-   * @param operation - One sort pass or lint-fix passes until the text stops changing.
+   * @param operation - One sort pass, lint-fix passes until the text stops changing, or converged
+   * lint fixes followed by a sort pass and final analysis when sorting changes any buffer.
    * @returns Successful buffers and failures in input order. Failed buffers retain their original
    * text in subsequent passes. Fixes return no edits because their offsets span several passes.
    * @throws If paths repeat or workspace invalidation, preparation, buffer installation, or cleanup fails.
    */
   async rewrite(
     inputs: readonly RewriteInput[],
-    operation: "sort" | "fixes",
+    operation: RewriteOperation,
   ): Promise<RewriteBatchResult> {
     if (new Set(inputs.map((input) => input.file)).size !== inputs.length) {
       throw new Error("Rewrite inputs must have distinct file paths");
     }
+    const loopOperation = operation === "sort" ? "sort" : "fixes";
     let buffers = inputs;
     const failures = new Map<string, RewriteFileFailure>();
     const originals = new Map(inputs.map((input) => [input.file, input.source]));
@@ -119,8 +138,8 @@ export class SourceRewriter {
             continue;
           }
           try {
-            const output = await this.#rewriteBuffer(input, operation);
-            if (operation === "fixes" && output.code !== input.source) {
+            const output = await this.#rewriteBuffer(input, loopOperation);
+            if (loopOperation === "fixes" && output.code !== input.source) {
               const history = seen.get(input.file)!;
               if (history.has(snapshot)) {
                 throw new RewriteFailure("Stillwind fixes did not converge", output.results);
@@ -141,7 +160,10 @@ export class SourceRewriter {
             changed ||= input.source !== originals.get(input.file);
           }
         }
-        if (operation === "sort" || !changed) {
+        if (loopOperation === "sort" || !changed) {
+          if (operation === "fixes-and-sort") {
+            return await this.#sortAndAnalyze(inputs, buffers, failures);
+          }
           return {
             outputs: outputs.map((output) => ({
               ...output,
@@ -164,6 +186,67 @@ export class SourceRewriter {
         this.workspace.closeDocument(input.file);
       }
     }
+  }
+
+  /**
+   * Runs one sort pass on buffers that survived lint fixes and re-analyzes surviving targets when
+   * sorting changes any buffer, so returned diagnostics match the final text and positions.
+   *
+   * @param inputs - Original rewrite inputs, used to preserve result order and restore failed
+   * targets when installing sorted buffers.
+   * @param buffers - Converged post-fix buffers already installed and prepared in the workspace.
+   * @param failures - Accumulated per-file failures keyed by path. Targets whose sort pass fails
+   * are added to this map.
+   * @returns Successful outputs and failures in input order. Outputs carry empty `edits` because
+   * replacements span multiple passes.
+   * @throws If installing, preparing, or re-analyzing the sorted buffers fails.
+   */
+  async #sortAndAnalyze(
+    inputs: readonly RewriteInput[],
+    buffers: readonly RewriteInput[],
+    failures: Map<string, RewriteFileFailure>,
+  ): Promise<RewriteBatchResult> {
+    const outputs: RewriteResult[] = [];
+    let sortedChanged = false;
+    for (const input of buffers) {
+      if (failures.has(input.file)) {
+        continue;
+      }
+      try {
+        const output = await this.#rewriteBuffer(input, "sort");
+        if (output.code !== input.source) {
+          sortedChanged = true;
+        }
+        outputs.push({
+          ...output,
+          edits: [],
+        });
+      } catch (error) {
+        failures.set(input.file, {
+          file: input.file,
+          message: error instanceof Error ? error.message : String(error),
+          results: error instanceof RewriteFailure ? error.results : [],
+        });
+      }
+    }
+    if (sortedChanged && outputs.length) {
+      const replacements = new Map(outputs.map((output) => [output.file, output.code]));
+      const version = ++this.#version;
+      for (const input of inputs) {
+        this.workspace.update(input.file, replacements.get(input.file) ?? input.source, version);
+      }
+      await this.workspace.prepare?.(outputs.map((output) => output.file));
+      for (const output of outputs) {
+        output.results = await this.workspace.analyze(output.file);
+      }
+    }
+    return {
+      outputs,
+      failures: inputs.flatMap((input) => {
+        const failure = failures.get(input.file);
+        return failure ? [failure] : [];
+      }),
+    };
   }
 
   /**

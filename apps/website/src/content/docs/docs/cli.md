@@ -16,19 +16,47 @@ To run the CLI in CI, see [Checks in the editor and CI](/docs/guides/lint-adopti
 
 ## Commands
 
-| Command               | Action                                               |
-| --------------------- | ---------------------------------------------------- |
-| `stillwind fmt`       | Sorts utilities                                      |
-| `stillwind lint`      | Reports lint findings, and can apply automatic fixes |
-| `stillwind inspect`   | Shows the CSS that source code generates             |
-| `stillwind theme`     | Lists the theme tokens of the project                |
-| `stillwind utilities` | Checks or searches utilities                         |
-| `stillwind variants`  | Checks or searches variants                          |
-| `stillwind lsp`       | Starts the language server                           |
+| Command               | Action                                                                 |
+| --------------------- | ---------------------------------------------------------------------- |
+| `stillwind check`     | Runs lint and utility sorting checks, and can fix and sort in one pass |
+| `stillwind fmt`       | Sorts utilities                                                        |
+| `stillwind lint`      | Reports lint findings, and can apply automatic fixes                   |
+| `stillwind inspect`   | Shows the CSS that source code generates                               |
+| `stillwind theme`     | Lists the theme tokens of the project                                  |
+| `stillwind utilities` | Checks or searches utilities                                           |
+| `stillwind variants`  | Checks or searches variants                                            |
+| `stillwind lsp`       | Starts the language server                                             |
 
 `stillwind --help` lists the commands, and `stillwind <command> --help` lists the
 options of a command. `stillwind --version` prints the package version. The short
 forms of these options are `-h` and `-v`.
+
+## stillwind check
+
+```sh
+vp exec stillwind check
+vp exec stillwind check --fix
+vp exec stillwind check --max-warnings 0
+```
+
+`check` runs lint checks and utility sorting checks in a single analysis pass,
+and saves no files. It reports both lint findings and files whose utilities need
+sorting, even when [prefer-sorted-utilities](/docs/lints/prefer-sorted-utilities)
+is disabled.
+
+| Option               | Effect                                                                  |
+| -------------------- | ----------------------------------------------------------------------- |
+| `--fix`              | Applies the enabled automatic fixes, sorts utilities, and saves changes |
+| `--quiet`            | Hides warnings, and keeps their count in the summary                    |
+| `--max-warnings <n>` | Fails when the number of warnings exceeds `n`, a non-negative integer   |
+
+`check` also accepts the [shared options](#shared-options) and
+[globs](#select-files). The `files` format is not available.
+
+`--fix` applies converged automatic fixes (up to ten passes per file, respecting
+suppression comments), sorts utilities with the configured
+[`sort` options](/docs/configuration#sorting), saves only changed files, and
+reports findings for the final files.
 
 ## stillwind fmt
 
@@ -191,7 +219,7 @@ accepts `--config`, but no globs.
 
 ## Shared options
 
-`fmt`, `lint`, `inspect`, `theme`, `utilities`, and `variants` accept these options:
+`check`, `fmt`, `lint`, `inspect`, `theme`, `utilities`, and `variants` accept these options:
 
 | Option                  | Effect                                              |
 | ----------------------- | --------------------------------------------------- |
@@ -224,7 +252,7 @@ it. When nothing matches, the CLI returns exit code `2`.
 
 ## Saving files
 
-`fmt` and `lint --fix` work out the changes for all selected files before they save
+`check --fix`, `fmt`, and `lint --fix` work out the changes for all selected files before they save
 the first file. The CLI then saves only the files whose content changed, so
 modification times of other files stay the same.
 
@@ -245,11 +273,11 @@ The CLI reports all failures and all saved files, and it returns exit code `2`.
 
 ## Exit codes
 
-| Code | Meaning                                                                                                                                                                                                                                        |
-| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `0`  | The command succeeded. `lint` may still report warnings when you set no `--max-warnings` limit                                                                                                                                                 |
-| `1`  | `fmt --check` found files to sort, `lint` found errors, the warnings exceeded `--max-warnings`, `inspect` found a failed occurrence or no occurrence, or `theme`, `utilities`, or `variants` found an unknown name or a target without a match |
-| `2`  | The options were invalid, no files matched, or configuration, analysis, or file access failed                                                                                                                                                  |
+| Code | Meaning                                                                                                                                                                                                                                                              |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0`  | The command succeeded. `check` and `lint` may still report warnings when you set no `--max-warnings` limit                                                                                                                                                           |
+| `1`  | `check` or `fmt --check` found files to sort, `check` or `lint` found errors, the warnings exceeded `--max-warnings`, `inspect` found a failed occurrence or no occurrence, or `theme`, `utilities`, or `variants` found an unknown name or a target without a match |
+| `2`  | The options were invalid, no files matched, or configuration, analysis, or file access failed                                                                                                                                                                        |
 
 Code `2` takes priority over code `1`.
 
@@ -333,19 +361,19 @@ failures:
 }
 ```
 
-| Field         | Value                                                                               |
-| ------------- | ----------------------------------------------------------------------------------- |
-| `command`     | The command name, or `null` when the CLI failed before it selected a command        |
-| `config`      | The configuration path, or `null` when the CLI failed before the analysis           |
-| `diagnostics` | The findings; `--quiet` removes warnings from this list                             |
-| `failures`    | The execution failures                                                              |
-| `changed`     | The files that the command changed; with `--check`, the files that it would change  |
-| `previews`    | The generated CSS that `inspect` selected; empty for other commands                 |
-| `tokens`      | The tokens that `theme` selected; empty for other commands                          |
-| `candidates`  | The names that `utilities` or `variants` selected; empty for other commands         |
-| `unmatched`   | The arguments of `theme`, `utilities`, or `variants` without a match in any project |
-| `summary`     | Counts for the fields above; `warnings` includes warnings that `--quiet` hides      |
-| `exitCode`    | The [exit code](#exit-codes)                                                        |
+| Field         | Value                                                                                                            |
+| ------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `command`     | The command name, or `null` when the CLI failed before it selected a command                                     |
+| `config`      | The configuration path, or `null` when the CLI failed before the analysis                                        |
+| `diagnostics` | The findings; `--quiet` removes warnings from this list                                                          |
+| `failures`    | The execution failures                                                                                           |
+| `changed`     | The files that the command changed; with `check` (without `--fix`) or `fmt --check`, the files that need sorting |
+| `previews`    | The generated CSS that `inspect` selected; empty for other commands                                              |
+| `tokens`      | The tokens that `theme` selected; empty for other commands                                                       |
+| `candidates`  | The names that `utilities` or `variants` selected; empty for other commands                                      |
+| `unmatched`   | The arguments of `theme`, `utilities`, or `variants` without a match in any project                              |
+| `summary`     | Counts for the fields above; `warnings` includes warnings that `--quiet` hides                                   |
+| `exitCode`    | The [exit code](#exit-codes)                                                                                     |
 
 Each diagnostic contains `project`, a zero-based project index, and `report`. The
 report contains the message, its locations, notes, and suggested edits.

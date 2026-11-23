@@ -19,6 +19,8 @@ before running commands. The CLI searches upward from the working directory for
 ## Commands
 
 ```sh
+stillwind check
+stillwind check --fix
 stillwind fmt
 stillwind lint
 stillwind lint --fix
@@ -28,6 +30,8 @@ stillwind utilities p-4 'bg-*'
 stillwind variants 'group-*'
 ```
 
+`check` runs lint and utility sorting checks in one pass; `check --fix` applies
+enabled automatic fixes, sorts utilities, and reports the remaining findings.
 `fmt` sorts utility inputs and preserves source layout and token spellings. Run a
 general formatter afterward, or use
 [prettier-plugin-stillwind](https://stillwind.dev/docs/formatters).
