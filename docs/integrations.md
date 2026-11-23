@@ -19,8 +19,11 @@ export default defineConfig({
 ```
 
 Place Stillwind before the framework's JSX transform. Framework plugins that split
-routes or server functions must run first. For TanStack Start, use
-`[tanstackStart(), stillwind(), react()]`.
+routes or server functions must run first. For example, use
+`[tanstackStart(), stillwind(), react()]` for TanStack Start,
+`[qwikCity(), stillwind(), qwikVite()]` for Qwik,
+`[stillwind(), reactRouter()]` for React Router, and
+`[stillwind(), solidStart(), nitro()]` for SolidStart.
 
 The Vite adapter and the adapters built on it (Astro, Fresh, Nuxt, and SvelteKit)
 read the CSS entrypoint selected by `stillwind.config.ts` and deliver its compiled

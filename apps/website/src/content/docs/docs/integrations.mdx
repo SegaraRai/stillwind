@@ -1,0 +1,459 @@
+---
+title: Framework integrations
+slug: docs/integrations
+description: Import style() for your framework, and add Stillwind to your build tool.
+sidebar:
+  order: 2
+---
+
+Each application needs two things: the `style` import for its component framework,
+and the Stillwind integration for its build tool. This page assumes that you have
+created the stylesheet and `stillwind.config.ts` from [Getting started](/docs).
+Each integration finds `stillwind.config.ts` in the application root.
+
+## Import style() for your framework
+
+Import `style` from the entrypoint of the framework that renders the element:
+
+| Framework          | Import              | Class prop  |
+| ------------------ | ------------------- | ----------- |
+| React              | `stillwind/react`   | `className` |
+| Vue                | `stillwind/vue`     | `class`     |
+| Svelte             | `stillwind/svelte`  | `class`     |
+| Astro              | `stillwind/astro`   | `class`     |
+| Solid              | `stillwind/solid`   | `class`     |
+| Preact             | `stillwind/preact`  | `class`     |
+| Alpine             | `stillwind/alpine`  | `class`     |
+| Lit                | `stillwind/lit`     | `class`     |
+| Qwik               | `stillwind/qwik`    | `class`     |
+| Vanilla JavaScript | `stillwind/vanilla` | `class`     |
+
+Spread the result with your framework's syntax. In JSX (including Vue JSX), Svelte,
+and Astro, write `{...style("...")}`. In Vue templates, write `v-bind="style('...')"`:
+
+```vue
+<script setup lang="ts">
+import { style } from "stillwind/vue";
+</script>
+
+<template>
+  <button v-bind="style('rounded-md bg-accent px-4 py-2 text-white')">Save changes</button>
+</template>
+```
+
+A component uses the entrypoint of its own framework. For example, a React
+island inside an Astro page imports `stillwind/react`, Gatsby uses
+`stillwind/react`, and Fresh 2 uses `stillwind/preact`.
+
+### Alpine
+
+Register the `stillwind` plugin from `stillwind/alpine` before `Alpine.start()`,
+and write `style()` calls in JavaScript or TypeScript modules rather than inline
+HTML attributes:
+
+```ts
+import Alpine from "alpinejs";
+import { stillwind, style } from "stillwind/alpine";
+
+Alpine.plugin(stillwind);
+Alpine.data("saveButton", () => ({
+  get buttonProps() {
+    return style("rounded-md bg-accent px-4 py-2 text-white");
+  },
+}));
+Alpine.start();
+```
+
+Bind the compiled props in HTML with `x-sw`:
+
+```html
+<div x-data="saveButton">
+  <button x-sw="buttonProps">Save changes</button>
+</div>
+```
+
+### Lit
+
+Use `applyStyle` with `style` from `stillwind/lit` in `html` templates:
+
+```ts
+import { html } from "lit";
+import { applyStyle, style } from "stillwind/lit";
+
+html`<button ${applyStyle(style("px-4 py-2"))}>Save</button>`;
+```
+
+To add the compiled styles to a shadow root, see [Web Components](/docs/guides/web-components).
+The Lit directive supports browser rendering; Lit SSR is unsupported.
+
+### Vanilla JavaScript
+
+Import the DOM helpers with the macro:
+
+```ts
+import { applyStyle, clearStyle, style } from "stillwind/vanilla";
+
+const button = document.querySelector("button")!;
+applyStyle(button, style("rounded-md bg-accent px-4 py-2 text-white"));
+```
+
+Call `applyStyle` again to update the element. Call `clearStyle(button)` to remove
+its Stillwind contribution. The helpers preserve existing classes and unrelated
+inline styles, and restore overwritten inline values unless another writer has
+changed them. Use a build integration to compile the macros and deliver CSS.
+
+Import framework macros under different names when one module styles both framework
+elements and DOM elements. Each macro returns props for its own target.
+
+## Vite
+
+Use the Vite plugin for React, Vue, Svelte, Solid, Preact, Alpine, Lit, Qwik,
+and vanilla JavaScript applications:
+
+```ts title="vite.config.ts"
+import { stillwind } from "@stillwind/integration/vite";
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
+
+export default defineConfig({
+  plugins: [stillwind(), react()],
+});
+```
+
+Place `stillwind()` before the framework plugin, because Stillwind must compile
+styles before the framework compiles JSX or templates.
+
+<Aside type="caution" title="Do not import the Stillwind stylesheet">
+  The Vite plugin reads the stylesheet that `css` selects in `stillwind.config.ts` and adds the
+  compiled CSS to the page. Do not import that stylesheet anywhere else: not from JavaScript, not
+  from another stylesheet, and not from framework options such as Starlight's `customCss`. If you
+  import it, Vite also bundles it as plain CSS, and the page receives raw `@theme` and `@utility`
+  rules. Stillwind warns when JavaScript or a framework option imports the stylesheet, but it cannot
+  detect an `@import` in another stylesheet. This rule also applies to Astro, Nuxt, SvelteKit, Fresh
+  2, and other frameworks that run on Vite.
+</Aside>
+
+### Vite SSR frameworks
+
+Vite-based SSR frameworks such as React Router, TanStack Start, SolidStart, and
+Qwik use `@stillwind/integration/vite`. Place plugins that split routes or
+server functions before `stillwind()`, and place JSX or optimizer transforms
+after `stillwind()`:
+
+| Framework      | Plugin order                              | Notes                                              |
+| -------------- | ----------------------------------------- | -------------------------------------------------- |
+| React Router   | `[stillwind(), reactRouter()]`            | Add `?stillwind.css` for server-only modules       |
+| TanStack Start | `[tanstackStart(), stillwind(), react()]` | Add `?stillwind.css` for server-only modules       |
+| SolidStart     | `[stillwind(), solidStart(), nitro()]`    | Add the development SSR link in `entry-server.tsx` |
+| Qwik           | `[qwikCity(), stillwind(), qwikVite()]`   | Uses Vite 7 (`@builder.io/qwik` 1)                 |
+
+#### Development SSR stylesheet
+
+During development, if a server-rendered page must render with styles before
+client JavaScript runs (or without JavaScript, as in resumable Qwik pages), add
+a stylesheet link to `/__stillwind/style.css?environment=ssr` in your document
+`<head>` when `import.meta.env.DEV` is true:
+
+```tsx
+{
+  import.meta.env.DEV && <link rel="stylesheet" href="/__stillwind/style.css?environment=ssr" />;
+}
+```
+
+The response includes every observed producer in the SSR environment and reloads
+when styles or theme tokens change. You can limit the response to specific
+root-relative files by repeating the `module` query parameter, for example
+`/__stillwind/style.css?environment=ssr&module=src/routes/index.tsx`.
+
+#### Server-only modules
+
+When a framework removes a server-only dependency from the client bundle (such
+as a React Router `*.server.ts` module or a TanStack Start server function
+helper), import the module with `?stillwind.css` from the route that renders its
+styles:
+
+```ts
+import { serverProps } from "../server.server.js";
+import "../server.server.js?stillwind.css";
+```
+
+The `?stillwind.css` import compiles the module's styles and dependencies
+without evaluating or bundling the server JavaScript for the browser.
+
+## Next.js
+
+Wrap your configuration in `next.config.mjs`:
+
+```js title="next.config.mjs"
+import { withStillwind } from "@stillwind/integration/next";
+
+export default withStillwind({});
+```
+
+Pass your existing Next.js configuration as the first argument and optional
+Stillwind overrides as the second argument. The wrapper works with both webpack
+and Turbopack, and it keeps `"use client"` and `"use server"` directives.
+
+The stylesheet includes the routes under `app/`, `pages/`, `src/app/`, and
+`src/pages/`, and the modules that they import with static import paths. A
+module that you import through a computed path, or a route written in MDX, gets
+no styles.
+
+<Aside type="note" title="Next.js loader options">
+  Inline options passed to `withStillwind()` must be serializable; define naming callbacks in
+  `stillwind.config.ts` instead. If Next.js runs from a directory other than the application root,
+  set the `root` option.
+</Aside>
+
+## Astro
+
+Add the integration to `astro.config.ts`:
+
+```ts title="astro.config.ts"
+import { stillwind } from "@stillwind/integration/astro";
+import { defineConfig } from "astro/config";
+
+export default defineConfig({
+  integrations: [stillwind()],
+});
+```
+
+The integration also adds styles to server-rendered pages and islands. Keep your
+other integrations, such as `@astrojs/react`.
+
+The integration inserts the styles at the end of `<head>` in each HTML page: an
+inline `<style>` element in development, and `<link rel="stylesheet">` elements
+in production builds. The styles therefore come after the stylesheets that Astro
+and your other integrations add.
+
+The browser orders cascade layers by the first place that declares them. If an
+earlier stylesheet declares its own layers, Stillwind's `theme`, `base`, and
+`utilities` layers come after them and win over them. To choose a different
+order, declare all layers in a stylesheet that loads before Stillwind's styles.
+
+### Starlight
+
+Starlight declares its `starlight` layers in its own stylesheet, which loads
+before Stillwind's styles. Without an earlier layer order, Stillwind's base styles
+would override Starlight's content styles. Create a stylesheet that contains only
+the layer order, and make it the only entry in `customCss`:
+
+```css title="src/styles/layers.css"
+@layer properties, base, starlight, theme, components, utilities;
+```
+
+```js title="astro.config.mjs"
+import starlight from "@astrojs/starlight";
+import { stillwind } from "@stillwind/integration/astro";
+import { defineConfig } from "astro/config";
+
+export default defineConfig({
+  integrations: [
+    starlight({
+      title: "Docs",
+      customCss: ["./src/styles/layers.css"],
+    }),
+    stillwind(),
+  ],
+});
+```
+
+Put the Stillwind stylesheet in a separate file, select it with `css` in
+`stillwind.config.ts`, and keep it out of `customCss`:
+
+```css title="src/styles/stillwind.css"
+@import "@astrojs/starlight-tailwind";
+@import "stillwind/theme.css" layer(theme);
+@import "stillwind/utilities.css" layer(utilities);
+@import "stillwind/builtins.css";
+@import "stillwind/templates.css";
+```
+
+`@astrojs/starlight-tailwind` adds the `dark` variant and theme tokens for
+Starlight's colors and fonts. The stylesheet leaves out `stillwind/preflight.css`,
+because Starlight resets the page styles itself.
+
+## Nuxt
+
+Add the module to `nuxt.config.ts`:
+
+```ts title="nuxt.config.ts"
+import { stillwind } from "@stillwind/integration/nuxt";
+
+export default defineNuxtConfig({
+  modules: [stillwind()],
+});
+```
+
+The module sets up Vite and server rendering. Do not add the Vite plugin as well.
+
+## SvelteKit
+
+Add the Vite plugin before `sveltekit()`:
+
+```ts title="vite.config.ts"
+import { stillwind } from "@stillwind/integration/vite";
+import { sveltekit } from "@sveltejs/kit/vite";
+import { defineConfig } from "vite";
+
+export default defineConfig({
+  plugins: [stillwind(), sveltekit()],
+});
+```
+
+In development, add the server hook so that server-rendered pages include their
+styles before JavaScript runs. Create `src/hooks.server.ts`:
+
+```ts title="src/hooks.server.ts"
+export { handle } from "@stillwind/integration/sveltekit/handle";
+```
+
+If you already have a `handle`, combine both with `sequence()` from
+`@sveltejs/kit/hooks`.
+
+## webpack and Rspack
+
+Register `StillwindPlugin` and keep a CSS pipeline in your bundler configuration.
+
+For Rspack:
+
+```js title="rspack.config.mjs"
+import { StillwindPlugin } from "@stillwind/integration/rspack";
+
+export default {
+  experiments: {
+    css: true,
+  },
+  plugins: [new StillwindPlugin()],
+  module: {
+    rules: [{ test: /\.css$/, type: "css" }],
+  },
+};
+```
+
+For webpack, import `StillwindPlugin` from `@stillwind/integration/webpack` and
+keep either `experiments: { css: true }` with `{ test: /\.css$/, type: "css" }`
+or your existing `css-loader` pipeline.
+
+When using Vue with webpack, place `StillwindPlugin` before `VueLoaderPlugin`.
+Vue's plugin clones loader rules during setup, so Stillwind's rules must already
+be registered.
+
+## Rsbuild
+
+Register `pluginStillwind()` alongside your framework plugin in `rsbuild.config.ts`:
+
+```ts title="rsbuild.config.ts"
+import { defineConfig } from "@rsbuild/core";
+import { pluginReact } from "@rsbuild/plugin-react";
+import { pluginStillwind } from "@stillwind/integration/rsbuild";
+
+export default defineConfig({
+  plugins: [pluginStillwind(), pluginReact()],
+});
+```
+
+Keep your framework plugin (such as `pluginReact()` or `pluginVue()`). Stillwind
+runs after framework pre-loaders split routes and server functions and before
+SWC lowers JSX. You can retain a server-only module's styles with
+`import "./server-style.ts?stillwind.css"`.
+
+## Fresh 2
+
+Use Deno 2.9 or newer. Register `fresh()` before `stillwind()` from
+`@stillwind/integration/fresh` in `vite.config.ts`:
+
+```ts title="vite.config.ts"
+import { fresh } from "@fresh/plugin-vite";
+import { stillwind } from "@stillwind/integration/fresh";
+import { defineConfig } from "vite";
+
+export default defineConfig({
+  plugins: [fresh(), stillwind()],
+});
+```
+
+Import macros from `stillwind/preact`. The adapter keeps server and island class
+names consistent. Fresh's legacy Builder is unsupported.
+
+For development HTML without JavaScript, add
+`/__stillwind/style.css?environment=ssr` to the `<head>` of `routes/_app.tsx`
+when `import.meta.env.DEV` is true. Production builds use Fresh's stylesheet
+manifest.
+
+<Aside type="caution" title="Known issue on Linux and macOS (Deno / Fresh)">
+  On Linux, and possibly macOS, Fresh development and builds can fail with `Bad file descriptor (os
+  error 9)` when Stillwind starts the TypeScript checker under Deno.
+</Aside>
+
+## Gatsby
+
+Use `stillwind/react` and register the webpack plugin in `gatsby-node.mjs` for
+every webpack stage:
+
+```js title="gatsby-node.mjs"
+import { StillwindPlugin } from "@stillwind/integration/webpack";
+
+export function onCreateWebpackConfig({ actions, stage }) {
+  actions.setWebpackConfig({ plugins: [new StillwindPlugin()] });
+  if (stage === "develop") {
+    actions.setWebpackConfig({
+      optimization: {
+        splitChunks: {
+          cacheGroups: {
+            framework: {
+              test: /[\\/]node_modules[\\/](react|react-dom|scheduler|prop-types)[\\/]/,
+            },
+          },
+        },
+      },
+    });
+  }
+}
+```
+
+Import the Stillwind CSS entrypoint from both `gatsby-browser.js` and
+`gatsby-ssr.js`:
+
+```js title="gatsby-browser.js"
+import "./src/stillwind.css";
+```
+
+```js title="gatsby-ssr.js"
+import "./src/stillwind.css";
+```
+
+<Aside type="note" title="Gatsby with pnpm">
+  The `splitChunks` matcher in `stage === "develop"` matches pnpm's nested package paths so Gatsby
+  emits the `framework.js` chunk referenced by its development HTML.
+</Aside>
+
+## Standalone Turbopack
+
+When configuring Turbopack outside Next.js, add `stillwindRules()` to your
+host's Turbopack rules and list every application entry module:
+
+```ts
+import { stillwindRules } from "@stillwind/integration/turbopack";
+
+const rules = stillwindRules({
+  entries: ["./src/main.tsx", "./src/other-entry.tsx"],
+});
+```
+
+Unlike `withStillwind()` for Next.js, this entrypoint does not discover routes
+automatically, and it does not expand entry globs. Paths are resolved relative
+to `root` (or the process working directory by default). The loader follows
+statically named local JS/TS imports, including lazy imports, and inline options
+must be serializable.
+
+## CSS delivery and advanced options
+
+Vite and its wrappers emit one stylesheet by default. Set `emission: "split"` to
+emit reusable CSS partitions and a `stillwind-manifest.json` file; custom SSR
+documents can select ordered stylesheet links with `stylesheetLinks` from
+`stillwind/css`.
+
+For advanced options, browser target inheritance, and host-specific contracts,
+see the [integration contract on GitHub](https://github.com/SegaraRai/stillwind/blob/main/docs/integrations.md).
+[How styles compile](/docs/concepts/how-styles-compile) explains how the CSS reaches the page.
