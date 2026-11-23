@@ -1,18 +1,16 @@
+import { workspaceFmtOptions } from "@stillwind-internal/tools-workspace/format";
 import { rustCache, testCache } from "@stillwind-internal/tools-workspace/task-cache";
 import { defineConfig } from "vite-plus";
 
 export default defineConfig(({ mode }) => ({
   fmt: {
+    ...workspaceFmtOptions,
     ignorePatterns: [
       "apps/play/examples/**",
       "crates/test-support/assets/*.css",
       "packages/core/docs/**",
       "packages/native/binding.d.ts",
     ],
-    sortImports: true,
-    sortPackageJson: true,
-    astro: true,
-    svelte: true,
   },
   lint: {
     categories: {

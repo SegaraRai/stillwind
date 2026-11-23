@@ -6,6 +6,7 @@
   "license": "MIT",
   "type": "module",
   "exports": {
+    "./format": "./format.ts",
     "./task-cache": "./task-cache.ts",
     "./third-party-licenses": "./third-party-licenses.ts"
   },
