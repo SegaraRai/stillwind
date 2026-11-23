@@ -361,7 +361,7 @@ export class DesignSystem {
         this.cssAttempted = change;
         this.cssError = error;
         this.settings.devServerRef?.config.logger.warn(
-          `Stillwind update failed; retaining published styles: ${String(error)}`,
+          `stillwind: update failed; retaining published styles: ${error instanceof Error ? error.message : String(error)}`,
         );
         return;
       }

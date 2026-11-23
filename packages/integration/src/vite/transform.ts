@@ -1,7 +1,8 @@
 import { readFile } from "node:fs/promises";
 import { relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-import { cleanModuleId } from "@stillwind/host";
+import { cleanModuleId, CompilationFailure, formatReport } from "@stillwind/host";
 import type { Plugin } from "vite";
 
 import { readableFile } from "./file-access.ts";
@@ -170,7 +171,42 @@ export function transformHooks(
               warn: this.warn.bind(this),
             }
           : this;
-        const result = await compile(name, code, id, context);
+        let result;
+        try {
+          result = await compile(name, code, id, context);
+        } catch (error) {
+          if (error instanceof CompilationFailure) {
+            const [first, ...rest] = error.batches.flatMap((batch) => batch.reports);
+            const primary = first?.primary;
+            if (first && primary?.scope === "range") {
+              let file = id;
+              if (primary.location.uri.startsWith("file:")) {
+                try {
+                  file = fileURLToPath(primary.location.uri);
+                } catch {
+                  file = id;
+                }
+              }
+              // Vite shows `loc` with the message and builds a code frame from it, so the first
+              // report omits its location. Further reports keep theirs.
+              this.error({
+                message: [
+                  formatReport(first, {
+                    primaryLocation: false,
+                  }),
+                  ...rest.map((report) => formatReport(report)),
+                ].join("\n"),
+                id: file,
+                loc: {
+                  file,
+                  line: primary.location.startLine + 1,
+                  column: primary.location.startColumn,
+                },
+              });
+            }
+          }
+          throw error;
+        }
         // Planning the whole document after each transform makes a cold start quadratic in the
         // number of producers. A producer module that loads before the delayed snapshot requests
         // the current revision through the snapshot endpoint instead.

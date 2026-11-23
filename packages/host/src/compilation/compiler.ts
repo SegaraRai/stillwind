@@ -13,7 +13,7 @@ import type { PreparedSource, ProjectInput } from "@stillwind/projection";
 import { compileWithPlugins } from "../css/plugins/session.ts";
 import type { TypeFactsBackend, TypeFactsInputs, UnverifiedRange } from "../semantics/index.ts";
 import { loadSource, type CompilerHost } from "./host.ts";
-import { CompilationFailure, ModuleGraph } from "./module-graph.ts";
+import { CompilationFailure, displayUri, ModuleGraph } from "./module-graph.ts";
 import type { CompilationProject } from "./project.ts";
 import { createModuleAnalysis, type ModuleAnalysis, type ModuleCompileOptions } from "./request.ts";
 import { startPhase, tracePhase } from "./trace.ts";
@@ -420,7 +420,9 @@ function reportLintWarnings(output: ProjectModuleOutput, host: CompilerHost): vo
     if (level === "off") {
       continue;
     }
-    host.warn(`${finding.rule}: ${finding.message} (${finding.uri}:${finding.start})`);
+    host.warn(
+      `stillwind: ${finding.rule}: ${finding.message} (${displayUri(finding.uri)}:${finding.startLine + 1}:${finding.startColumn + 1})`,
+    );
   }
 }
 

@@ -45,7 +45,7 @@ export class CompilationFailure extends Error {
     super(
       batches
         .flatMap((batch) => batch.reports)
-        .map(formatReport)
+        .map((report) => formatReport(report))
         .join("\n"),
       { cause },
     );
@@ -54,31 +54,60 @@ export class CompilationFailure extends Error {
 }
 
 /**
+ * Converts a `file://` URI to a readable filesystem path without requiring Node built-ins.
+ *
+ * @param uri - Source document URI or filesystem path.
+ * @returns Decoded filesystem path for `file://` URIs, or the original string otherwise.
+ */
+export function displayUri(uri: string): string {
+  if (!uri.startsWith("file://")) {
+    return uri;
+  }
+  try {
+    const pathname = decodeURIComponent(new URL(uri).pathname);
+    return /^\/[A-Za-z]:\//.test(pathname) ? pathname.slice(1) : pathname;
+  } catch {
+    return uri;
+  }
+}
+
+/**
  * Formats a compiler report for an Error message or terminal output.
  *
  * @param report - Structured report with a primary label, related labels, and notes.
+ * @param options - `primaryLocation: false` omits the primary path and range, for hosts that
+ * display the primary location separately, such as the Vite error overlay.
  * @returns Text with one-based line and column ranges for source labels, followed by related labels
- * and notes. Document-scoped primary labels use only the URI.
+ * and notes. Document-scoped primary labels use only the path.
  */
-function formatReport(report: BindingReport) {
+export function formatReport(
+  report: BindingReport,
+  options: {
+    /** False omits the primary path and range. Omission includes them. */
+    primaryLocation?: boolean;
+  } = {},
+): string {
   const { location, scope } = report.primary;
+  const primaryPath = displayUri(location.uri);
   const at =
     scope === "document"
-      ? location.uri
-      : `${location.uri}:${location.startLine + 1}:${location.startColumn + 1}-${location.endLine + 1}:${location.endColumn + 1}`;
-  const related = report.related.map((label) => {
-    const loc = label.location;
-    const at =
-      label.scope === "document"
-        ? loc.uri
-        : `${loc.uri}:${loc.startLine + 1}:${loc.startColumn + 1}`;
-    return `  ${at}${label.message ? `: ${label.message}` : ""}`;
-  });
-  return [
-    `${at}: ${report.code}: ${report.message}`,
-    ...related,
-    ...report.notes.map((note) => `  ${note}`),
-  ].join("\n");
+      ? primaryPath
+      : `${primaryPath}:${location.startLine + 1}:${location.startColumn + 1}-${location.endLine + 1}:${location.endColumn + 1}`;
+  const details = [
+    ...(report.primary.message ? [`  note: ${report.primary.message}`] : []),
+    ...report.related.map((label) => {
+      const loc = label.location;
+      const relatedPath = displayUri(loc.uri);
+      const relatedAt =
+        label.scope === "document"
+          ? relatedPath
+          : `${relatedPath}:${loc.startLine + 1}:${loc.startColumn + 1}`;
+      return `  related: ${relatedAt}${label.message ? `: ${label.message}` : ""}`;
+    }),
+    ...report.notes.map((note) => `  note: ${note}`),
+  ];
+  const heading = `${report.code}: ${report.message}`;
+  return [options.primaryLocation === false ? heading : `${at}: ${heading}`, ...details].join("\n");
 }
 
 /** Collects prepared sources and semantic facts for one entry's demanded dependency graph. */

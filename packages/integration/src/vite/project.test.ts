@@ -111,7 +111,7 @@ describe("invalid or missing CSS imports", () => {
     expect(cssError).toBeDefined();
     expect(state.cssApplied).toBeLessThan(state.cssChange);
     expect(fixture.takeWarnings()).toEqual([
-      expect.stringContaining("Stillwind update failed; retaining published styles"),
+      expect.stringContaining("stillwind: update failed; retaining published styles"),
     ]);
 
     vi.mocked(readFile).mockClear();

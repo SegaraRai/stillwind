@@ -106,7 +106,7 @@ define_compile_codes! {
         InvalidHashLength { .. } => "SW01002",
         InvalidLintConfiguration { .. } => "SW01003",
         // 02: project inputs and the host environment
-        FrameworkConstraintConflict => "SW02001",
+        FrameworkConstraintConflict { .. } => "SW02001",
         UnresolvedCssRoot => "SW02002",
         // 03: generated names
         GeneratedIdentifierCollision { .. } => "SW03001",

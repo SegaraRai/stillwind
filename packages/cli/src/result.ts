@@ -266,7 +266,8 @@ export function cliResult(
     command !== "info"
   ) {
     failures.push({
-      message: "No analysis targets matched the configured scopes",
+      message:
+        "No analysis targets matched the configured scopes; check `files`/`exclude` in stillwind.config.* or the provided glob patterns",
       details: [],
     });
   }

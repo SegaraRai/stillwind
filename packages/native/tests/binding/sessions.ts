@@ -377,15 +377,15 @@ export function registerSessionsContract(bindingSpecifier: string): void {
     expect(() => loader.provideMany([])).toThrow(/after completion/);
   });
 
-  test("CSS load errors include the accepted document range", async () => {
+  test("CSS load errors locate the failing character in the accepted document", async () => {
     const { NativeDesignSystemLoader } = await import(bindingSpecifier);
     const loader = new NativeDesignSystemLoader();
     try {
-      loader.provide(0, "broken.css", "@theme {", "untitled:broken.css");
+      loader.provide(0, "broken.css", ".a{}\n@theme {", "untitled:broken.css");
       expect.fail("Invalid CSS must reject loading");
     } catch (error) {
       expect(error).toMatchObject({
-        message: expect.stringContaining("unterminated CSS block"),
+        message: "unterminated CSS block",
         reports: [
           {
             code: "SW13002",
@@ -394,8 +394,10 @@ export function registerSessionsContract(bindingSpecifier: string): void {
               scope: "range",
               location: {
                 uri: "untitled:broken.css",
-                startLine: 0,
-                startColumn: 0,
+                startLine: 1,
+                startColumn: 7,
+                endLine: 1,
+                endColumn: 8,
               },
             },
           },
@@ -407,9 +409,15 @@ export function registerSessionsContract(bindingSpecifier: string): void {
   test("CSS without a document URI remains an internal source", async () => {
     const { NativeDesignSystemLoader } = await import(bindingSpecifier);
     const loader = new NativeDesignSystemLoader();
-    expect(() => loader.provide(0, "internal", "@theme {", null)).toThrow(
-      /unterminated CSS block at byte 7/,
-    );
+    try {
+      loader.provide(0, "internal", ".a{}\n@theme {", null);
+      expect.fail("Invalid CSS must reject loading");
+    } catch (error) {
+      expect(error).toMatchObject({
+        message: "unterminated CSS block (in internal at offset 12)",
+      });
+      expect(error).not.toHaveProperty("reports");
+    }
   });
 
   test("native watch reload reports compilation errors without publishing a partial revision", async () => {

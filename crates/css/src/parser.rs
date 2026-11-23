@@ -27,7 +27,7 @@ pub enum ScanError {
 
 /// A malformed CSS token or block, positioned in the supplied input.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
-#[error("{kind} at byte {offset}")]
+#[error("{kind}")]
 pub struct CssSyntaxError {
     /// Byte offset of the malformed token or opening delimiter.
     pub offset: usize,

@@ -63,6 +63,22 @@ impl AdapterKind {
             Self::Vue => &vue::SPEC,
         }
     }
+
+    /// Returns the lowercase name that serialization and the `framework` option use.
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Alpine => "alpine",
+            Self::Astro => "astro",
+            Self::Lit => "lit",
+            Self::Preact => "preact",
+            Self::Qwik => "qwik",
+            Self::React => "react",
+            Self::Solid => "solid",
+            Self::Svelte => "svelte",
+            Self::Vanilla => "vanilla",
+            Self::Vue => "vue",
+        }
+    }
 }
 
 /// Static policy for one framework.

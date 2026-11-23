@@ -35,8 +35,8 @@ fn json_options_use_camel_case_and_enum_cases_follow_their_contracts() {
         "customProperty"
     );
     assert_eq!(
-        serde_json::to_value(CompileDiagnostic::FrameworkConstraintConflict).unwrap(),
-        "frameworkConstraintConflict"
+        serde_json::to_value(CompileDiagnostic::CompositionCycle).unwrap(),
+        "compositionCycle"
     );
 }
 

@@ -55,7 +55,7 @@ is disabled.
 `check` also accepts the [shared options](#shared-options) and
 [globs](#select-files). The `files` format is not available.
 
-`--fix` applies converged automatic fixes (up to ten passes per file, respecting
+`--fix` repeats automatic fixes until the file stops changing (up to ten passes per file, respecting
 suppression comments), sorts utilities with the configured
 [`sort` options](/docs/configuration#sorting), saves only changed files, and
 reports findings for the final files.

@@ -154,7 +154,7 @@ test("quiet preserves warning thresholds and CLI failures retain CSS reports", a
       expect(path.normalize(result.failures[0].file ?? "")).toBe(path.join(root, "entry.tsx"));
     }
     const cssText = await run(root, ["lint", "--color", "never"]);
-    expect(cssText.stderr).toContain("root.css:1:1: error SW13002");
+    expect(cssText.stderr).toContain("root.css:1:8: error SW13002");
     expect(cssText.stderr).toContain("1 | @theme {");
     await writeFile(
       path.join(root, "healthy.css"),

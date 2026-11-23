@@ -1,5 +1,7 @@
 //! Source and projection conversions retain rejected coordinates and their operation.
 
+use std::fmt;
+
 use lean_string::ToLeanString;
 use serde::{Deserialize, Serialize};
 
@@ -35,6 +37,21 @@ impl SourceFailureContext {
             self,
             Self::Utility | Self::Emission | Self::Frontend | Self::Transform | Self::MacroImport
         )
+    }
+}
+
+impl fmt::Display for SourceFailureContext {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let label = match self {
+            Self::Utility => "utility tokenization",
+            Self::Projection => "framework projection",
+            Self::Stylesheet => "stylesheet loading",
+            Self::Emission => "style emission",
+            Self::Frontend => "JavaScript extraction",
+            Self::Transform => "source transform",
+            Self::MacroImport => "macro import rewriting",
+        };
+        formatter.write_str(label)
     }
 }
 

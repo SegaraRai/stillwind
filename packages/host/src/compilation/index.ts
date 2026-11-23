@@ -8,7 +8,7 @@ export { analyzeModule, compileModule, warnRejectedNames } from "./compiler.ts";
 export { compilerModuleId, fileModuleDescriptor } from "./filesystem.ts";
 export { finalizeModuleWithMap, type FinalizedModuleEdit } from "./finalize.ts";
 export type { CompilerHost } from "./host.ts";
-export { CompilationFailure } from "./module-graph.ts";
+export { CompilationFailure, formatReport } from "./module-graph.ts";
 export { cleanModuleId, fileSourceKind, type ModuleDescriptor } from "./module-source.ts";
 export { CompilationProject, ResolutionMismatchError } from "./project.ts";
 export type { PreparedSource } from "./protocol.ts";

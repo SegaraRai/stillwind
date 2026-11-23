@@ -102,7 +102,7 @@ fn document_assembly_errors_are_reported_by_the_renderer_not_fragment_conversion
             "@utility flex {display:flex;} @stillwind-slot utilities; .broken{color:--theme(missing);}",
             CompileDiagnostic::InvalidThemeReference {
                 offset: 15,
-                detail: "invalid --theme() property `missing` at byte 0".into(),
+                detail: "`missing` is not a custom property name".into(),
             },
         ),
     ] {
@@ -257,11 +257,19 @@ fn invalid_public_ir_returns_diagnostics_instead_of_panicking() {
     .zip([
         CompileDiagnostic::InvalidInternalSourceCoordinates {
             context: SourceFailureContext::Utility,
-            detail: format!("invalid source span {invalid:?}").into(),
+            detail: format!(
+                "invalid source span {}..{} in file #{}",
+                invalid.start.0, invalid.end.0, invalid.file.0
+            )
+            .into(),
         },
         CompileDiagnostic::InvalidInternalSourceCoordinates {
             context: SourceFailureContext::Emission,
-            detail: format!("invalid source span {invalid:?}").into(),
+            detail: format!(
+                "invalid source span {}..{} in file #{}",
+                invalid.start.0, invalid.end.0, invalid.file.0
+            )
+            .into(),
         },
     ]) {
         let mut malformed = analysis.clone();

@@ -161,7 +161,7 @@ test("inspect selects generated CSS by file, line, position, and glob", async ()
         valid: false,
       },
     ]);
-    const inspectText = (await run(root, ["inspect", "partial.tsx"])).stdout;
+    const inspectText = (await run(root, ["inspect", "partial.tsx", "--color", "never"])).stdout;
     expect(inspectText).toContain("error unknown-utility: unknown utility `missing`");
     expect(inspectText).toMatch(/  docs: .*lints[/\\]unknown-utility(\.md)?\r?\n/);
 
@@ -195,9 +195,10 @@ test("inspect selects generated CSS by file, line, position, and glob", async ()
       ],
     });
 
-    const text = await run(root, ["inspect", "entry.tsx:4"]);
+    const text = await run(root, ["inspect", "entry.tsx:4", "--color", "never"]);
     expect(text.code).toBe(0);
-    expect(text.stdout).toContain("entry.tsx:3:21 [project 1]");
+    expect(text.stdout).toContain("entry.tsx:3:21\n");
+    expect(text.stdout).not.toContain("[project");
     expect(text.stdout).toContain("1 preview in 1 file.");
   } finally {
     await rm(root, { recursive: true, force: true });

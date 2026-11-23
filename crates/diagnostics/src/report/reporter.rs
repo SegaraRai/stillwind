@@ -628,7 +628,7 @@ mod tests {
         let mut first_project = SourceRegistry::default();
         let source = document(&mut first_project, "untitled:first", "abc");
         let error = CompileError::new(
-            CompileDiagnostic::FrameworkConstraintConflict,
+            CompileDiagnostic::CompositionCycle,
             Span::new(source.id(), 1, 2),
         );
         let located = LocatedDiagnostic::from_compile(&error, &first_project).unwrap();
@@ -647,7 +647,7 @@ mod tests {
         );
         let generated = first_project.register(None, None, "abc").unwrap();
         let error = CompileError::new(
-            CompileDiagnostic::FrameworkConstraintConflict,
+            CompileDiagnostic::CompositionCycle,
             Span::new(generated.id(), 0, 1),
         );
         assert!(

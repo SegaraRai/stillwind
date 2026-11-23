@@ -78,7 +78,10 @@ fn projection_failures_are_atomic_and_configuration_is_part_of_the_revision() {
             .scan_input(changed)
             .diagnostics
             .iter()
-            .any(|error| error.diagnostic == CompileDiagnostic::FrameworkConstraintConflict)
+            .any(|error| matches!(
+                error.diagnostic,
+                CompileDiagnostic::FrameworkConstraintConflict { .. }
+            ))
     );
     let changed = rebuild_projection(
         &input,

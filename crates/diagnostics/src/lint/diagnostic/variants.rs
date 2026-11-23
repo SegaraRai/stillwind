@@ -83,7 +83,7 @@ impl fmt::Display for VariantDirectiveMessage<'_> {
         if *px_to_rem {
             write!(
                 formatter,
-                ". The match reads `px` as `rem` at 16px = 1rem, but `rem` in a media query follows the browser's default font size, so the breakpoint switches at a different width for users who changed that size"
+                "; the match reads `px` as `rem` at 16px = 1rem, but `rem` in a media query follows the browser's default font size, so the breakpoint switches at a different width for users who changed that size"
             )?;
         }
         Ok(())

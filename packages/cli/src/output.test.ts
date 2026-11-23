@@ -499,3 +499,19 @@ test("JSON exposes relative 1-based locations, summary.byCode, and --limit trunc
     }),
   ).toContain("... 2 more diagnostics omitted (--limit 1).");
 });
+
+test("single-project text output omits project tags while multi-project output keeps them", () => {
+  const singleProject = cliResult("lint", {
+    ...analysis,
+    results: [analysis.results[0]],
+  });
+  const singleText = renderResult(singleProject, options);
+  expect(singleText).toContain(
+    `${path.basename(file)}:3:4: error unknown-utility: Unknown utility`,
+  );
+  expect(singleText).not.toContain("[project 1]");
+
+  const multiText = renderResult(result, options);
+  expect(multiText).toContain("[project 1]");
+  expect(multiText).toContain("[project 2]");
+});

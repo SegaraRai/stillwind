@@ -164,7 +164,15 @@ fn source_constraints_and_macro_outputs_are_independent() {
     let scan = OxcSourceAnalyzer.scan_input(source);
     assert_eq!(
         scan.diagnostics[0].diagnostic,
-        CompileDiagnostic::FrameworkConstraintConflict
+        CompileDiagnostic::FrameworkConstraintConflict {
+            framework: "svelte".into(),
+            source_format: "Vue SFC".into(),
+            required: "vue".into(),
+        }
+    );
+    assert_eq!(
+        scan.diagnostics[0].diagnostic.to_string(),
+        "explicit framework `svelte` conflicts with the Vue SFC source format, which requires `vue`"
     );
 }
 

@@ -17,24 +17,25 @@ import {
   warningArgs,
   warningLimit,
 } from "./arguments.ts";
-import { displayEnabled, writeResult, type OutputOptions } from "./output.ts";
+import { displayEnabled, writeResult, type OutputFormat, type OutputOptions } from "./output.ts";
 import { cliResult, failureResult, type CliCommand, type DesignCommand } from "./result.ts";
 
 const checkArgs = {
   ...targetArgs,
   ...warningArgs,
-  format: {
-    ...outputArgs.format,
-    options: ["text", "json", "github"] as ("text" | "json" | "github")[],
-  },
   fix: {
     type: "boolean",
-    description: "Apply converged automatic fixes and sort utilities",
+    description: "Apply automatic fixes and sort utilities",
   },
 } as const;
 
 const fmtArgs = {
   ...targetArgs,
+  format: {
+    ...outputArgs.format,
+    options: ["text", "json", "github", "files"] as OutputFormat[],
+    description: "Output format (text, json, github, or files)",
+  },
   check: {
     type: "boolean",
     description: "Check formatting without saving files",
@@ -44,22 +45,14 @@ const fmtArgs = {
 const lintArgs = {
   ...targetArgs,
   ...warningArgs,
-  format: {
-    ...outputArgs.format,
-    options: ["text", "json", "github"] as ("text" | "json" | "github")[],
-  },
   fix: {
     type: "boolean",
-    description: "Apply converged automatic fixes",
+    description: "Apply automatic fixes",
   },
 } as const;
 
 const inspectArgs = {
   ...targetArgs,
-  format: {
-    ...outputArgs.format,
-    options: ["text", "json", "github"] as ("text" | "json" | "github")[],
-  },
   globs: {
     ...targetArgs.globs,
     description: "Select files with paths or globs, optionally followed by :line or :line:column",
@@ -68,12 +61,7 @@ const inspectArgs = {
 
 const designArgs = {
   ...configArgs,
-  format: {
-    ...outputArgs.format,
-    options: ["text", "json", "github"] as ("text" | "json" | "github")[],
-  },
-  color: outputArgs.color,
-  hyperlinks: outputArgs.hyperlinks,
+  ...outputArgs,
 } as const;
 
 const themeArgs = {
@@ -303,7 +291,7 @@ const subCommands = {
     plugins: [strictArguments],
     async run({ args }) {
       if (!args.stdio || args._.length) {
-        throw new Error("lsp requires --stdio and accepts no globs");
+        throw new Error("lsp requires --stdio and accepts no positional arguments");
       }
       const { startLanguageServer } = await import("@stillwind/language-server/node");
       startLanguageServer(args.config);
@@ -374,7 +362,9 @@ export async function runCli(rawArgs = process.argv.slice(2)): Promise<void> {
       readOutputOptions(rawArgs, options);
     }
     if (invocation.name && !Object.hasOwn(subCommands, invocation.name)) {
-      throw new Error(`Unknown command: ${invocation.name}`);
+      throw new Error(
+        `Unknown command: ${invocation.name}. Expected one of: check, fmt, lint, inspect, info, theme, utilities, variants, or lsp. Run stillwind --help for usage.`,
+      );
     }
 
     if (!rawArgs.length || invocation.help) {
@@ -427,9 +417,25 @@ function write(output: string): void {
 
 function displayUsage(usage: string, options: OutputOptions): string {
   const plain = stripVTControlCharacters(usage);
-  return displayEnabled(options.color, "color", !!process.stdout.isTTY, process.env)
-    ? styleText("cyan", plain, {
-        validateStream: false,
-      })
-    : plain;
+  if (!displayEnabled(options.color, "color", !!process.stdout.isTTY, process.env)) {
+    return plain;
+  }
+  const style = (format: Parameters<typeof styleText>[0], text: string) =>
+    styleText(format, text, { validateStream: false });
+  return plain
+    .split("\n")
+    .map((line, index) => {
+      if (index === 0 && line.trim()) {
+        return style(["bold", "cyan"], line);
+      }
+      if (/^[A-Z][A-Z0-9 /_-]*$/.test(line.trim())) {
+        return style("bold", line);
+      }
+      const entry = /^(\s+)(\S+(?:,\s*\S+)*(?:\s+<[^>]+>|\s+\[[^\]]+\])?)(\s{2,})(.*)$/.exec(line);
+      if (entry) {
+        return `${entry[1]}${style("cyan", entry[2])}${entry[3]}${entry[4]}`;
+      }
+      return line;
+    })
+    .join("\n");
 }

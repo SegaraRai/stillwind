@@ -667,7 +667,7 @@ export function createViteProject(
         });
       } catch (error) {
         server.config.logger.warn(
-          `Stillwind update failed; retaining published styles: ${String(error)}`,
+          `stillwind: update failed; retaining published styles: ${error instanceof Error ? error.message : String(error)}`,
         );
       } finally {
         done.resolve();

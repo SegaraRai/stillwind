@@ -73,7 +73,11 @@ mod tests {
 
     #[test]
     fn distinct_causes_have_distinct_codes_and_messages() {
-        let conflict = CompileDiagnostic::FrameworkConstraintConflict;
+        let conflict = CompileDiagnostic::FrameworkConstraintConflict {
+            framework: "svelte".into(),
+            source_format: "Vue SFC".into(),
+            required: "vue".into(),
+        };
         let cycle = CompileDiagnostic::CompositionCycle;
         let parse = CompileDiagnostic::JavaScriptParse;
         assert_ne!(conflict, cycle);
@@ -85,9 +89,12 @@ mod tests {
         assert_ne!(parse.code(), conflict.code());
         assert_eq!(
             conflict.to_lean_string(),
-            "explicit framework conflicts with the source component format"
+            "explicit framework `svelte` conflicts with the Vue SFC source format, which requires `vue`"
         );
-        assert_eq!(cycle.to_lean_string(), "style composition dependency cycle");
+        assert_eq!(
+            cycle.to_lean_string(),
+            "style composition contains a circular dependency"
+        );
         assert_eq!(parse.to_lean_string(), "JavaScript parse error");
     }
 
@@ -123,7 +130,7 @@ mod tests {
         assert!(value.get("kind").is_none());
         assert_eq!(
             error.to_lean_string(),
-            "generated identifier collision: 衝突"
+            "generated identifier collision: `衝突`; increase `hashLength` or check custom name generation"
         );
         assert_eq!(
             std::error::Error::source(&error).unwrap().to_lean_string(),

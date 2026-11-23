@@ -17,9 +17,9 @@ export const configArgs = {
 export const outputArgs = {
   format: {
     type: "enum",
-    options: ["text", "json", "github", "files"] as OutputFormat[],
+    options: ["text", "json", "github"] as ("text" | "json" | "github")[],
     default: process.env.GITHUB_ACTIONS === "true" ? "github" : "text",
-    description: "Output format",
+    description: "Output format (text, json, or github)",
   },
   color: {
     type: "enum",
@@ -33,6 +33,12 @@ export const outputArgs = {
     default: "auto",
     description: "Control links to source locations",
   },
+} as const;
+
+const allFormatArg = {
+  ...outputArgs.format,
+  options: ["text", "json", "github", "files"] as OutputFormat[],
+  description: "Output format (text, json, github, or files)",
 } as const;
 
 export const targetArgs = {
@@ -95,11 +101,17 @@ export const builtinArgs = {
  */
 export function readOutputOptions(rawArgs: string[], options: OutputOptions): void {
   options.format = parseArgs<{
-    format: typeof outputArgs.format;
+    format: typeof allFormatArg;
   }>(rawArgs, {
-    format: outputArgs.format,
+    format: allFormatArg,
   }).format;
-  const { color, hyperlinks } = parseArgs<typeof outputArgs>(rawArgs, outputArgs);
+  const { color, hyperlinks } = parseArgs<{
+    color: typeof outputArgs.color;
+    hyperlinks: typeof outputArgs.hyperlinks;
+  }>(rawArgs, {
+    color: outputArgs.color,
+    hyperlinks: outputArgs.hyperlinks,
+  });
   options.color = color;
   options.hyperlinks = hyperlinks;
 }
@@ -126,7 +138,8 @@ export const strictArguments = defineCittyPlugin({
     }
     for (const name of Object.keys(args)) {
       if (!names.has(name)) {
-        throw new Error(`Unknown option: --${name}`);
+        const flag = name.length === 1 ? `-${name}` : `--${name}`;
+        throw new Error(`Unknown option: ${flag}. Run with --help to see valid options.`);
       }
     }
     for (const [name, definition] of Object.entries(definitions)) {

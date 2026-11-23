@@ -140,6 +140,9 @@ pub struct DesignSystemLoader {
     graph: CssSourceGraph,
     /// Supplied source name to index in the graph's source list.
     known: BTreeMap<CssSourceName, usize>,
+    /// Supplied name of every registered source, including a source whose acceptance
+    /// failed after registration.
+    names: BTreeMap<FileId, CssSourceName>,
     /// Per-source import state in the same order as the graph's sources.
     nodes: Vec<Node>,
     /// Outstanding request id to (source index, import index); indices address nodes
@@ -166,6 +169,12 @@ impl DesignSystemLoader {
         &self.registry
     }
 
+    /// Returns the name that the host supplied for the source `file`, including a source
+    /// whose acceptance failed, or `None` for a file that this load did not register.
+    pub fn source_name(&self, file: FileId) -> Option<&CssSourceName> {
+        self.names.get(&file)
+    }
+
     /// Returns the first accepted source used for load-wide errors.
     pub fn root_source(&self) -> Option<&Arc<SourceFile>> {
         self.graph
@@ -183,6 +192,7 @@ impl DesignSystemLoader {
             options,
             graph: CssSourceGraph::default(),
             known: BTreeMap::new(),
+            names: BTreeMap::new(),
             nodes: Vec::new(),
             pending: BTreeMap::new(),
             next_id: 1,
@@ -610,6 +620,7 @@ impl DesignSystemLoader {
         } else {
             self.registry.register(uri, source_map_source, content)?
         };
+        self.names.insert(source.id(), name.clone());
         let mut scan =
             scan(source.text()).map_err(|kind| CompileError::new(kind, source.full_span()))?;
         let removed = scan.removed();

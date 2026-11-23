@@ -7,18 +7,18 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub enum RuleGroupInputErrorKind {
     /// Inline custom property supplied by an object entry.
-    #[error("inline custom property")]
+    #[error("inline custom properties")]
     CustomProperty,
     /// Runtime class value without a CSS rule.
-    #[error("external class value")]
+    #[error("external class values")]
     ExternalClass,
     /// A composed style value.
-    #[error("style composition")]
+    #[error("style compositions")]
     Composition,
     /// A ref attachment.
-    #[error("ref attachment")]
+    #[error("ref attachments")]
     RefAttachment,
     /// A dynamic ref attachment.
-    #[error("dynamic ref attachment")]
+    #[error("dynamic ref attachments")]
     DynamicRefAttachment,
 }

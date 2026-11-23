@@ -310,15 +310,18 @@ fn select_framework(parsed: &mut ParsedJavaScript, input: &SourceInput, lint: bo
             ));
         }
     }
+    let format = input.document().format();
     if let Some(framework) = input.framework
-        && input
-            .document()
-            .format()
+        && let Some(required) = format
             .projection_adapter()
-            .is_some_and(|source| source != framework)
+            .filter(|&source| source != framework)
     {
         parsed.diagnostics.push(CompileError::new(
-            CompileDiagnostic::FrameworkConstraintConflict,
+            CompileDiagnostic::FrameworkConstraintConflict {
+                framework: framework.name().into(),
+                source_format: format.description().into(),
+                required: required.name().into(),
+            },
             input.document().file().full_span(),
         ));
     }

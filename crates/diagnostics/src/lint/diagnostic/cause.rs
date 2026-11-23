@@ -1,5 +1,7 @@
 //! Detected lint causes, their message templates, and the rule each cause selects.
 
+use std::fmt;
+
 use lean_string::LeanStr;
 use serde::{Deserialize, Serialize};
 
@@ -68,7 +70,7 @@ pub enum LintDiagnostic {
     },
     /// A CVA value is outside the supported utility and custom-property forms.
     #[error(
-        "style.cva() values require static utilities, arrays, CSS variants, or custom properties. Utility inputs cannot use && or ternary expressions"
+        "style.cva() values require static utilities, arrays, CSS variants, or custom properties; utility inputs cannot use `&&` or ternary expressions"
     )]
     InvalidCvaInput,
     /// A style object contains a spread whose properties cannot be resolved.
@@ -94,7 +96,7 @@ pub enum LintDiagnostic {
     InvalidComputedStyleKey,
     /// An object key is neither a class entry, a custom property, nor a variant prefix.
     #[error(
-        "style() object keys must be `class`, --* custom properties, `\"\"`, or variant prefixes ending in `:`"
+        "style() object keys must be `class`, `--*` custom properties, `\"\"`, or variant prefixes ending in `:`"
     )]
     InvalidStyleKey,
     /// An interpolation cannot be lowered as a complete ref-qualified utility segment.
@@ -160,7 +162,7 @@ pub enum LintDiagnostic {
     #[error("style.ref() accepts only an optional literal label")]
     InvalidRefArgument,
     /// A ref declaration uses an unsupported argument count.
-    #[error("style.ref() accepts () or (label)")]
+    #[error("style.ref() accepts `()` or `(label)`")]
     InvalidRefArguments,
     /// A ref variant's selector cannot be determined from literal text.
     #[error("ref variants require a static variant string")]
@@ -182,7 +184,7 @@ pub enum LintDiagnostic {
     InvalidContainerType,
     /// A scope argument is not a keyword or an array, or an array entry is not a ref.
     /// An invalid argument is omitted, and an invalid entry contributes no identity.
-    #[error("anchor scope requires all, none, or an array of finite ref candidates")]
+    #[error("anchor scope requires `all`, `none`, or an array of finite ref candidates")]
     InvalidAnchorScope,
     /// A position-anchor use supplies arguments to a method that accepts none. The
     /// arguments are ignored.
@@ -371,7 +373,7 @@ pub enum LintDiagnostic {
     },
     /// A variant selects an element other than the attachment target.
     #[error(
-        "variant selector `{selector}` styles another element. Attach these styles directly to that element"
+        "variant selector `{selector}` styles another element; attach these styles directly to that element"
     )]
     IndirectStyling {
         /// Expanded variant selector with `&` for the attachment element.
@@ -457,7 +459,7 @@ pub enum LintDiagnostic {
     /// A macro expression suspends execution or loads a module; default severity is
     /// error.
     #[error(
-        "evaluate await, yield, and dynamic imports outside macro arguments, then pass their values"
+        "evaluate `await`, `yield`, and dynamic imports outside macro arguments, then pass their values"
     )]
     SuspendingMacroArgument,
     /// An explicit anchor scope has no names or repeats an identity.
@@ -519,7 +521,7 @@ pub enum LintDiagnostic {
     },
     /// A style call marks participants with a transition class but names none.
     #[error(
-        "a view transition class without a name does not participate; add .for(key) or declare view-transition-name"
+        "a view transition class without a name does not participate; add `.for(key)` or declare `view-transition-name`"
     )]
     MissingViewTransitionName,
     /// A style call supplies more than one view-transition-name for one element.
@@ -759,7 +761,8 @@ pub enum LintDiagnostic {
     /// A theme token value matches no value type of its namespace
     /// (`incompatible-theme-value`).
     #[error(
-        "`{value}` is not a valid value for `{token}` because tokens of `--{namespace}-*` must be `{expected}`"
+        "`{value}` is not a valid value for `{token}` because tokens of `--{namespace}-*` must be {}",
+        ThemeExpectedTypes(expected)
     )]
     IncompatibleThemeValue {
         /// Token name, including the leading `--`.
@@ -967,5 +970,20 @@ impl LintDiagnostic {
     /// Returns the stable lint name used in reports and suppression directives.
     pub const fn code(&self) -> &'static str {
         self.kind().name()
+    }
+}
+
+/// Formats `or`-joined theme value types with individual backticks.
+struct ThemeExpectedTypes<'a>(&'a str);
+
+impl fmt::Display for ThemeExpectedTypes<'_> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (index, item) in self.0.split(" or ").enumerate() {
+            if index > 0 {
+                formatter.write_str(" or ")?;
+            }
+            write!(formatter, "`{item}`")?;
+        }
+        Ok(())
     }
 }

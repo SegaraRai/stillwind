@@ -12,7 +12,7 @@ use crate::structure::{CssNode, CssNodeKind, parse_structure};
 
 /// A malformed banner comment or declaration, located in the supplied CSS.
 #[derive(Clone, Debug, thiserror::Error)]
-#[error("invalid CSS banner at byte {0}: expected one /*! ... */ comment")]
+#[error("invalid CSS banner: expected one `/*! ... */` comment")]
 pub struct CssBannerError(
     /// UTF-8 byte offset of the invalid declaration in the supplied CSS.
     pub usize,

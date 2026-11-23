@@ -17,10 +17,19 @@ use super::SourceFailureContext;
 #[serde(rename_all = "camelCase")]
 pub enum CompileDiagnostic {
     /// The host-selected framework differs from the original component format.
-    #[error("explicit framework conflicts with the source component format")]
-    FrameworkConstraintConflict,
+    #[error(
+        "explicit framework `{framework}` conflicts with the {source_format} source format, which requires `{required}`"
+    )]
+    FrameworkConstraintConflict {
+        /// Lowercase framework name supplied by the host.
+        framework: LeanStr,
+        /// Display label of the source component format.
+        source_format: LeanStr,
+        /// Lowercase framework name that the source component format requires.
+        required: LeanStr,
+    },
     /// A configured custom-property prefix fails the required shape or minimum length.
-    #[error("{option} must start with `--` and end with `-`")]
+    #[error("{option} must start with `--` and end with `-`, got `{value}`")]
     InvalidPropertyPrefix {
         /// Configuration field name: `prefix`, `tailwindPrefix`, or `themePrefix`.
         option: LeanStr,
@@ -36,7 +45,9 @@ pub enum CompileDiagnostic {
         maximum: usize,
     },
     /// Two generated symbols would publish the same identifier.
-    #[error("generated identifier collision: {name}")]
+    #[error(
+        "generated identifier collision: `{name}`; increase `hashLength` or check custom name generation"
+    )]
     GeneratedIdentifierCollision {
         /// Identifier whose generated definitions collide.
         name: Box<str>,
@@ -64,14 +75,14 @@ pub enum CompileDiagnostic {
     InvalidUnicodeString,
     /// A macro use was not consumed at a supported style input position.
     #[error(
-        "{syntax} must be consumed at its supported input position within style(); it cannot be materialized independently"
+        "{syntax} must be used as an input to style(); it cannot be used as a standalone runtime value"
     )]
     UnconsumedMacroUse {
         /// Display spelling of the rejected projection, variant, or keyframes use.
         syntax: LeanStr,
     },
     /// A macro read remains after lowering, preventing removal of its binding.
-    #[error("macro binding `{local}` has a reference that was not transformed at {span:?}")]
+    #[error("macro binding `{local}` has a reference that could not be transformed")]
     UntransformedMacroReference {
         /// Local name of the macro binding.
         local: LeanStr,
@@ -79,22 +90,22 @@ pub enum CompileDiagnostic {
         span: Span,
     },
     /// Style producers form a cycle within the composition graph.
-    #[error("style composition dependency cycle")]
+    #[error("style composition contains a circular dependency")]
     CompositionCycle,
     /// Composition dependencies require a cycle in CSS module ordering.
     #[error("style composition requires cyclic CSS module ordering")]
     CompositionModuleCycle,
     /// A composition dependency has no available producer artifact.
-    #[error("style base producer is unavailable")]
+    #[error("composed style base is unavailable")]
     UnavailableStyleBase,
     /// An assignment changed the declaration identities carried by a value.
-    #[error("incompatible declaration identities: {detail}")]
+    #[error("reassignment changes the Stillwind declaration identity: {detail}")]
     IdentityAssignment {
         /// Checker explanation for the assignment.
         detail: LeanStr,
     },
     /// A value no longer identifies a finite set of Stillwind declarations.
-    #[error("cannot determine finite declaration identities: {detail}")]
+    #[error("cannot statically determine Stillwind declaration identity: {detail}")]
     IdentityUnavailable {
         /// Checker explanation for the value.
         detail: LeanStr,
@@ -106,19 +117,19 @@ pub enum CompileDiagnostic {
         detail: LeanStr,
     },
     /// A CSS block has no closing delimiter.
-    #[error("unterminated CSS block at byte {offset}")]
+    #[error("unterminated CSS block")]
     UnterminatedCssBlock {
         /// Zero-based UTF-8 byte offset in the buffer parsed by the failing operation.
         offset: usize,
     },
     /// A CSS block cannot be consumed as one balanced block.
-    #[error("invalid CSS block at byte {offset}")]
+    #[error("invalid CSS block")]
     InvalidCssBlock {
         /// Zero-based UTF-8 byte offset in the buffer parsed by the failing operation.
         offset: usize,
     },
     /// A CSS construct nests deeper than the depth the scanner can process.
-    #[error("CSS nesting exceeds {limit} levels at byte {offset}")]
+    #[error("CSS nesting exceeds {limit} levels")]
     CssNestingTooDeep {
         /// Zero-based UTF-8 byte offset in the buffer parsed by the failing operation.
         offset: usize,
@@ -126,22 +137,22 @@ pub enum CompileDiagnostic {
         limit: usize,
     },
     /// The output template has no destination for generated utility rules.
-    #[error("generated utilities require an @stillwind-slot utilities; in the CSS entry graph")]
+    #[error("generated utilities require `@stillwind-slot utilities;` in the CSS entry graph")]
     MissingUtilitiesSlot,
     /// The output template lacks a destination for generated support CSS.
-    #[error("generated support requires an @stillwind-slot {slot}; in the CSS entry graph")]
+    #[error("generated support requires `@stillwind-slot {slot};` in the CSS entry graph")]
     MissingSupportSlot {
         /// Slot name without the `@stillwind-slot` directive or trailing semicolon.
         slot: LeanStr,
     },
     /// An authored requirement directive contains malformed names or syntax.
-    #[error("invalid Stillwind property requirement at byte {offset}")]
+    #[error("invalid Stillwind property requirement")]
     MalformedPropertyRequirement {
         /// Byte offset of the directive within its CSS body.
         offset: usize,
     },
     /// A matched utility definition contains a malformed requirement directive.
-    #[error("utility `{utility}` has an invalid property requirement at body byte {offset}")]
+    #[error("utility `{utility}` has an invalid property requirement")]
     MalformedUtilityRequirement {
         /// Registered utility name.
         utility: LeanStr,
@@ -169,7 +180,7 @@ pub enum CompileDiagnostic {
         detail: LeanStr,
     },
     /// A `--theme()` call has invalid syntax at a byte offset within its value.
-    #[error("invalid --theme() reference at value byte {offset}: {detail}")]
+    #[error("invalid `--theme()` reference: {detail}")]
     InvalidThemeReference {
         /// Zero-based UTF-8 byte offset within the containing value.
         offset: usize,
@@ -232,19 +243,19 @@ pub enum CompileDiagnostic {
         detail: LeanStr,
     },
     /// A UTF-16 code-unit offset cannot be converted to a source position.
-    #[error("invalid UTF-16 offset {offset:?}")]
+    #[error("invalid UTF-16 offset {}", offset.0)]
     InvalidUtf16Offset {
         /// Rejected zero-based UTF-16 code-unit offset.
         offset: Utf16Offset,
     },
     /// A line and UTF-16 column cannot be converted to a source offset.
-    #[error("invalid UTF-16 position {position:?}")]
+    #[error("invalid UTF-16 position {}:{}", position.line + 1, position.utf16_column + 1)]
     InvalidUtf16Position {
         /// Rejected zero-based line and UTF-16 column.
         position: Position,
     },
     /// A UTF-8 byte offset cannot be converted to a source position.
-    #[error("invalid UTF-8 byte offset {offset:?}")]
+    #[error("invalid UTF-8 byte offset {}", offset.0)]
     InvalidUtf8Offset {
         /// Zero-based UTF-8 byte offset in the buffer parsed by the failing operation.
         offset: BytePos,
@@ -258,14 +269,14 @@ pub enum CompileDiagnostic {
         span: Span,
     },
     /// No host-supplied editable region of a projected source contains a required edit.
-    #[error("no editable projection region contains the edit at {span:?}")]
+    #[error("no editable projection region contains the required edit")]
     EditOutsideEditableRegion {
         /// Original range of the runtime use or replacement outside every editable
         /// region.
         span: Span,
     },
     /// A quoted editable region is not delimited by the quote that the host recorded.
-    #[error("projected attribute at {span:?} is not delimited by its recorded quote")]
+    #[error("projected attribute is not delimited by its recorded quote")]
     AttributeQuoteMismatch {
         /// Original range of the editable region.
         span: Span,
@@ -331,7 +342,7 @@ pub enum CompileDiagnostic {
         context: SourceFailureContext,
     },
     /// A span was applied to a different source file.
-    #[error("span belongs to file {actual:?}, expected {expected:?}")]
+    #[error("span belongs to file #{}, expected file #{}", actual.0, expected.0)]
     SourceWrongFile {
         /// File identity required by the source buffer.
         expected: FileId,
@@ -341,7 +352,7 @@ pub enum CompileDiagnostic {
         context: SourceFailureContext,
     },
     /// A source operation rejected a span's bounds or UTF-8 boundaries.
-    #[error("invalid source span {span:?}")]
+    #[error("invalid source span {}..{} in file #{}", span.start.0, span.end.0, span.file.0)]
     SourceInvalidSpan {
         /// Rejected span, including its source identity and half-open UTF-8 byte range.
         span: Span,
@@ -349,7 +360,7 @@ pub enum CompileDiagnostic {
         context: SourceFailureContext,
     },
     /// A source operation rejected a UTF-8 byte position.
-    #[error("invalid byte offset {offset:?}")]
+    #[error("invalid byte offset {}", offset.0)]
     SourceInvalidOffset {
         /// Zero-based UTF-8 byte offset in the buffer parsed by the failing operation.
         offset: BytePos,
@@ -367,13 +378,13 @@ pub enum CompileDiagnostic {
     RenderedSourceTooLarge,
     /// A module needs a macro import to anchor runtime or stylesheet imports, but its
     /// import realm has none.
-    #[error("no verified macro import anchor for runtime use at {span:?}")]
+    #[error("no verified macro import anchor for runtime use")]
     MissingRuntimeAnchor {
         /// Runtime-use range whose import realm lacks a verified macro anchor.
         span: Span,
     },
     /// An explicit CSS import lacks the host-provided virtual module target.
-    #[error("explicit module CSS import requires a host-allocated virtual module at {span:?}")]
+    #[error("explicit module CSS import requires a host-allocated virtual module")]
     MissingModuleCssTarget {
         /// Explicit module-CSS import range that requires a host-provided target.
         span: Span,
@@ -390,7 +401,7 @@ pub enum CompileDiagnostic {
     #[error("source replacement was requested for a failed compilation")]
     TransformAfterFailedCompilation,
     /// Generated CSS cannot be split into complete rule blocks.
-    #[error("invalid generated CSS block at byte {offset}")]
+    #[error("invalid generated CSS block")]
     InvalidGeneratedCss {
         /// Zero-based UTF-8 byte offset within the offending generated CSS
         /// contribution.
@@ -404,20 +415,20 @@ pub enum CompileDiagnostic {
     InvalidCssGraph,
     /// Macro import spans or realm metadata produced by the frontend are inconsistent
     /// with the source.
-    #[error("invalid macro import metadata at {span:?}")]
+    #[error("invalid macro import metadata")]
     InvalidMacroImportMetadata {
         /// Import declaration or runtime-use range associated with inconsistent
         /// metadata.
         span: Span,
     },
     /// A selected macro import anchor has no removal edit to receive runtime imports.
-    #[error("macro import at {span:?} has no removal edit for runtime imports")]
+    #[error("macro import has no removal edit for runtime imports")]
     MissingAnchorEdit {
-        /// Macro import declaration selected as the anchor.
+        /// Import declaration selected as the anchor.
         span: Span,
     },
     /// A generated source transform contains invalid expression mapping metadata.
-    #[error("invalid expression mapping in source replacement at {span:?}")]
+    #[error("invalid expression mapping in source replacement")]
     InvalidTransformExpressionMapping {
         /// Original call span carrying the replacement.
         span: Span,
@@ -425,7 +436,7 @@ pub enum CompileDiagnostic {
     /// The compiler applied source coordinates that it produced, and the source
     /// rejected them. Source failures of host-supplied coordinates use the `Source*`
     /// variants.
-    #[error("invalid source coordinates during {context:?}: {detail}")]
+    #[error("invalid source coordinates during {context}: {detail}")]
     InvalidInternalSourceCoordinates {
         /// Operation that applied the coordinates.
         context: SourceFailureContext,
@@ -433,7 +444,7 @@ pub enum CompileDiagnostic {
         detail: LeanStr,
     },
     /// Generated source replacements overlap.
-    #[error("overlapping source replacement {span:?}, previous start {previous_start}")]
+    #[error("overlapping source replacement at {}..{}, previous start {previous_start}", span.start.0, span.end.0)]
     InvalidTransformOverlap {
         /// Later replacement that overlaps a preceding one.
         span: Span,

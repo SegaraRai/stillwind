@@ -97,6 +97,14 @@ export function renderResult(
     }
   };
   const lines: string[] = [];
+  // Project tags appear only when the reported items come from more than one project.
+  const analysisProjects = new Set(
+    [...result.diagnostics, ...result.previews, ...result.failures].flatMap(({ project }) =>
+      project === undefined ? [] : [project],
+    ),
+  );
+  const projectTag = (project: number | undefined) =>
+    project !== undefined && analysisProjects.size > 1 ? ` [project ${project + 1}]` : "";
   for (const { project, report, docs } of result.diagnostics) {
     const message = clean(report.message);
     const details = [
@@ -143,28 +151,31 @@ export function renderResult(
         report.severity === "error" ? "red" : "yellow",
         color,
       );
+      const tag = projectTag(project);
       lines.push(
-        `${linked(report.primary)}: ${severity} ${clean(report.code)} [project ${project + 1}]: ${message}`,
+        `${paint(linked(report.primary), "bold", color)}: ${severity} ${paint(clean(report.code), "dim", color)}${tag ? paint(tag, "dim", color) : ""}: ${message}`,
       );
       addFrame(report.primary);
       if (report.primary.message) {
-        lines.push(`  note: ${clean(report.primary.message)}`);
+        lines.push(`  ${paint("note:", "cyan", color)} ${clean(report.primary.message)}`);
       }
       for (const related of report.related) {
         lines.push(
-          `  related: ${linked(related)}${related.message ? `: ${clean(related.message)}` : ""}`,
+          `  ${paint("related:", "cyan", color)} ${linked(related)}${related.message ? `: ${clean(related.message)}` : ""}`,
         );
         addFrame(related);
       }
-      lines.push(...report.notes.map((note) => `  note: ${clean(note)}`));
+      lines.push(
+        ...report.notes.map((note) => `  ${paint("note:", "cyan", color)} ${clean(note)}`),
+      );
       lines.push(
         ...report.actions.map(
           (action) =>
-            `  help: ${clean(action.title)} (${action.autofix ? "autofix" : "suggestion"})`,
+            `  ${paint("help:", "cyan", color)} ${clean(action.title)} (${action.autofix ? "autofix" : "suggestion"})`,
         ),
       );
       if (docs) {
-        lines.push(`  docs: ${docs}`);
+        lines.push(`  ${paint("docs:", "dim", color)} ${docs}`);
       }
       lines.push("");
     }
@@ -176,7 +187,9 @@ export function renderResult(
     lines.push("");
   }
   for (const failure of result.failures) {
-    lines.push(renderFailure(failure, options.format === "github", file, color));
+    lines.push(
+      renderFailure(failure, projectTag(failure.project), options.format === "github", file, color),
+    );
   }
   if (result.command === "fmt" || result.command === "check") {
     for (const changed of result.changed) {
@@ -208,26 +221,22 @@ export function renderResult(
         scope: "range",
         location,
       } as Label;
-      lines.push(`${linked(label)} [project ${project + 1}]`);
-      const failure = valid || diagnostics.length ? [] : ["error: CSS generation failed."];
-      lines.push(
-        ...clean(
-          [
-            ...failure,
-            ...diagnostics.flatMap(({ severity, code, message, docs }) => [
-              `${severity} ${code}: ${message}`,
-              ...(docs ? [`docs: ${docs}`] : []),
-            ]),
-            css,
-            documentation,
-          ]
-            .filter(Boolean)
-            .join("\n"),
-        )
-          .trimEnd()
-          .split("\n")
-          .map((line) => (line ? `  ${line}` : "")),
-      );
+      const tag = projectTag(project);
+      lines.push(`${paint(linked(label), "bold", color)}${tag ? paint(tag, "dim", color) : ""}`);
+      if (!valid && !diagnostics.length) {
+        lines.push(`  ${paint("error", "red", color)}: CSS generation failed.`);
+      }
+      for (const { severity, code, message, docs } of diagnostics) {
+        const renderedSeverity = paint(severity, severity === "error" ? "red" : "yellow", color);
+        lines.push(`  ${renderedSeverity} ${paint(clean(code), "dim", color)}: ${clean(message)}`);
+        if (docs) {
+          lines.push(`  ${paint("docs:", "dim", color)} ${clean(docs)}`);
+        }
+      }
+      const body = clean([css, documentation].filter(Boolean).join("\n")).trimEnd();
+      if (body) {
+        lines.push(...body.split("\n").map((line) => (line ? `  ${line}` : "")));
+      }
       lines.push("");
     }
     if (!result.summary.previews && !result.summary.failures) {
@@ -319,7 +328,7 @@ export function renderResult(
     lines.push(
       options.format === "github"
         ? annotation("error", { title: "Stillwind warnings" }, message)
-        : `error: ${message}`,
+        : `${paint("error", "red", color)}: ${message}`,
     );
   }
   if (options.format === "text") {
@@ -376,12 +385,12 @@ export async function writeResult(result: CliResult, options: OutputOptions): Pr
 
 function renderFailure(
   failure: CliFailure,
+  project: string,
   github: boolean,
   file: (uri: string) => string,
   color: boolean,
 ): string {
   const details = failure.details.map((detail) => `${file(detail.file)}: ${clean(detail.message)}`);
-  const project = failure.project === undefined ? "" : ` [project ${failure.project + 1}]`;
   return github
     ? annotation(
         "error",
@@ -395,7 +404,11 @@ function count(value: number, noun: string): string {
   return `${value} ${noun}${value === 1 ? "" : "s"}`;
 }
 
-function paint(text: string, color: "red" | "yellow", enabled: boolean): string {
+function paint(
+  text: string,
+  color: "red" | "yellow" | "cyan" | "dim" | "bold",
+  enabled: boolean,
+): string {
   return enabled ? styleText(color, text, { validateStream: false }) : text;
 }
 

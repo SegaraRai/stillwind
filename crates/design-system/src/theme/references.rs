@@ -139,13 +139,13 @@ pub(crate) fn dashed_theme_calls(value: &str) -> Option<LeanString> {
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum ThemeReferenceError {
     /// The function starting at the byte offset has no closing parenthesis.
-    #[error("unterminated --theme() at byte {offset}")]
+    #[error("`--theme()` has no closing parenthesis")]
     Unterminated {
         /// Zero-based byte offset within the value.
         offset: usize,
     },
     /// The function does not name a custom property.
-    #[error("invalid --theme() property `{reference}` at byte {offset}")]
+    #[error("`{reference}` is not a custom property name")]
     InvalidProperty {
         /// Zero-based byte offset within the value.
         offset: usize,

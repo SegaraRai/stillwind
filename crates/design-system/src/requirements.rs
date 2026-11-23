@@ -11,7 +11,7 @@ use stillwind_css::{CssNode, CssNodeKind, parse_structure, whitespace_separated_
 
 /// A malformed property requirement and its byte offset in the supplied CSS body.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
-#[error("invalid property requirement at byte {offset}")]
+#[error("invalid property requirement")]
 pub struct PropertyRequirementError {
     /// Byte offset of the directive within the supplied CSS body.
     pub offset: usize,

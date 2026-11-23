@@ -216,7 +216,9 @@ export function developmentHooks(
             }
             // A producer that failed to compile blocks the stylesheet until the transform that
             // this update starts reports the failure.
-            this.warn(`Stillwind update failed; retaining published styles: ${String(error)}`);
+            this.warn(
+              `stillwind: update failed; retaining published styles: ${error instanceof Error ? error.message : String(error)}`,
+            );
             return [...new Set([...context.modules, ...stale])];
           }
         }
@@ -264,7 +266,9 @@ export function developmentHooks(
           return [...new Set([...context.modules, ...stale])];
         }
       } catch (error) {
-        this.warn(`Stillwind update failed; retaining published styles: ${String(error)}`);
+        this.warn(
+          `stillwind: update failed; retaining published styles: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
       return undefined;
     },

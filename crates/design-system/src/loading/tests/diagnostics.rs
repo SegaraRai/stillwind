@@ -2,6 +2,8 @@
 
 use std::error::Error;
 
+use stillwind_source::Span;
+
 use super::*;
 
 #[test]
@@ -37,11 +39,46 @@ fn parse_failures_keep_source_span_and_typed_cause() {
     )
     .unwrap_err()
     .into_compile_error(source.full_span());
-    assert_eq!(error.labels[0].span, source.full_span());
+    assert_eq!(error.labels[0].span, Span::new(source.id(), 7, 8));
     assert!(matches!(
         error.diagnostic,
-        CompileDiagnostic::UnterminatedCssBlock { .. }
+        CompileDiagnostic::UnterminatedCssBlock { offset: 7 }
     ));
+}
+
+/// Structural CSS failures label the failing character in the accepted source, so
+/// reports point at it instead of the whole stylesheet.
+#[test]
+fn structural_failures_label_the_failing_character() {
+    for (css, offset) in [
+        (
+            ".a{}
+@theme {
+  --x: 1;",
+            12,
+        ),
+        (".a{ color: red; }}", 17),
+    ] {
+        let mut loader =
+            DesignSystemLoader::new(DesignSystemOptions::default(), SourceRegistry::default());
+        let DesignSystemLoadStep::Complete(Err(DesignSystemLoadError::Compilation(error))) = loader
+            .provide(
+                0,
+                CssSourceName::from("theme.css"),
+                Some(SourceUri::parse("file:///theme.css").unwrap()),
+                None,
+                css.into(),
+            )
+        else {
+            panic!("expected a compilation error for {css:?}")
+        };
+        let root = loader.root_source().unwrap();
+        assert_eq!(
+            error.labels[0].span,
+            Span::new(root.id(), offset, offset + 1),
+            "{css:?}"
+        );
+    }
 }
 
 /// Skipped statements are recorded in their own sources, including statements that only

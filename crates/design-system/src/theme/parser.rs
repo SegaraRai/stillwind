@@ -54,8 +54,9 @@ use crate::{
 /// Returns malformed CSS, unterminated blocks, values or blocks nested past the
 /// supported depth, invalid output slots or contexts, conditional compile-time
 /// definitions, or positions outside the source-coordinate limit. The error retains the
-/// cause and uses `source.full_span()` as its primary label. Cause offsets refer to
-/// this buffer.
+/// cause. Its primary label is the failing character for an unterminated block, a
+/// nesting overflow, or a syntax error, and `source.full_span()` otherwise. Cause
+/// offsets refer to this buffer.
 pub fn parse_theme(
     source: &SourceFile,
     source_identity: &CssSourceName,
@@ -81,39 +82,73 @@ pub(crate) fn parse_theme_builder(
     plugin_ranges: &[Range<usize>],
     origins: &[(Range<usize>, DefinitionOrigin)],
 ) -> Result<ThemeBuilder, CompileError> {
+    validate_structure(source)?;
     parse_theme_contents(source, source_identity, plugin_ranges, origins)
         .map_err(|kind| CompileError::new(kind, source.full_span()))
+}
+
+/// Rejects block, nesting, and syntax failures with a label at the failing character.
+///
+/// # Errors
+///
+/// Returns an unterminated block, a value or block nested past [`MAX_VALUE_NESTING`],
+/// or a CSS syntax error. The primary label covers the character at the cause offset,
+/// or is empty at the end of `source`.
+fn validate_structure(source: &SourceFile) -> Result<(), CompileError> {
+    let located = |diagnostic, offset: usize| {
+        let text = source.text();
+        let end = text
+            .get(offset..)
+            .and_then(|rest| rest.chars().next())
+            .map_or(offset, |character| offset + character.len_utf8());
+        // Offsets come from scans of `text`, whose length fits the u32 source limit.
+        let span = match (u32::try_from(offset), u32::try_from(end)) {
+            (Ok(start), Ok(end)) => Span::new(source.id(), start, end),
+            _ => source.full_span(),
+        };
+        CompileError::new(diagnostic, span)
+    };
+    if let Some(offset) = unterminated_block(source.text()) {
+        return Err(located(
+            CompileDiagnostic::UnterminatedCssBlock { offset },
+            offset,
+        ));
+    }
+    if let Some(offset) = parenthesis_nesting_overflow(source.text(), MAX_VALUE_NESTING) {
+        return Err(located(
+            CompileDiagnostic::CssNestingTooDeep {
+                offset,
+                limit: MAX_VALUE_NESTING,
+            },
+            offset,
+        ));
+    }
+    validate_css_syntax_recovering(source.text()).map_err(|error| {
+        let diagnostic = match error.kind {
+            CssSyntaxErrorKind::NestingLimit => CompileDiagnostic::CssNestingTooDeep {
+                offset: error.offset,
+                limit: MAX_VALUE_NESTING,
+            },
+            _ => CompileDiagnostic::CssParse {
+                detail: error.to_lean_str(),
+            },
+        };
+        located(diagnostic, error.offset)
+    })
 }
 
 /// Parses definitions and output positions from `source` without a reporting wrapper.
 ///
 /// # Errors
 ///
-/// Returns the parser and output-template failures documented by [`parse_theme`].
+/// Returns the definition and output-template failures documented by [`parse_theme`]
+/// for a buffer that `validate_structure` accepted.
 fn parse_theme_contents(
     source: &SourceFile,
     source_identity: &CssSourceName,
     plugin_ranges: &[Range<usize>],
     origins: &[(Range<usize>, DefinitionOrigin)],
 ) -> Result<ThemeBuilder, CompileDiagnostic> {
-    if let Some(offset) = unterminated_block(source.text()) {
-        return Err(CompileDiagnostic::UnterminatedCssBlock { offset });
-    }
-    if let Some(offset) = parenthesis_nesting_overflow(source.text(), MAX_VALUE_NESTING) {
-        return Err(CompileDiagnostic::CssNestingTooDeep {
-            offset,
-            limit: MAX_VALUE_NESTING,
-        });
-    }
-    validate_css_syntax_recovering(source.text()).map_err(|error| match error.kind {
-        CssSyntaxErrorKind::NestingLimit => CompileDiagnostic::CssNestingTooDeep {
-            offset: error.offset,
-            limit: MAX_VALUE_NESTING,
-        },
-        _ => CompileDiagnostic::CssParse {
-            detail: error.to_lean_str(),
-        },
-    })?;
     let (banner_css, banners) = extract_stylesheet_banners(source.text())?;
     let mut theme = extract_theme_tokens(source.id(), source.text())?;
     theme.banners = banners;
