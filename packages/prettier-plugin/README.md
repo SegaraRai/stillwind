@@ -11,7 +11,7 @@ Stillwind inputs before Prettier formats a document.
 Install the plugin alongside Prettier 3.7 or newer within the 3.x series:
 
 ```sh
-vp i -D prettier prettier-plugin-stillwind
+npm install -D prettier prettier-plugin-stillwind
 ```
 
 ```js
@@ -58,9 +58,9 @@ Duplicate or ambiguous tokens retain their relative cursor offset within the rep
 The plugin only sorts. Canonical utility replacements are available through `stillwind lint --fix`.
 Prettier owns saving files. The plugin reloads project configuration for each formatting request.
 
-See [Editor sorting](https://github.com/SegaraRai/stillwind/blob/main/docs/standalone-analysis.md#editor-sorting)
-for the shared sorting contract and [Lint policies](https://github.com/SegaraRai/stillwind/blob/main/docs/standalone-analysis.md#utility-lint-policies)
-for canonical replacements and other checks.
+See [Formatters](https://stillwind.dev/docs/formatters) and
+[Sorting](https://stillwind.dev/docs/configuration#sorting) for sorting options, and
+[Lint](https://stillwind.dev/docs/configuration#lint) for canonical replacements and other checks.
 
 ## Browser entry
 

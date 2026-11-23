@@ -29,8 +29,8 @@ Add a [Stillwind project configuration](https://stillwind.dev/docs/configuration
 to the workspace. The extension discovers `stillwind.config.*`; set
 `stillwind.configFile` to select a path relative to the workspace root. A change to
 this setting restarts the language server.
-A configuration in a workspace subfolder loads when a tab shows a file that uses it. Diagnostics
-appear for files in open tabs.
+A configuration in a workspace subfolder loads when a tab shows a file that uses it.
+Diagnostics appear for files in open tabs.
 Use **Stillwind: Restart Language Server** to reload configuration and dependencies.
 
 ## Features
@@ -51,8 +51,8 @@ Stillwind's CSS at-rule completion normally offers application and theme authori
 syntax. Enable `stillwind.completion.registryDirectives` when editing utility
 libraries.
 The project `preview` settings control theme values, pixel equivalents, and colors
-shown in CSS previews. See [Editor previews](https://github.com/SegaraRai/stillwind/blob/main/docs/standalone-analysis.md#editor-previews)
-for their options.
+shown in CSS previews. See [Editors](https://stillwind.dev/docs/editors)
+and [Project fields](https://stillwind.dev/docs/configuration#project-fields) for their options.
 
 ## Sort and fix on save
 
@@ -82,5 +82,5 @@ dependencies must be readable through the workspace filesystem.
 The default browser provider supports JS, JSX, TS, and TSX; component documents
 require a custom source or projection provider.
 
-See [project configuration and editor contracts](https://github.com/SegaraRai/stillwind/blob/main/docs/standalone-analysis.md)
+See [Configuration](https://stillwind.dev/docs/configuration)
 for lint presets, stylesheet support, and sorting options.

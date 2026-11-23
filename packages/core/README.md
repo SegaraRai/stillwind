@@ -10,8 +10,8 @@ Alpine, Astro, Lit, Preact, Qwik, React, Solid, Svelte, Vue, and vanilla JavaScr
 ## Install
 
 ```sh
-vp i stillwind
-vp i -D @stillwind/integration
+npm install stillwind
+npm install -D @stillwind/integration
 ```
 
 ## Configure a project

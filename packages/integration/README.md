@@ -9,8 +9,8 @@ styles during development and production builds, and delivers generated CSS thro
 ## Install
 
 ```sh
-vp i stillwind
-vp i -D @stillwind/integration
+npm install stillwind
+npm install -D @stillwind/integration
 ```
 
 Create the stylesheet and project configuration described in the
@@ -23,7 +23,7 @@ Place Stillwind before your framework's JSX transform:
 ```ts
 import { stillwind } from "@stillwind/integration/vite";
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite-plus";
+import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [stillwind(), react()],

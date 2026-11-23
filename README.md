@@ -70,15 +70,43 @@ theme does not define, such as a misspelled `bg-acent`.
 
 ## Get started
 
-Install the packages:
+1. Install the packages:
 
-```sh
-vp i stillwind
-vp i -D @stillwind/integration @stillwind/cli
-```
+   ```sh
+   npm install stillwind
+   npm install -D @stillwind/integration @stillwind/cli
+   ```
 
-Then follow [Getting started](https://stillwind.dev/docs) to add a stylesheet,
-configure the project, and register the build integration.
+2. Point `stillwind.config.ts` to your stylesheet (`src/stillwind.css` above) and source files:
+
+   ```ts
+   import { defineConfig } from "stillwind/config";
+
+   export default defineConfig({
+     projects: [
+       {
+         css: "./src/stillwind.css",
+         files: ["src/**/*.{js,jsx,ts,tsx,vue,svelte,astro}"],
+       },
+     ],
+   });
+   ```
+
+3. Register the build integration (for Vite, place `stillwind()` before your framework's JSX transform):
+
+   ```ts
+   // vite.config.ts
+   import { stillwind } from "@stillwind/integration/vite";
+   import react from "@vitejs/plugin-react";
+   import { defineConfig } from "vite";
+
+   export default defineConfig({
+     plugins: [stillwind(), react()],
+   });
+   ```
+
+   See [Getting started](https://stillwind.dev/docs) and
+   [Framework integrations](https://stillwind.dev/docs/integrations) for other build tools and options.
 
 To see diagnostics and completion while you edit, install the VS Code extension from the
 [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=stillwind.stillwind)
@@ -122,7 +150,7 @@ or [Migrating from CSS](https://stillwind.dev/docs/guides/migrating-from-css).
 ## Contributing
 
 [Development](DEVELOPMENT.md) describes the repository setup, architecture, and
-verification. [PHILOSOPHY.md](PHILOSOPHY.md) records the design principles.
+verification.
 
 ## License
 

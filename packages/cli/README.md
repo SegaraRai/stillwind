@@ -9,7 +9,7 @@ It uses the same project configuration as the build integration and editor.
 ## Install
 
 ```sh
-vp i -D @stillwind/cli
+npm install -D @stillwind/cli
 ```
 
 Create a [Stillwind project configuration](https://stillwind.dev/docs/configuration)

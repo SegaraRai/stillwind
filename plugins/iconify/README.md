@@ -10,7 +10,7 @@ you use are included in your CSS.
 Install the plugin and the icon sets that the project uses:
 
 ```bash
-vp i -D @stillwind/plugin-iconify @iconify-json/mdi
+npm install -D @stillwind/plugin-iconify @iconify-json/mdi
 ```
 
 Load the plugin in the project stylesheet:
