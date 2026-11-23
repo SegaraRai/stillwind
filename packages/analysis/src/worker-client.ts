@@ -64,6 +64,10 @@ export type WorkerRequest =
       request: EditorRequest;
     }
   | {
+      /** Serialized discriminator for reading resolved project metadata. */
+      method: "info";
+    }
+  | {
       /** Serialized discriminator for a question about each project's design system. */
       method: "designSystem";
       /** Theme, utility, or variant request. */

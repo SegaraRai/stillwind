@@ -21,6 +21,7 @@ To run the CLI in CI, see [Checks in the editor and CI](/docs/guides/lint-adopti
 | `stillwind check`     | Runs lint and utility sorting checks, and can fix and sort in one pass |
 | `stillwind fmt`       | Sorts utilities                                                        |
 | `stillwind lint`      | Reports lint findings, and can apply automatic fixes                   |
+| `stillwind info`      | Shows the resolved project configuration                               |
 | `stillwind inspect`   | Shows the CSS that source code generates                               |
 | `stillwind theme`     | Lists the theme tokens of the project                                  |
 | `stillwind utilities` | Checks or searches utilities                                           |
@@ -113,6 +114,20 @@ Findings and the exit code describe the files after the last pass.
 `--max-warnings` counts distinct warnings in each project, including warnings that
 `--quiet` hides. When hidden warnings exceed the limit, the CLI still prints the
 reason for the failure.
+
+## stillwind info
+
+```sh
+vp exec stillwind info
+vp exec stillwind info --format json
+```
+
+`info` evaluates `stillwind.config.*` and reports each project's resolved root,
+stylesheet path, target and exclude globs, matched file count, registered plugins,
+sorting and `typeFacts` settings, and active lint rules (omitting rules set to `off`).
+It compiles no source files and accepts no positional arguments.
+
+`info` accepts the [shared options](#shared-options). The `files` format is not available.
 
 ## stillwind inspect
 
@@ -227,7 +242,7 @@ accepts `--config`, but no globs.
 
 ## Shared options
 
-`check`, `fmt`, `lint`, `inspect`, `theme`, `utilities`, and `variants` accept these options:
+`check`, `fmt`, `lint`, `info`, `inspect`, `theme`, `utilities`, and `variants` accept these options:
 
 | Option                  | Effect                                              |
 | ----------------------- | --------------------------------------------------- |
@@ -347,6 +362,7 @@ failures:
   "failures": [],
   "changed": [],
   "previews": [],
+  "projects": [],
   "tokens": [],
   "candidates": [],
   "unmatched": [],
@@ -358,6 +374,7 @@ failures:
     "changed": 0,
     "previews": 0,
     "invalidPreviews": 0,
+    "projects": 0,
     "tokens": 0,
     "candidates": 0,
     "invalidCandidates": 0,
@@ -377,6 +394,7 @@ failures:
 | `failures`    | The execution failures                                                                                           |
 | `changed`     | The files that the command changed; with `check` (without `--fix`) or `fmt --check`, the files that need sorting |
 | `previews`    | The generated CSS that `inspect` selected; empty for other commands                                              |
+| `projects`    | The resolved project configurations that `info` reported; empty for other commands                               |
 | `tokens`      | The tokens that `theme` selected; empty for other commands                                                       |
 | `candidates`  | The names that `utilities` or `variants` selected; empty for other commands                                      |
 | `unmatched`   | The arguments of `theme`, `utilities`, or `variants` without a match in any project                              |

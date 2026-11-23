@@ -1,5 +1,10 @@
 import { lintReports } from "@stillwind/analysis";
-import type { DesignSystemAnswer, InspectPreview, LintResult } from "@stillwind/analysis/node";
+import type {
+  DesignSystemAnswer,
+  InspectPreview,
+  LintResult,
+  ProjectInfo,
+} from "@stillwind/analysis/node";
 
 import { documentationPage, stillwindRoot } from "./documentation.ts";
 
@@ -8,7 +13,7 @@ import { documentationPage, stillwindRoot } from "./documentation.ts";
  */
 export type DesignCommand = "theme" | "utilities" | "variants";
 
-export type CliCommand = "check" | "lint" | "fmt" | "inspect" | DesignCommand | null;
+export type CliCommand = "check" | "lint" | "fmt" | "inspect" | "info" | DesignCommand | null;
 
 export type CliDiagnostic = ReturnType<typeof lintReports>[number] & {
   /** Absolute path or URL of the page that explains the report code. */
@@ -40,6 +45,7 @@ export interface CliResult {
   failures: CliFailure[];
   changed: string[];
   previews: CliPreview[];
+  projects: ProjectInfo[];
   tokens: DesignSystemAnswer["tokens"];
   candidates: DesignSystemAnswer["candidates"];
   unmatched: string[];
@@ -51,6 +57,7 @@ export interface CliResult {
     changed: number;
     previews: number;
     invalidPreviews: number;
+    projects: number;
     tokens: number;
     candidates: number;
     invalidCandidates: number;
@@ -82,6 +89,7 @@ export function cliResult(
   result: Pick<LintResult, "config" | "results" | "changed"> & {
     failures?: readonly Pick<NonNullable<LintResult["failures"]>[number], "file" | "message">[];
     previews?: InspectPreview[];
+    projects?: ProjectInfo[];
   } & Partial<Pick<DesignSystemAnswer, "tokens" | "candidates" | "unmatched">>,
   policy: ResultPolicy = {},
 ): CliResult {
@@ -99,7 +107,7 @@ export function cliResult(
     })),
   }));
   const invalid = previews.filter(({ valid }) => !valid).length;
-  const { tokens = [], candidates = [], unmatched = [] } = result;
+  const { tokens = [], candidates = [], unmatched = [], projects = [] } = result;
   const invalidCandidates = candidates.filter(({ valid }) => !valid).length;
   const diagnostics: CliDiagnostic[] = lintReports(
     command !== "lint" && command !== "check"
@@ -144,7 +152,12 @@ export function cliResult(
       });
     }
   }
-  if (!result.results.length && !failures.length && !isDesignCommand(command)) {
+  if (
+    !result.results.length &&
+    !failures.length &&
+    !isDesignCommand(command) &&
+    command !== "info"
+  ) {
     failures.push({
       message: "No analysis targets matched the configured scopes",
       details: [],
@@ -163,6 +176,7 @@ export function cliResult(
     failures,
     changed,
     previews,
+    projects,
     tokens,
     candidates,
     unmatched,
@@ -177,6 +191,7 @@ export function cliResult(
       changed: changed.length,
       previews: previews.length,
       invalidPreviews: invalid,
+      projects: projects.length,
       tokens: tokens.length,
       candidates: candidates.length,
       invalidCandidates,

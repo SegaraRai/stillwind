@@ -221,6 +221,42 @@ export function renderResult(
       lines.push("The selected source has no generated CSS.");
     }
   }
+  if (result.command === "info" && options.format === "text") {
+    if (result.config) {
+      lines.push(`config: ${file(result.config)}`);
+      lines.push("");
+    }
+    for (const info of result.projects) {
+      lines.push(`project ${info.project + 1}${info.name ? ` (${clean(info.name)})` : ""}`);
+      lines.push(`  root: ${file(info.root)}`);
+      lines.push(`  css: ${file(info.css)}`);
+      lines.push(`  files: ${info.files.map(clean).join(", ")}`);
+      if (info.exclude.length) {
+        lines.push(`  exclude: ${info.exclude.map(clean).join(", ")}`);
+      }
+      lines.push(`  matched files: ${info.matchedFiles}`);
+      if (info.plugins.length) {
+        lines.push(`  plugins: ${info.plugins.map(clean).join(", ")}`);
+      }
+      lines.push(`  sort: ${info.sort ? "enabled" : "disabled"}`);
+      lines.push(`  typeFacts: ${info.typeFacts ? "enabled" : "disabled"}`);
+      const entries = Object.entries(info.lint);
+      const denied = entries.filter(([, setting]) =>
+        typeof setting === "string" ? setting === "deny" : setting.severity === "deny",
+      ).length;
+      const warned = entries.length - denied;
+      lines.push(
+        entries.length
+          ? `  lint: ${count(entries.length, "active rule")} (${denied} deny, ${warned} warn)`
+          : "  lint: disabled",
+      );
+      for (const [rule, setting] of entries) {
+        const severity = typeof setting === "string" ? setting : setting.severity;
+        lines.push(`    ${clean(rule)}: ${severity}`);
+      }
+      lines.push("");
+    }
+  }
   const projects = new Set([...result.tokens, ...result.candidates].map(({ project }) => project));
   const tag = (project: number) => (projects.size > 1 ? ` [project ${project + 1}]` : "");
   for (const { project, name, value, resolvedValue, source } of result.tokens) {
@@ -271,19 +307,21 @@ export function renderResult(
     }
     const { summary } = result;
     lines.push(
-      isDesignCommand(result.command)
-        ? `${result.command === "theme" ? count(summary.tokens, "token") : count(summary.candidates, result.command === "variants" ? "variant" : "utility").replace("utilitys", "utilities")}${summary.invalidCandidates ? `; ${summary.invalidCandidates} unknown` : ""}${summary.unmatched ? `; ${count(summary.unmatched, "unmatched target")}` : ""}${summary.failures ? `; ${count(summary.failures, "execution failure")}` : ""}.`
-        : result.command === "inspect"
-          ? `${count(summary.previews, "preview")} in ${count(summary.files, "file")}${summary.invalidPreviews ? `; ${summary.invalidPreviews} failed to generate CSS` : ""}${summary.failures ? `; ${count(summary.failures, "execution failure")}` : ""}.`
-          : result.command === "fmt" && !summary.failures
-            ? options.check
-              ? summary.changed
-                ? `${count(summary.changed, "file")} ${summary.changed === 1 ? "needs" : "need"} formatting.`
-                : `All selected files are formatted (${summary.files} checked).`
-              : `Formatted ${count(summary.changed, "file")} (${summary.files} checked).`
-            : result.command === "check"
-              ? `${count(summary.errors, "error")}, ${count(summary.warnings, "warning")} in ${count(summary.files, "file")}${summary.changed ? (options.check ? `; ${count(summary.changed, "file")} ${summary.changed === 1 ? "needs" : "need"} formatting` : `; updated ${count(summary.changed, "file")}`) : ""}${summary.failures ? `; ${count(summary.failures, "execution failure")}` : ""}.`
-              : `${count(summary.errors, "error")}, ${count(summary.warnings, "warning")} in ${count(summary.files, "file")}${summary.failures ? `; ${count(summary.failures, "execution failure")}` : ""}.`,
+      result.command === "info"
+        ? `${count(summary.projects, "project")}${summary.failures ? `; ${count(summary.failures, "execution failure")}` : ""}.`
+        : isDesignCommand(result.command)
+          ? `${result.command === "theme" ? count(summary.tokens, "token") : count(summary.candidates, result.command === "variants" ? "variant" : "utility").replace("utilitys", "utilities")}${summary.invalidCandidates ? `; ${summary.invalidCandidates} unknown` : ""}${summary.unmatched ? `; ${count(summary.unmatched, "unmatched target")}` : ""}${summary.failures ? `; ${count(summary.failures, "execution failure")}` : ""}.`
+          : result.command === "inspect"
+            ? `${count(summary.previews, "preview")} in ${count(summary.files, "file")}${summary.invalidPreviews ? `; ${summary.invalidPreviews} failed to generate CSS` : ""}${summary.failures ? `; ${count(summary.failures, "execution failure")}` : ""}.`
+            : result.command === "fmt" && !summary.failures
+              ? options.check
+                ? summary.changed
+                  ? `${count(summary.changed, "file")} ${summary.changed === 1 ? "needs" : "need"} formatting.`
+                  : `All selected files are formatted (${summary.files} checked).`
+                : `Formatted ${count(summary.changed, "file")} (${summary.files} checked).`
+              : result.command === "check"
+                ? `${count(summary.errors, "error")}, ${count(summary.warnings, "warning")} in ${count(summary.files, "file")}${summary.changed ? (options.check ? `; ${count(summary.changed, "file")} ${summary.changed === 1 ? "needs" : "need"} formatting` : `; updated ${count(summary.changed, "file")}`) : ""}${summary.failures ? `; ${count(summary.failures, "execution failure")}` : ""}.`
+                : `${count(summary.errors, "error")}, ${count(summary.warnings, "warning")} in ${count(summary.files, "file")}${summary.failures ? `; ${count(summary.failures, "execution failure")}` : ""}.`,
     );
     const suggestions = result.diagnostics.filter(({ report }) => report.actions.length > 0).length;
     if ((result.command === "lint" || result.command === "check") && suggestions) {

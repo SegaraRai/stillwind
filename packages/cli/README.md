@@ -24,6 +24,7 @@ stillwind check --fix
 stillwind fmt
 stillwind lint
 stillwind lint --fix
+stillwind info
 stillwind inspect src/Button.tsx:12
 stillwind theme 'color-*'
 stillwind utilities p-4 'bg-*'

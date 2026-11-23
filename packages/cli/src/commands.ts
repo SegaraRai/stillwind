@@ -212,6 +212,31 @@ const subCommands = {
       process.exitCode = result.exitCode;
     },
   }),
+  info: defineCommand({
+    meta: {
+      name: "info",
+      description: "Show the resolved project configuration",
+    },
+    args: designArgs,
+    plugins: [strictArguments],
+    async run({ args, data }) {
+      if (args._.length) {
+        throw new Error("info accepts no positional arguments");
+      }
+      const options = data as OutputOptions;
+      const { info } = await import("@stillwind/analysis/node");
+      const resolved = await info({
+        config: args.config,
+        cwd: options.cwd,
+      });
+      const result = cliResult("info", {
+        ...resolved,
+        results: [],
+      });
+      await writeResult(result, options);
+      process.exitCode = result.exitCode;
+    },
+  }),
   theme: defineCommand({
     meta: {
       name: "theme",
@@ -325,6 +350,7 @@ export async function runCli(rawArgs = process.argv.slice(2)): Promise<void> {
       invocation.name === "fmt" ||
       invocation.name === "lint" ||
       invocation.name === "inspect" ||
+      invocation.name === "info" ||
       invocation.name === "theme" ||
       invocation.name === "utilities" ||
       invocation.name === "variants"
@@ -363,7 +389,7 @@ export async function runCli(rawArgs = process.argv.slice(2)): Promise<void> {
       }
       if (!invocation.name) {
         throw new Error(
-          "A command is required: check, fmt, lint, inspect, theme, utilities, variants, or lsp",
+          "A command is required: check, fmt, lint, inspect, info, theme, utilities, variants, or lsp",
         );
       }
       await runCommand(subCommands[invocation.name as keyof typeof subCommands] as CommandDef, {
