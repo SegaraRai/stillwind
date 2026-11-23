@@ -23,14 +23,14 @@ test("help and structured initialization errors work when the compiler binding i
     expect(coloredHelp).toContain("\u001b[36m");
     stdout.mockClear();
 
-    await runCli(["unknown-cmd", "--color", "never"]);
+    await runCli(["unknown-cmd", "--format", "text", "--color", "never"]);
     expect(process.exitCode).toBe(2);
     expect(String(stderr.mock.calls.at(-1)?.[0])).toContain(
       "Unknown command: unknown-cmd. Expected one of:",
     );
     stderr.mockClear();
 
-    await runCli(["lint", "-x", "--color", "never"]);
+    await runCli(["lint", "-x", "--format", "text", "--color", "never"]);
     expect(process.exitCode).toBe(2);
     expect(String(stderr.mock.calls.at(-1)?.[0])).toContain("Unknown option: -x.");
     stderr.mockClear();

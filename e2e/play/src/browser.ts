@@ -98,7 +98,11 @@ export async function waitForBuild(
     status,
     { timeout },
   );
-  if ((await page.getByRole("status").innerText()).trim() !== status) {
+  // Play also has screen-reader-only status regions for copy and format announcements.
+  const buildStatus = page
+    .getByRole("status")
+    .filter({ hasText: /^\s*(Compiling|Ready|Build error|Runtime error|Startup error)\s*$/ });
+  if ((await buildStatus.innerText()).trim() !== status) {
     throw new Error(await page.locator(".runtime-error").innerText());
   }
 }
