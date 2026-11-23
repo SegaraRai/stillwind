@@ -1,7 +1,26 @@
+"@stillwind/analysis@0.12.0":
+  dir: packages/analysis
+  intents:
+    - cli-check-command
+    - cli-info-command
+    - diagnostics-and-inspect-clarity
+    - project-analysis-hooks
 "@stillwind/analysis@0.7.0":
   dir: packages/analysis
   intents:
     - typed-badges-show
+"@stillwind/cli@0.12.0":
+  dir: packages/cli
+  intents:
+    - agent-dx-improvements
+    - cli-check-command
+    - cli-info-command
+    - cli-json-location-and-limit
+    - design-system-cli-improvements
+    - diagnostics-and-inspect-clarity
+    - editor-integration-feedback
+    - project-analysis-hooks
+    - readable-diagnostics-output
 "@stillwind/cli@0.2.0":
   dir: packages/cli
   intents:
@@ -41,6 +60,10 @@
   dir: packages/cli
   intents:
     - packed-changelogs-ship
+"@stillwind/config@0.12.0":
+  dir: packages/config
+  intents:
+    - project-analysis-hooks
 "@stillwind/config@0.2.0":
   dir: packages/config
   intents:
@@ -56,6 +79,10 @@
     - project-files-list
     - stable-class-names
     - stable-declaration-names
+"@stillwind/host@0.12.0":
+  dir: packages/host
+  intents:
+    - design-system-cli-improvements
 "@stillwind/host@0.7.0":
   dir: packages/host
   intents:
@@ -74,6 +101,10 @@
   intents:
     - changed-file-empty-read
     - plugin-directory-rescan
+"@stillwind/integration@0.12.0":
+  dir: packages/integration
+  intents:
+    - readable-diagnostics-output
 "@stillwind/integration@0.5.0":
   dir: packages/integration
   intents:
@@ -128,6 +159,10 @@
   intents:
     - ref-variant-hover
     - variant-key-hover
+"@stillwind/language-server@0.12.0":
+  dir: packages/language-server
+  intents:
+    - editor-integration-feedback
 "@stillwind/language-server@0.5.0":
   dir: packages/language-server
   intents:
@@ -170,6 +205,10 @@
   intents:
     - ref-variant-hover
     - variant-key-hover
+"@stillwind/vscode-extension@0.12.0":
+  dir: packages/vscode-extension
+  intents:
+    - editor-integration-feedback
 "@stillwind/vscode-extension@0.2.0":
   dir: packages/vscode-extension
   intents:
@@ -209,6 +248,10 @@
   dir: packages/vscode-extension
   intents:
     - packed-changelogs-ship
+prettier-plugin-stillwind@0.12.0:
+  dir: packages/prettier-plugin
+  intents:
+    - editor-integration-feedback
 prettier-plugin-stillwind@0.6.0:
   dir: packages/prettier-plugin
   intents:
@@ -236,6 +279,16 @@ stillwind@0.11.0:
   dir: packages/core
   intents:
     - module-css-reexport
+stillwind@0.12.0:
+  dir: packages/core
+  intents:
+    - agent-dx-improvements
+    - bundled-docs-navigation
+    - cli-check-command
+    - design-system-cli-improvements
+    - diagnostics-and-inspect-clarity
+    - project-analysis-hooks
+    - readable-diagnostics-output
 stillwind@0.2.0:
   dir: packages/core
   intents:

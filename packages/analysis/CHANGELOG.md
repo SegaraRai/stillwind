@@ -1,5 +1,24 @@
 # @stillwind/analysis
 
+## 0.12.0
+
+### Minor Changes
+
+- Added `stillwind check` and `stillwind check --fix` to run lint checks and utility sorting in a single analysis pass. `stillwind check` reports lint findings and files that need sorting without saving, and exits with `1` when errors or unsorted files remain. `stillwind check --fix` applies converged automatic fixes and utility sorting, saves changed files, and reports findings for the final sources. `@stillwind/analysis/node` exports the corresponding `check()` function, and `stillwind`'s agent instructions now recommend `stillwind check --fix`.
+
+- Added `stillwind info` (and `info()` in `@stillwind/analysis/node`) to report each project's resolved root, stylesheet path, target and exclude globs, matched file count, registered plugins, sorting and `typeFacts` settings, and active lint rules in text or JSON format without compiling source files.
+
+- Diagnostic actions in CLI output now distinguish automatic fixes from manual suggestions (`actions[].autofix`, `summary.autofixable`, and `(autofix)` / `(suggestion)` labels in text output), and the `--fix` hint is shown only when automatic fixes are available. `stillwind inspect` now explains why no previews were returned (`emptyReason`: `no-styles`, `line-out-of-range`, `column-out-of-range`, or `no-match-at-position`). Uncompiled runtime placeholder errors for every `style.*` macro now include guidance on build integration ordering and `docs/integrations.md`.
+
+- Added project-scoped `hooks` (`defineHook` and `AnalysisHook` from `stillwind/config` and `@stillwind/config`) for in-memory formatting in `stillwind fmt` and `stillwind check`. Hooks support `setup`, `teardown`, and per-file `format` callbacks so formatters such as Oxfmt run after Stillwind utility sorting in one pass, including `--check`. `stillwind info` now also lists configured hook names.
+
+### Patch Changes
+
+- Updated dependencies:
+  - @stillwind/config@0.12.0
+  - @stillwind/host@0.12.0
+  - @stillwind/native@0.12.0
+
 ## 0.11.0
 
 ### Patch Changes

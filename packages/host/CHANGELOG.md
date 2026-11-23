@@ -1,5 +1,18 @@
 # @stillwind/host
 
+## 0.12.0
+
+### Minor Changes
+
+- `stillwind utilities` and `stillwind variants` now accept `--names-only` to list matching names without formatting CSS previews. Pattern searches in `stillwind utilities` now also include placeholder patterns for functional utilities' non-enumerable domains, such as `p-<number>` and `p-[<length-percentage>]` (`kind: "pattern"` in JSON). `stillwind theme` now includes resolved values for tokens that reference other theme variables (`resolvedValue` in JSON, and inline comments in text output).
+
+### Patch Changes
+
+- Updated dependencies:
+  - @stillwind/config@0.12.0
+  - @stillwind/native@0.12.0
+  - @stillwind/projection@0.12.0
+
 ## 0.11.0
 
 ### Patch Changes
