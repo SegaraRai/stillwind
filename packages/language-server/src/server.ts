@@ -30,6 +30,7 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 
 import {
   editorCodeActionKinds,
+  projectLabel,
   registerEditorFeatures,
   sourceActions,
   type EditorQuery,
@@ -262,7 +263,11 @@ export function createLanguageServer(
     add: (uri: string, diagnostic: Diagnostic) => void,
   ) => {
     for (const entry of results) {
-      const source = `stillwind:${entry.config}:${entry.project + 1}`;
+      // A project label distinguishes the results only when several projects analyze the file.
+      const source =
+        results.length > 1
+          ? `stillwind (${projectLabel(entry.config, entry.project)})`
+          : "stillwind";
       for (const report of entry.result.reports) {
         const location = report.primary.location;
         const href = documentationUrl(report.code);
@@ -898,7 +903,15 @@ export function createLanguageServer(
           ) {
             continue;
           }
-          for (const action of report.actions) {
+          const reportRange = range(primary);
+          // Linking the client's diagnostics lets the editor offer these fixes from the lightbulb
+          // and from the Problems panel.
+          const diagnostics = params.context.diagnostics.filter(
+            (diagnostic) =>
+              diagnostic.code === report.code &&
+              JSON.stringify(diagnostic.range) === JSON.stringify(reportRange),
+          );
+          for (const [index, action] of report.actions.entries()) {
             const changes = new Map<string, TextDocumentEdit>();
             let valid = true;
             for (const edit of action.edits) {
@@ -925,6 +938,17 @@ export function createLanguageServer(
               result.push({
                 title: action.title,
                 kind: CodeActionKind.QuickFix,
+                ...(diagnostics.length ? { diagnostics } : {}),
+                // The first fix that edits only the reported document is the one that
+                // `stillwind lint --fix` applies.
+                ...(index === 0 &&
+                action.edits.every(
+                  (edit) =>
+                    edit.location.uri === primary.uri &&
+                    edit.location.revision === primary.revision,
+                )
+                  ? { isPreferred: true }
+                  : {}),
                 edit: {
                   documentChanges: [...changes.values()],
                 },

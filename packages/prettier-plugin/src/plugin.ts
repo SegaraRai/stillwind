@@ -79,7 +79,7 @@ export const options: SupportOptions = {
   stillwindConfig: {
     type: "path",
     category: "Stillwind",
-    description: "Path to stillwind.config.ts. Omission searches above the formatted file.",
+    description: "Path to a stillwind.config.* file. Omission searches above the formatted file.",
   },
 };
 

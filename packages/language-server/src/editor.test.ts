@@ -1260,9 +1260,20 @@ test("standard LSP requests support lazy completion, hover, colors, and separate
       },
     });
     const item = completions.find((item) => item.label === "bg-brand")!;
-    expect(item.documentation).toBeUndefined();
+    expect(item).toMatchObject({
+      kind: 16,
+      documentation: "#ff0000",
+    });
     const resolved = await client.sendRequest<CompletionItem>("completionItem/resolve", item);
-    expect(JSON.stringify(resolved.documentation)).toContain("background-color");
+    expect(resolved.documentation).toBe("#ff0000");
+    expect(resolved.detail).toContain("background-color");
+    const flex = completions.find((item) => item.label === "flex")!;
+    expect(flex.documentation).toBeUndefined();
+    expect(
+      JSON.stringify(
+        (await client.sendRequest<CompletionItem>("completionItem/resolve", flex)).documentation,
+      ),
+    ).toContain("display: flex");
     const animationItems = await client.sendRequest<CompletionItem[]>("textDocument/completion", {
       textDocument: {
         uri,
@@ -1360,6 +1371,31 @@ test("standard LSP requests support lazy completion, hover, colors, and separate
     });
     expect(sorts).toHaveLength(1);
     expect(JSON.stringify(sorts[0].edit)).toContain("p-[16px]");
+    const pulled = await client.sendRequest<DocumentDiagnosticReport & { items: Diagnostic[] }>(
+      "textDocument/diagnostic",
+      {
+        textDocument: {
+          uri,
+        },
+      },
+    );
+    const canonical = pulled.items.find(
+      (diagnostic) => typeof diagnostic.message === "string" && diagnostic.message.includes("p-4"),
+    )!;
+    expect(canonical.source).toBe("stillwind");
+    const quickFixes = await client.sendRequest<CodeAction[]>("textDocument/codeAction", {
+      ...actionParams,
+      range: canonical.range,
+      context: {
+        diagnostics: [canonical],
+        only: ["quickfix"],
+      },
+    });
+    expect(quickFixes[0]).toMatchObject({
+      kind: "quickfix",
+      isPreferred: true,
+      diagnostics: [canonical],
+    });
     await client.sendNotification("textDocument/didChange", {
       textDocument: {
         uri,
@@ -1372,7 +1408,8 @@ test("standard LSP requests support lazy completion, hover, colors, and separate
       ],
     });
     const stale = await client.sendRequest<CompletionItem>("completionItem/resolve", resolved);
-    expect(stale.documentation).toBeUndefined();
+    expect(stale.detail).toBeUndefined();
+    expect(stale.documentation).toBe("#ff0000");
   } finally {
     await service.dispose();
     client.dispose();
@@ -1437,7 +1474,7 @@ test("LSP marker completions use the class kind and resolve to their documentati
     });
     const marker = items.find((item) => item.label === "card")!;
     expect(marker.kind).toBe(7);
-    expect(items.find((item) => item.label === "card-title")?.kind).toBe(12);
+    expect(items.find((item) => item.label === "card-title")?.kind).toBe(16);
     const resolved = await client.sendRequest<CompletionItem>("completionItem/resolve", marker);
     expect(resolved).toMatchObject({
       detail: "marker class",

@@ -1,7 +1,13 @@
 import * as vscode from "vscode";
 import { LanguageClient } from "vscode-languageclient/browser";
 
-import { clientOptions, editorSettings, readWorkspace } from "./client.ts";
+import {
+  clientOptions,
+  editorSettings,
+  readWorkspace,
+  restartOnConfigFileChange,
+  serverStatus,
+} from "./client.ts";
 
 let client: LanguageClient | undefined;
 let worker: Worker | undefined;
@@ -34,6 +40,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     ...clientOptions(context),
     outputChannel: output,
   };
+  const status = serverStatus(context, output);
   /**
    * Captures workspace files and logs their count, the capture time, and the configuration setting.
    *
@@ -58,12 +65,28 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     };
   };
   /**
+   * Starts a replacement client and shows its state in the status bar.
+   *
+   * @returns Completion of the replacement client's initialization.
+   * @throws If the replacement client fails to start, after the status bar shows the failure.
+   */
+  const start = async () => {
+    status("starting");
+    try {
+      await launch();
+    } catch (error) {
+      status("failed");
+      throw error;
+    }
+    status("running", "The bundled language server is running in the browser.");
+  };
+  /**
    * Stops the previous client, replaces its worker, and captures the current workspace for initialization.
    *
    * @returns Completion of the replacement client's initialization.
    * @throws If stopping, workspace capture, or client startup fails.
    */
-  const start = async () => {
+  const launch = async () => {
     await client?.stop();
     worker?.terminate();
     worker = new Worker(
@@ -102,6 +125,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
   };
 
+  restartOnConfigFileChange(context, start);
   context.subscriptions.push(
     vscode.commands.registerCommand("stillwind.restart", start),
     vscode.commands.registerCommand("stillwind.snapshot", async (input?: unknown) => {

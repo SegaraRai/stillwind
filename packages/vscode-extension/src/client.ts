@@ -12,12 +12,29 @@ export function clientOptions(context: vscode.ExtensionContext): LanguageClientO
 
   context.subscriptions.push(
     watcher,
-    vscode.commands.registerCommand("stillwind.sortUtilities", () =>
-      vscode.commands.executeCommand("editor.action.codeAction", {
-        kind: "source.sort.stillwind",
-        apply: "ifSingle",
-      }),
-    ),
+    vscode.commands.registerCommand("stillwind.sortUtilities", async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        vscode.window.setStatusBarMessage("Stillwind: No active editor to sort", 3000);
+        return;
+      }
+      const { document } = editor;
+      const actions =
+        (await vscode.commands.executeCommand<vscode.CodeAction[]>(
+          "vscode.executeCodeActionProvider",
+          document.uri,
+          new vscode.Range(0, 0, document.lineCount, 0),
+          "source.sort.stillwind",
+        )) ?? [];
+      const action = actions.find(
+        (action) => action.kind?.value === "source.sort.stillwind" && action.edit,
+      );
+      if (!action?.edit) {
+        vscode.window.setStatusBarMessage("Stillwind: Utilities are already sorted", 3000);
+        return;
+      }
+      await vscode.workspace.applyEdit(action.edit);
+    }),
   );
 
   return {
@@ -47,6 +64,64 @@ export function clientOptions(context: vscode.ExtensionContext): LanguageClientO
       fileEvents: watcher,
     },
   };
+}
+
+/**
+ * Shows which language server runs in a status bar item that opens the Stillwind output.
+ *
+ * @param context - Receives the item and its command registration for the extension's lifetime.
+ * @param output - Output channel that the item opens.
+ * @returns A function that replaces the item's state. `starting` shows progress, `running` shows the
+ * optional `server` sentence in the tooltip, and `failed` shows an error icon.
+ */
+export function serverStatus(
+  context: vscode.ExtensionContext,
+  output: vscode.OutputChannel,
+): (state: "starting" | "running" | "failed", server?: string) => void {
+  const item = vscode.window.createStatusBarItem(
+    "stillwind.server",
+    vscode.StatusBarAlignment.Right,
+  );
+  item.name = "Stillwind";
+  item.command = "stillwind.showOutput";
+  context.subscriptions.push(
+    item,
+    vscode.commands.registerCommand("stillwind.showOutput", () => output.show(true)),
+  );
+  return (state, server) => {
+    item.text = {
+      starting: "$(sync~spin) Stillwind",
+      running: "$(check) Stillwind",
+      failed: "$(error) Stillwind",
+    }[state];
+    item.tooltip = {
+      starting: "Stillwind: Starting the language server",
+      running: `Stillwind: ${server ?? "The language server is running."} Click to show the output.`,
+      failed: "Stillwind: The language server failed to start. Click to show the output.",
+    }[state];
+    item.show();
+  };
+}
+
+/**
+ * Restarts the language server when `stillwind.configFile` changes, because the server receives
+ * the configuration path only when it starts.
+ *
+ * @param context - Receives the listener for the extension's lifetime.
+ * @param restart - Starts a replacement client for the current setting.
+ */
+export function restartOnConfigFileChange(
+  context: vscode.ExtensionContext,
+  restart: () => Promise<void>,
+): void {
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((event) => {
+      if (event.affectsConfiguration("stillwind.configFile")) {
+        // The status bar and the client's output channel report a failed restart.
+        restart().catch(() => undefined);
+      }
+    }),
+  );
 }
 
 /**

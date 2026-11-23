@@ -81,38 +81,10 @@ export const extensionManifest = {
         title: "Stillwind: Restart Language Server",
       },
       {
-        command: "stillwind.snapshot",
-        title: "Stillwind: Capture Workspace",
-      },
-      {
-        command: "stillwind.compile",
-        title: "Stillwind: Compile Module",
-      },
-      {
-        command: "stillwind.sortSource",
-        title: "Stillwind: Sort Source Text",
-      },
-      {
         command: "stillwind.sortUtilities",
         title: "Stillwind: Sort Utilities",
       },
     ],
-    menus: {
-      commandPalette: [
-        {
-          command: "stillwind.snapshot",
-          when: "false",
-        },
-        {
-          command: "stillwind.compile",
-          when: "false",
-        },
-        {
-          command: "stillwind.sortSource",
-          when: "false",
-        },
-      ],
-    },
     configuration: {
       title: "Stillwind",
       properties: {

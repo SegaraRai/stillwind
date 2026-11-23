@@ -13,9 +13,11 @@ import { cliServer } from "../src/project-cli.ts";
 test("packaged extension contains its CSS custom data", async () => {
   for (const file of extensionManifest.contributes.css.customData) {
     const data = await readFile(resolve(import.meta.dirname, "../dist/desktop", file), "utf8");
-    expect(JSON.parse(data).atDirectives).toContainEqual({
-      name: "@utility",
-    });
+    expect(JSON.parse(data).atDirectives).toContainEqual(
+      expect.objectContaining({
+        name: "@utility",
+      }),
+    );
   }
 });
 

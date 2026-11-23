@@ -3,7 +3,7 @@ import { dirname, resolve } from "node:path";
 import * as vscode from "vscode";
 import { LanguageClient, TransportKind } from "vscode-languageclient/node";
 
-import { clientOptions } from "./client.ts";
+import { clientOptions, restartOnConfigFileChange, serverStatus } from "./client.ts";
 import { cliServer, findProjectCli, serverEnvironment } from "./project-cli.ts";
 
 let client: LanguageClient | undefined;
@@ -27,13 +27,29 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     ...clientOptions(context),
     outputChannel: output,
   };
+  const status = serverStatus(context, output);
   /**
-   * Stops the current client and starts one client for the current setting and project.
+   * Starts a replacement client and shows its state in the status bar.
+   *
+   * @returns Completion of the replacement client's initialization.
+   * @throws If the replacement client fails to start, after the status bar shows the failure.
+   */
+  const start = async () => {
+    status("starting");
+    try {
+      await launch();
+    } catch (error) {
+      status("failed");
+      throw error;
+    }
+  };
+  /**
+   * Stops the current client and starts the project CLI, or the bundled server as a fallback.
    *
    * @returns Completion of the replacement client's initialization.
    * @throws If the previous client fails to stop or the bundled server fails to start.
    */
-  const start = async () => {
+  const launch = async () => {
     await client?.stop();
     client = undefined;
     const folders = (vscode.workspace.workspaceFolders ?? [])
@@ -57,6 +73,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       try {
         await projectClient.start();
         client = projectClient;
+        status("running", `The project's @stillwind/cli ${cli.version} is running.`);
         return;
       } catch (error) {
         output.warn(`The project CLI failed to start: ${String(error)}`);
@@ -89,8 +106,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       options,
     );
     await client.start();
+    status("running", `The bundled language server ${version} is running because ${reason}.`);
   };
   context.subscriptions.push(vscode.commands.registerCommand("stillwind.restart", start));
+  restartOnConfigFileChange(context, start);
   await start();
 }
 

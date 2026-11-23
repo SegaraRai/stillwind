@@ -28,6 +28,11 @@ export interface EditorCompletion extends EditorEdit {
   snippet?: string;
   /** Requests another completion after the client inserts this item. */
   retrigger?: boolean;
+  /**
+   * Concrete color of a color utility as `#rrggbb` or `#rrggbbaa`. Absent for other candidates
+   * and for colors that depend on the color scheme.
+   */
+  color?: string;
   /** Completion category for host-resolved plugin names, files, and directories. */
   category?: "module" | "file" | "directory";
   /** Lexical priority key supplied by the semantic catalog. Omission sorts by label. */
@@ -200,6 +205,11 @@ export interface EditorResult {
   }[];
   /** Prefix-matching candidates with their full replacement ranges. CSS loads on resolve. */
   completions?: EditorCompletion[];
+  /**
+   * True when the plugin catalog had more matching names than one request lists, so a longer
+   * prefix can produce other completions.
+   */
+  completionsIncomplete?: boolean;
   /** Concrete colors resolved against the active design system. */
   colors?: EditorColor[];
   /** Nonoverlapping replacements in ascending original offset order. */

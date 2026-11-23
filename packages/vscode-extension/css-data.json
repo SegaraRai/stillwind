@@ -1,36 +1,222 @@
 {
   "version": 1.1,
   "atDirectives": [
-    { "name": "@apply" },
-    { "name": "@custom-variant" },
-    { "name": "@plugin" },
-    { "name": "@slot" },
-    { "name": "@stillwind-arbitrary-property" },
-    { "name": "@stillwind-banner" },
-    { "name": "@stillwind-css-template" },
-    { "name": "@stillwind-dynamic" },
-    { "name": "@stillwind-format" },
-    { "name": "@stillwind-intrinsic" },
-    { "name": "@stillwind-legacy-theme-key" },
-    { "name": "@stillwind-legacy-utility" },
-    { "name": "@stillwind-marker" },
-    { "name": "@stillwind-marker-source" },
-    { "name": "@stillwind-omit-token-prefix" },
-    { "name": "@stillwind-property" },
-    { "name": "@stillwind-registry" },
-    { "name": "@stillwind-relationship" },
-    { "name": "@stillwind-require-properties" },
-    { "name": "@stillwind-slot" },
-    { "name": "@stillwind-theme-exclude" },
-    { "name": "@stillwind-theme-namespace" },
-    { "name": "@stillwind-theme-order" },
-    { "name": "@stillwind-undef-arbitrary-property" },
-    { "name": "@stillwind-undef-utility" },
-    { "name": "@stillwind-undef-variant" },
-    { "name": "@stillwind-utility" },
-    { "name": "@stillwind-variant" },
-    { "name": "@theme" },
-    { "name": "@utility" },
-    { "name": "@variant" }
+    {
+      "name": "@apply",
+      "description": {
+        "kind": "markdown",
+        "value": "Authoring · Tailwind-derived syntax\n\nInserts the declarations and nested variant rules of utility candidates into the enclosing rule. Unresolved candidates contribute no declarations.\n\n```css\n@apply utilities;\n```"
+      }
+    },
+    {
+      "name": "@custom-variant",
+      "description": {
+        "kind": "markdown",
+        "value": "Authoring · Tailwind-derived syntax\n\nDefines a variant with a selector shorthand or a block containing @slot. scope(document) lets the variant select a document-level element.\n\n```css\n@custom-variant name [scope(document)] (selector);\n```"
+      }
+    },
+    {
+      "name": "@plugin",
+      "description": {
+        "kind": "markdown",
+        "value": "Authoring · Tailwind-derived syntax\n\nLoads a Stillwind or Tailwind CSS v4 plugin through the host. Options configure the plugin's definitions and dynamic families.\n\n```css\n@plugin '<name>' { option: value; }\n```"
+      }
+    },
+    {
+      "name": "@slot",
+      "description": {
+        "kind": "markdown",
+        "value": "Authoring · Tailwind-derived syntax\n\nMarks where styled content is inserted into a variant definition.\n\n```css\n@slot;\n```"
+      }
+    },
+    {
+      "name": "@stillwind-arbitrary-property",
+      "description": {
+        "kind": "markdown",
+        "value": "Registry authoring · Stillwind syntax\n\nPlaces arbitrary-property candidates in the authored utility order.\n\n```css\n@stillwind-arbitrary-property pattern;\n```"
+      }
+    },
+    {
+      "name": "@stillwind-banner",
+      "description": {
+        "kind": "markdown",
+        "value": "Registry authoring · Stillwind syntax\n\nDeclares a license notice that output keeps when it contains CSS of the enclosing definition. The block contains exactly one /*! ... */ comment.\n\n```css\n@stillwind-banner { /*! Name | Author | License | URL */ }\n```"
+      }
+    },
+    {
+      "name": "@stillwind-css-template",
+      "description": {
+        "kind": "markdown",
+        "value": "Authoring · Stillwind syntax\n\nDefines the output template selected by style.css(). A template must contain a utilities slot and cannot contain design-system definitions.\n\n```css\n@stillwind-css-template name { ... }\n```"
+      }
+    },
+    {
+      "name": "@stillwind-dynamic",
+      "description": {
+        "kind": "markdown",
+        "value": "Registry authoring · Stillwind syntax\n\nLets a plugin define a utility family on demand. The host passes undefined candidates of the family to the plugin's resolve().\n\n```css\n@stillwind-dynamic prefix-*; @stillwind-dynamic prefix-[*];\n```"
+      }
+    },
+    {
+      "name": "@stillwind-format",
+      "description": {
+        "kind": "markdown",
+        "value": "Registry authoring · Stillwind syntax\n\nDeclares composition or value-typing metadata for matching properties.\n\n```css\n@stillwind-format property format;\n```"
+      }
+    },
+    {
+      "name": "@stillwind-intrinsic",
+      "description": {
+        "kind": "markdown",
+        "value": "Compiler intrinsic · Stillwind syntax\n\nSelects a compiler intrinsic within a @stillwind-variant definition.\n\n```css\n@stillwind-intrinsic name;\n```"
+      }
+    },
+    {
+      "name": "@stillwind-legacy-theme-key",
+      "description": {
+        "kind": "markdown",
+        "value": "Registry authoring · Stillwind syntax\n\nNames the theme namespace that a Tailwind v3 config key reads in theme() and in plugin configuration. extend adds the CSS values to the v3 defaults, and replace replaces them.\n\n```css\n@stillwind-legacy-theme-key fontSize --text-* extend;\n```"
+      }
+    },
+    {
+      "name": "@stillwind-legacy-utility",
+      "description": {
+        "kind": "markdown",
+        "value": "Registry authoring · Stillwind syntax\n\nNames a legacy utility that canonical lint rewrites to its current name. A trailing * in both names keeps the rest of the name.\n\n```css\n@stillwind-legacy-utility start-* inset-s-*;\n```"
+      }
+    },
+    {
+      "name": "@stillwind-marker",
+      "description": {
+        "kind": "markdown",
+        "value": "Registry authoring · Stillwind syntax\n\nRegisters a class that candidates add to elements as written.\n\n```css\n@stillwind-marker name (modifiable);\n```"
+      }
+    },
+    {
+      "name": "@stillwind-marker-source",
+      "description": {
+        "kind": "markdown",
+        "value": "Registry authoring · Stillwind syntax\n\nRegisters the classes that the rules in a string select as marker classes, without emitting the rules.\n\n```css\n@stillwind-marker-source \"css\";\n```"
+      }
+    },
+    {
+      "name": "@stillwind-omit-token-prefix",
+      "description": {
+        "kind": "markdown",
+        "value": "Registry authoring · Stillwind syntax\n\nPrunes matching theme tokens when generated CSS contains the supplied condition.\n\n```css\n@stillwind-omit-token-prefix --prefix- condition;\n```"
+      }
+    },
+    {
+      "name": "@stillwind-property",
+      "description": {
+        "kind": "markdown",
+        "value": "Authoring · Stillwind syntax\n\nRegisters a custom property whose registration is emitted when generated CSS requires it.\n\n```css\n@stillwind-property --name { syntax: '*'; inherits: false; initial-value: 0; }\n```"
+      }
+    },
+    {
+      "name": "@stillwind-registry",
+      "description": {
+        "kind": "markdown",
+        "value": "Authoring · Stillwind syntax\n\nSwitches the registries that the definitions and undefinitions inside the block change. Statements outside every block change default, keyframe, and view-transition; animation starts empty. Blocks may nest, and the innermost block decides.\n\n```css\n@stillwind-registry default, keyframe, animation, view-transition { ... }\n```"
+      }
+    },
+    {
+      "name": "@stillwind-relationship",
+      "description": {
+        "kind": "markdown",
+        "value": "Registry authoring · Stillwind syntax\n\nRegisters a pattern that identifies relationship candidates.\n\n```css\n@stillwind-relationship pattern;\n```"
+      }
+    },
+    {
+      "name": "@stillwind-require-properties",
+      "description": {
+        "kind": "markdown",
+        "value": "Authoring · Stillwind syntax\n\nAdds custom-property registrations to the requirements of a utility definition.\n\n```css\n@stillwind-require-properties --name;\n```"
+      }
+    },
+    {
+      "name": "@stillwind-slot",
+      "description": {
+        "kind": "markdown",
+        "value": "Authoring · Stillwind syntax\n\nPlaces generated contributions in the authored stylesheet. theme and property-initials insert declarations; utilities, keyframes, and properties insert rules.\n\n```css\n@stillwind-slot name;\n```"
+      }
+    },
+    {
+      "name": "@stillwind-theme-exclude",
+      "description": {
+        "kind": "markdown",
+        "value": "Registry authoring · Stillwind syntax\n\nExcludes the tokens of narrower namespaces from `--value()` patterns of a namespace.\n\n```css\n@stillwind-theme-exclude --namespace-* --namespace-narrower-* ...;\n```"
+      }
+    },
+    {
+      "name": "@stillwind-theme-namespace",
+      "description": {
+        "kind": "markdown",
+        "value": "Registry authoring · Stillwind syntax\n\nDeclares a theme namespace, the value types it accepts, and optionally its scale and the fixed keys of the scale.\n\n```css\n@stillwind-theme-namespace --namespace-* [type] ... scale(key: value, ...);\n```"
+      }
+    },
+    {
+      "name": "@stillwind-theme-order",
+      "description": {
+        "kind": "markdown",
+        "value": "Registry authoring · Stillwind syntax\n\nSets the namespace order used to emit theme declarations.\n\n```css\n@stillwind-theme-order namespace ...;\n```"
+      }
+    },
+    {
+      "name": "@stillwind-undef-arbitrary-property",
+      "description": {
+        "kind": "markdown",
+        "value": "Authoring · Stillwind syntax\n\nRejects arbitrary-property candidates for the matching properties in the current registries. A later @stillwind-arbitrary-property accepts them again.\n\n```css\n@stillwind-undef-arbitrary-property property | prefix-* | *;\n```"
+      }
+    },
+    {
+      "name": "@stillwind-undef-utility",
+      "description": {
+        "kind": "markdown",
+        "value": "Authoring · Stillwind syntax\n\nRemoves the matching utility definitions that register before it from the current registries.\n\n```css\n@stillwind-undef-utility name | prefix-* | *;\n```"
+      }
+    },
+    {
+      "name": "@stillwind-undef-variant",
+      "description": {
+        "kind": "markdown",
+        "value": "Authoring · Stillwind syntax\n\nRemoves the matching variant definitions that register before it from the current registries.\n\n```css\n@stillwind-undef-variant name | prefix-* | *;\n```"
+      }
+    },
+    {
+      "name": "@stillwind-utility",
+      "description": {
+        "kind": "markdown",
+        "value": "Registry authoring · Stillwind syntax\n\nDefines a registry utility with its authored cascade order.\n\n```css\n@stillwind-utility name-* [(tw-sort: property)] { ... }\n```"
+      }
+    },
+    {
+      "name": "@stillwind-variant",
+      "description": {
+        "kind": "markdown",
+        "value": "Registry authoring · Stillwind syntax\n\nDefines a registry variant with optional value, modifier, scope, and ordering descriptors.\n\n```css\n@stillwind-variant name [(descriptors)] { ... }\n```"
+      }
+    },
+    {
+      "name": "@theme",
+      "description": {
+        "kind": "markdown",
+        "value": "Authoring · Tailwind-derived syntax\n\nDefines design tokens or shared assets. Assets stay outside theme-token selection and resets. Inline values substitute their contents into declarations. Static values are retained without a reference.\n\n```css\n@theme [default] [asset] [inline | static] { --name: value; }\n```"
+      }
+    },
+    {
+      "name": "@utility",
+      "description": {
+        "kind": "markdown",
+        "value": "Authoring · Tailwind-derived syntax\n\nDefines a utility. A trailing * captures the candidate value for --value(). The (implementation) descriptor classifies fixed declarations for lint rules with checkImplementation.\n\n```css\n@utility name-* { ... }\n```"
+      }
+    },
+    {
+      "name": "@variant",
+      "description": {
+        "kind": "markdown",
+        "value": "Authoring · Tailwind-derived syntax\n\nInside a style rule, applies each comma-separated variant sequence to a separate copy of the block. Outside style rules, a block containing @slot is accepted as a legacy variant definition. Use @custom-variant for new variant definitions.\n\n```css\n@variant variant:sequence, alternative { ... }\n```"
+      }
+    }
   ]
 }

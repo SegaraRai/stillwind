@@ -6,6 +6,7 @@ import {
   type CancellationToken,
   type CodeAction,
   type CompletionItem,
+  type CompletionList,
   type Connection,
   type TextDocuments,
 } from "vscode-languageserver";
@@ -127,19 +128,18 @@ export function registerEditorFeatures(
       return null;
     }
 
-    const seen = new Set<string>();
-    const contents = answers
-      .flatMap((entry) => {
-        const hover = entry.result.hover!;
-        const key = JSON.stringify(hover);
-        if (seen.has(key)) {
-          return [];
-        }
-        seen.add(key);
-        return [
-          `${answers.length > 1 ? `${entry.config} · project ${entry.project + 1}\n\n` : ""}${hoverMarkdown(hover)}`,
-        ];
-      })
+    const unique = answers.filter(
+      (entry, index) =>
+        answers.findIndex(
+          (other) => JSON.stringify(other.result.hover) === JSON.stringify(entry.result.hover),
+        ) === index,
+    );
+    // Projects that agree produce one hover without a heading.
+    const contents = unique
+      .map(
+        (entry) =>
+          `${unique.length > 1 ? `**${projectLabel(entry.config, entry.project)}**\n\n` : ""}${hoverMarkdown(entry.result.hover!)}`,
+      )
       .join("\n\n");
     return {
       contents: {
@@ -150,7 +150,7 @@ export function registerEditorFeatures(
     };
   });
 
-  connection.onCompletion(async (params, token) => {
+  connection.onCompletion(async (params, token): Promise<CompletionItem[] | CompletionList> => {
     const document = documents.get(params.textDocument.uri);
     if (!document) {
       return [];
@@ -174,17 +174,21 @@ export function registerEditorFeatures(
         command: item.retrigger
           ? { title: "Continue completion", command: "editor.action.triggerSuggest" }
           : undefined,
-        kind: item.keyword
-          ? CompletionItemKind.Keyword
-          : item.category === "directory"
-            ? CompletionItemKind.Folder
-            : item.category === "file"
-              ? CompletionItemKind.File
-              : item.category === "module" || item.variant || item.candidate.endsWith(":")
-                ? CompletionItemKind.Module
-                : item.marker
-                  ? CompletionItemKind.Class
-                  : CompletionItemKind.Value,
+        // VS Code draws a swatch for a color item whose documentation is a color string.
+        ...(item.color ? { documentation: item.color } : {}),
+        kind: item.color
+          ? CompletionItemKind.Color
+          : item.keyword
+            ? CompletionItemKind.Keyword
+            : item.category === "directory"
+              ? CompletionItemKind.Folder
+              : item.category === "file"
+                ? CompletionItemKind.File
+                : item.category === "module" || item.variant || item.candidate.endsWith(":")
+                  ? CompletionItemKind.Module
+                  : item.marker
+                    ? CompletionItemKind.Class
+                    : CompletionItemKind.Value,
         textEdit: {
           range: offsets(document, item),
           newText: item.snippet ?? item.newText,
@@ -198,10 +202,12 @@ export function registerEditorFeatures(
           snapshot: item.snapshot,
           project: entry.project,
           config: entry.config,
+          ...(item.detail ? { detail: item.detail } : {}),
+          ...(item.color ? { color: item.color } : {}),
         },
       })),
     );
-    return items.filter(
+    const unique = items.filter(
       (item, index) =>
         items.findIndex(
           (other) =>
@@ -209,12 +215,14 @@ export function registerEditorFeatures(
             JSON.stringify(other.textEdit) === JSON.stringify(item.textEdit),
         ) === index,
     );
+    // A truncated plugin catalog lists other names for a longer prefix, so the client must ask
+    // again as the user types.
+    return entries.some((entry) => entry.result.completionsIncomplete === true)
+      ? { isIncomplete: true, items: unique }
+      : unique;
   });
 
   connection.onCompletionResolve(async (item, token) => {
-    const detail = item.detail;
-    delete item.documentation;
-    delete item.detail;
     const data = item.data as
       | {
           /** Original document URI captured when completion was requested. */
@@ -233,8 +241,18 @@ export function registerEditorFeatures(
           input?: unknown;
           /** Graph and configuration fingerprint required by the resolve request. */
           snapshot?: unknown;
+          /** Static detail that the completion response carried. */
+          detail?: unknown;
+          /** Swatch color that the completion response carried. */
+          color?: unknown;
         }
       | undefined;
+    // A client may send an item that an earlier resolve filled. Its CSS can be stale, so the item
+    // returns to its completion state before this resolve adds current CSS.
+    if (data) {
+      item.detail = typeof data.detail === "string" ? data.detail : undefined;
+      item.documentation = typeof data.color === "string" ? data.color : undefined;
+    }
     if (
       !data ||
       typeof data.uri !== "string" ||
@@ -263,11 +281,15 @@ export function registerEditorFeatures(
         entry.result.revision === data.revision,
     )?.result.hover;
     if (answer) {
-      item.detail = answer.detail ?? detail;
-      item.documentation = {
-        kind: MarkupKind.Markdown,
-        value: hoverMarkdown(answer),
-      };
+      item.detail = answer.detail ?? item.detail;
+      // A color item keeps its color string, which VS Code needs for the swatch. Its detail
+      // still shows the CSS summary.
+      if (typeof data.color !== "string") {
+        item.documentation = {
+          kind: MarkupKind.Markdown,
+          value: hoverMarkdown(answer),
+        };
+      }
     }
     return item;
   });
@@ -346,6 +368,18 @@ export function registerEditorFeatures(
           items.findIndex((other) => JSON.stringify(item) === JSON.stringify(other)) === index,
       );
   });
+}
+
+/**
+ * Names one project of a configuration for hover headings and diagnostic sources.
+ *
+ * @param config - Configuration path or URI. Only its last two path segments are shown.
+ * @param project - Zero-based project index within the configuration.
+ * @returns Text such as `web/stillwind.config.ts · project 1`.
+ */
+export function projectLabel(config: string, project: number): string {
+  const name = config.split(/[\\/]/).filter(Boolean).slice(-2).join("/");
+  return `${name} · project ${project + 1}`;
 }
 
 /**

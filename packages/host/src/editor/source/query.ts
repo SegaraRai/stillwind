@@ -288,9 +288,12 @@ export class SourceQueries {
       );
     const known = new Set(native.map(({ label }) => label));
     // A variant key accepts no utility, so the plugin catalog of dynamic utilities is skipped.
-    const catalog = literal.key
-      ? []
+    const { names: catalog, incomplete } = literal.key
+      ? { names: [], incomplete: false }
       : this.#catalogCompletions(literal.prefix + prefix, literal.context);
+    if (incomplete) {
+      result.completionsIncomplete = true;
+    }
     result.completions = [
       ...native,
       ...catalog
@@ -302,6 +305,7 @@ export class SourceQueries {
     ].map(({ label: candidate, marker }) => {
       const label = candidate.slice(literal.prefix.length);
       const source = (text: string) => escapeContent(text, literal);
+      const color = marker || candidate.endsWith(":") ? undefined : this.#color(candidate);
       return {
         label,
         candidate,
@@ -311,6 +315,7 @@ export class SourceQueries {
         end,
         newText: escapeContent(label, literal),
         ...(marker ? { marker } : {}),
+        ...(color ? { color } : {}),
         snippet: !request.snippets
           ? undefined
           : marker && candidate.endsWith("/")
@@ -415,23 +420,62 @@ export class SourceQueries {
    *
    * @param text - Decoded partial candidate, including enclosing and written variants.
    * @param context - Input role of the literal. Only utility roles complete catalog names.
-   * @returns Candidates with the written variants, for names that start with the partial
-   * utility, at most {@link CATALOG_COMPLETIONS} of them in catalog order.
+   * @returns `names`: candidates with the written variants, for names that start with the
+   * partial utility, at most {@link CATALOG_COMPLETIONS} of them in catalog order. `incomplete`:
+   * whether more names matched than `names` lists.
    */
-  #catalogCompletions(text: string, context: NativeCandidateContext): string[] {
+  #catalogCompletions(
+    text: string,
+    context: NativeCandidateContext,
+  ): {
+    /** Listed candidates in catalog order. */
+    names: string[];
+    /** Whether the limit omitted matching names. */
+    incomplete: boolean;
+  } {
     if (!this.#catalogContext(context)) {
-      return [];
+      return {
+        names: [],
+        incomplete: false,
+      };
     }
     const parts = segments(text, ":");
     const partial = parts.pop()!;
     if (!partial) {
-      return [];
+      return {
+        names: [],
+        incomplete: false,
+      };
     }
     const variants = parts.map((part) => `${part}:`).join("");
-    return [...new Set([...this.#catalog, ...(this.#inputCatalogs.get(partial) ?? [])])]
-      .filter((name) => name.startsWith(partial))
-      .slice(0, CATALOG_COMPLETIONS)
-      .map((name) => variants + name);
+    const matches = [
+      ...new Set([...this.#catalog, ...(this.#inputCatalogs.get(partial) ?? [])]),
+    ].filter((name) => name.startsWith(partial));
+    return {
+      names: matches.slice(0, CATALOG_COMPLETIONS).map((name) => variants + name),
+      incomplete: matches.length > CATALOG_COMPLETIONS,
+    };
+  }
+
+  /**
+   * Formats the concrete color of a color utility for a completion swatch.
+   *
+   * @param candidate - Full decoded candidate, including enclosing and written variants.
+   * @returns `#rrggbb`, or `#rrggbbaa` below full opacity. Undefined for other candidates and for
+   * colors that depend on the color scheme.
+   * @throws If a matching utility definition has a malformed requirement.
+   */
+  #color(candidate: string): string | undefined {
+    const components = this.#candidates.color(candidate);
+    if (!components) {
+      return undefined;
+    }
+    const [red, green, blue, alpha] = components.map((value) =>
+      Math.round(Math.min(1, Math.max(0, value)) * 255)
+        .toString(16)
+        .padStart(2, "0"),
+    );
+    return `#${red}${green}${blue}${alpha === "ff" ? "" : alpha}`;
   }
 
   /**
