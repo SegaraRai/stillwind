@@ -13,6 +13,7 @@ export default defineConfig({
     return [
       tanstackStart(),
       stillwind({
+        configFile: false,
         css: "root.css",
         emission: "split",
       }),

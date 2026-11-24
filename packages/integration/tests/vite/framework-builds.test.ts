@@ -45,6 +45,7 @@ for (const framework of ["vue", "svelte", "astro"] satisfies Framework[]) {
     );
     try {
       const plugin = stillwind({
+        configFile: false,
         css: path.join(root, "root.css"),
       });
       if (framework === "astro") {
@@ -54,6 +55,7 @@ for (const framework of ["vue", "svelte", "astro"] satisfies Framework[]) {
           logLevel: "silent",
           integrations: [
             astroIntegration({
+              configFile: false,
               css: path.join(root, "root.css"),
             }),
           ],

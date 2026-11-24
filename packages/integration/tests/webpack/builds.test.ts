@@ -66,6 +66,7 @@ for (const backend of ["webpack", "rspack"] as const) {
         },
         plugins: [
           new StillwindPlugin({
+            configFile: false,
             css: "./root.css",
             naming: { utilityClass: (_context, hash) => "custom-" + hash.toString("hex") },
             namingRevision: "framework-test",

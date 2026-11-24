@@ -434,6 +434,7 @@ async function createWatchedProject(
     writeFileSync(path.join(root, filename), content);
   }
   const project = createViteProject({
+    configFile: false,
     css: "root.css",
     plugins: options.plugins,
   });

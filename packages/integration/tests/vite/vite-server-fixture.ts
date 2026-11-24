@@ -36,6 +36,7 @@ export async function createTestServer(
     await writeFile(path.join(root, name), contents);
   }
   const project = createViteProject({
+    configFile: false,
     css: "root.css",
     ...config,
   });

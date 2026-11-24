@@ -18,6 +18,7 @@ test.each([false, true])(
       base: "/nested/",
       plugins: [
         stillwind({
+          configFile: false,
           css: path.join(root, "root.css"),
         }),
       ],

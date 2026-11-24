@@ -27,6 +27,7 @@ for (const configuredRoot of [undefined, "application"]) {
       "import {style} from 'stillwind/react';export const props=style('blue');",
     );
     const config = withStillwind({} as NextConfig, {
+      configFile: false,
       root: configuredRoot,
       css: "root.css",
     });

@@ -158,6 +158,7 @@ async function compilerFixture(
 ) {
   const root = await mkdtemp(fileURLToPath(new URL("../../.test-configuration-", import.meta.url)));
   const config = {
+    configFile: false as const,
     css: "root.css",
     automatic: transport === "automatic-loader",
   };

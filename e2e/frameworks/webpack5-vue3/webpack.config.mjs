@@ -34,6 +34,7 @@ export default {
   },
   plugins: [
     new StillwindPlugin({
+      configFile: false,
       css: "src/styles.css",
       root,
     }),

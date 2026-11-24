@@ -11,6 +11,7 @@ export default defineConfig({
     const { solidStart } = await import("@solidjs/start/config");
     return [
       stillwind({
+        configFile: false,
         css: "root.css",
         emission: "split",
       }),

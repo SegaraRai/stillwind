@@ -1,4 +1,5 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { expect, onTestFinished, test } from "vite-plus/test";
@@ -15,12 +16,13 @@ import {
 
 /**
  * Creates an isolated configuration directory and registers its removal after the test.
+ * The directory is outside the repository, so discovery does not find the repository's configuration.
  *
  * @returns The root, default TypeScript config path, and a helper for replacing its project list.
  * @throws If creating the temporary directory fails.
  */
 async function fixture() {
-  const root = await mkdtemp(path.join(import.meta.dirname, ".test-config-"));
+  const root = await mkdtemp(path.join(tmpdir(), "stillwind-config-"));
   onTestFinished(() => rm(root, { recursive: true, force: true }));
   const configFile = path.join(root, "stillwind.config.ts");
   /**

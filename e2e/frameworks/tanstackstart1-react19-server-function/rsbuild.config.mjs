@@ -8,6 +8,7 @@ export default {
   root: process.cwd(),
   plugins: [
     bundler.pluginStillwind({
+      configFile: false,
       css: path.join(process.cwd(), "root.css"),
       root: process.cwd(),
     }),

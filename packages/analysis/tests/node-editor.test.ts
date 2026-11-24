@@ -1,4 +1,5 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -8,7 +9,7 @@ import { expect, test } from "vite-plus/test";
 import { discoverNodeWorkspace, openNodeWorkspaces } from "../dist/node.js";
 
 test("a folder without a configuration opens nothing until a document selects a package", async () => {
-  const root = await mkdtemp(path.resolve(import.meta.dirname, "../../host/.test-node-discovery-"));
+  const root = await mkdtemp(path.join(tmpdir(), "stillwind-node-discovery-"));
   const context = {
     workspaceFolders: [pathToFileURL(root).href],
   };

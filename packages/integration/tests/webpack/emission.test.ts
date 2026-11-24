@@ -61,7 +61,7 @@ for (const backend of ["webpack", "rspack"] as const) {
       experiments: {
         css: true,
       },
-      plugins: [new StillwindPlugin({ css: "./root.css" })],
+      plugins: [new StillwindPlugin({ configFile: false, css: "./root.css" })],
       module: {
         rules: [
           {
@@ -131,7 +131,7 @@ for (const backend of ["webpack", "rspack"] as const) {
       experiments: {
         css: true,
       },
-      plugins: [new StillwindPlugin({ css: "./root.css" })],
+      plugins: [new StillwindPlugin({ configFile: false, css: "./root.css" })],
       module: {
         rules: [
           {
@@ -209,6 +209,7 @@ for (const backend of ["webpack", "rspack"] as const) {
       },
       plugins: [
         new StillwindPlugin({
+          configFile: false,
           css: "./root.css",
         }),
       ],
@@ -297,6 +298,7 @@ for (const backend of ["webpack", "rspack"] as const) {
       },
       plugins: [
         new StillwindPlugin({
+          configFile: false,
           css: "./root.css",
         }),
       ],

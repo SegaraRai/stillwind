@@ -109,6 +109,7 @@ import { style } from 'stillwind/vue';
     logLevel: "silent",
     plugins: [
       stillwind({
+        configFile: false,
         css: path.join(root, "root.css"),
       }),
       vue(),
@@ -200,6 +201,7 @@ export const props = style('red', { '--x': progress },
         },
       },
       stillwind({
+        configFile: false,
         css: path.join(root, "root.css"),
       }),
     ],

@@ -22,6 +22,7 @@ for (const framework of ["vue", "svelte", "astro"] satisfies Framework[]) {
   writeFrameworkFixture(root, framework);
 
   const plugin = stillwind({
+    configFile: false,
     css: path.join(root, "root.css"),
   });
   if (framework === "astro") {

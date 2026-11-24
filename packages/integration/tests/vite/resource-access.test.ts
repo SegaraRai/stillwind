@@ -61,6 +61,7 @@ globalThis.css = css;
 `,
     );
     const project = createViteProject({
+      configFile: false,
       css: "root.css",
       emission,
     });

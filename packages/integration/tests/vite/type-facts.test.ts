@@ -77,6 +77,7 @@ test("Vite aliases and explicit TypeScript settings select the same asset in the
       },
       plugins: [
         stillwind({
+          configFile: false,
           css: path.join(root, "root.css"),
           tsconfig: "tsconfig.app.json",
         }),
@@ -141,6 +142,7 @@ test("A multi-entry build reads assets through plain modules and compiles transf
           },
         },
         stillwind({
+          configFile: false,
           css: path.join(root, "root.css"),
         }),
       ],

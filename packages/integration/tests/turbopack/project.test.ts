@@ -26,6 +26,7 @@ test("Turbopack plans document CSS without imports that cannot be resolved and w
     'import {style} from "stillwind/react"; export const props = style("red");',
   );
   const rule = stillwindRules({
+    configFile: false,
     css: "root.css",
     entries: ["entry.tsx"],
   })["*.{js,jsx,ts,tsx,mjs,cjs}"];

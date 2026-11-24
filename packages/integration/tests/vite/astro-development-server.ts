@@ -16,6 +16,7 @@ const server = await dev({
   },
   integrations: [
     stillwind({
+      configFile: false,
       css: "root.css",
     }),
   ],

@@ -4,6 +4,7 @@ import { pluginStillwind } from "@stillwind/integration/rsbuild";
 export default {
   plugins: [
     pluginStillwind({
+      configFile: false,
       css: "src/styles.css",
     }),
     pluginReact(),

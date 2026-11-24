@@ -29,6 +29,7 @@ applyStyle(document.querySelector('button')!, style('client-only'));`,
       logLevel: "silent",
       integrations: [
         stillwind({
+          configFile: false,
           css: path.join(root, "root.css"),
         }),
       ],

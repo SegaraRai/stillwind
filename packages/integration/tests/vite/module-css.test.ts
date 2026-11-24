@@ -240,6 +240,7 @@ async function buildProject(
     plugins: [
       ...(options.plugins ?? []),
       stillwind({
+        configFile: false,
         css: path.join(root, "root.css"),
         emission: options.emission,
       }),

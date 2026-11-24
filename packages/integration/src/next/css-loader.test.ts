@@ -32,7 +32,7 @@ for (const change of ["add", "remove before reading", "remove after reading"] as
         rootContext: root,
         resourcePath: path.join(root, "stillwind-turbopack.css"),
         getOptions: (): NextLoaderOptions => ({
-          compiler: { css: "root.css" },
+          compiler: { configFile: false, css: "root.css" },
           root,
           entries: [],
           mode: "development",

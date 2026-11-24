@@ -15,6 +15,7 @@ test("query modules retain independent CSS and deletion removes all derivatives 
     "@import '../packages/core/index.css'; @utility first { width: 13px; } @utility second { width: 17px; } @utility third { width: 19px; }",
   );
   const plugins = stillwind({
+    configFile: false,
     css,
   });
   const server = await createServer({
@@ -97,6 +98,7 @@ test("Vite refreshes imported CSS, retains a failed reload and discards removed 
   );
   writeFileSync(tokens, "@theme { --color-brand: red; }");
   const plugins = stillwind({
+    configFile: false,
     css,
   });
   const server = await createServer({
@@ -218,6 +220,7 @@ test("nested CSS imports resolve while a sibling import waits, and CSS keeps imp
   writeFileSync(second, "@import 'parallel-child'; .second { color: blue; }");
   writeFileSync(child, ".child { color: green; }");
   const plugins = stillwind({
+    configFile: false,
     css,
   });
   let releaseFirst: (() => void) | undefined;
@@ -300,6 +303,7 @@ test("Vite rejects a failed CSS load without waiting for or leaking late read fa
   writeFileSync(css, "@import 'failed'; @import 'late';");
   writeFileSync(broken, ".broken {");
   const plugins = stillwind({
+    configFile: false,
     css,
   });
   const configuration = await resolveConfig(
@@ -364,6 +368,7 @@ test("Vite builds without CSS imports that cannot be resolved and warns about ea
   writeFileSync(css, "@import 'missing';\n@import 'part';");
   writeFileSync(part, ".part { color: red; }");
   const plugins = stillwind({
+    configFile: false,
     css,
   });
   const configuration = await resolveConfig(
@@ -423,6 +428,7 @@ test("client and SSR resolve and reload independent CSS snapshots", async () => 
   writeFileSync(clientCss, ".environment { color: red; } @stillwind-utility paint { color: red; }");
   writeFileSync(ssrCss, ".environment { color: blue; } @stillwind-utility paint { color: blue; }");
   const plugins = stillwind({
+    configFile: false,
     css: entry,
   });
   let heldResolution: Promise<string> | undefined;
@@ -584,7 +590,7 @@ test("hot updates skip JavaScript only when the producer output matches an older
   const server = await createServer({
     configFile: false,
     root,
-    plugins: [stillwind({ css })],
+    plugins: [stillwind({ configFile: false, css })],
     logLevel: "silent",
     server: {
       middlewareMode: true,
