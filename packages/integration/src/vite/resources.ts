@@ -32,19 +32,17 @@ export function resourceReplacements(
  * Encodes an absolute file path as a Vite filesystem URL.
  *
  * @param file - Canonical absolute path, using either path separator spelling.
- * @returns An /@fs/ URL with each path segment encoded for use in stylesheet resource requests.
+ * @returns An /@fs/ URL for use in stylesheet resource requests.
  */
 export function resourceUrl(file: string): string {
-  return `/@fs/${file
-    .replaceAll("\\", "/")
-    .split("/")
-    .map((segment) =>
-      encodeURIComponent(segment)
-        .replaceAll("'", "%27")
-        .replaceAll("(", "%28")
-        .replaceAll(")", "%29"),
-    )
-    .join("/")}`;
+  // Vite restores the path with `decodeURI`, which keeps escapes of reserved characters. An
+  // escaped `@` or `+`, as in `.pnpm/@scope+name@1.0.0`, therefore names no file.
+  return `/@fs/${encodeURI(file.replaceAll("\\", "/"))
+    .replaceAll("#", "%23")
+    .replaceAll("?", "%3F")
+    .replaceAll("'", "%27")
+    .replaceAll("(", "%28")
+    .replaceAll(")", "%29")}`;
 }
 
 /**

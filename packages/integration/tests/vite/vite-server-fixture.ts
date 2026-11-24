@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -19,6 +19,7 @@ export async function createTestServer(
   config: BaseConfig = {},
   css = "@utility red{color:red} @stillwind-slot utilities;",
   vite: Pick<InlineConfig, "build" | "environments" | "server"> = {},
+  files: Readonly<Record<string, string>> = {},
 ) {
   const root = await mkdtemp(path.join(packageRoot, ".test-security-"));
   let server: ViteDevServer | undefined = undefined;
@@ -30,6 +31,10 @@ export async function createTestServer(
     }
   });
   await writeFile(path.join(root, "root.css"), css);
+  for (const [name, contents] of Object.entries(files)) {
+    await mkdir(path.dirname(path.join(root, name)), { recursive: true });
+    await writeFile(path.join(root, name), contents);
+  }
   const project = createViteProject({
     css: "root.css",
     ...config,

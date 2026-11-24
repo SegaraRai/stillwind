@@ -6,7 +6,13 @@ import { afterEach, expect, onTestFinished, test, vi } from "vite-plus/test";
 
 import { createVitePlugins } from "../../src/vite/plugin.ts";
 import { createViteProject } from "../../src/vite/project.ts";
-import { normalizeFile, packageRoot, redStyleSource } from "./vite-server-fixture.ts";
+import {
+  compileContext,
+  createTestServer,
+  normalizeFile,
+  packageRoot,
+  redStyleSource,
+} from "./vite-server-fixture.ts";
 
 vi.mock("node:fs/promises", async (importOriginal) => {
   const original = await importOriginal<typeof import("node:fs/promises")>();
@@ -103,3 +109,29 @@ globalThis.css = css;
     }
   },
 );
+
+test("development CSS links resources in directories with URL-reserved characters to files that Vite serves", async () => {
+  const { project, root, server, origin } = await createTestServer(
+    {},
+    "@utility red { color: red; background-image: url('./@scope+icons@1.0.0/icon.svg'); } @stillwind-slot utilities;",
+    {},
+    {
+      "@scope+icons@1.0.0/icon.svg":
+        '<svg xmlns="http://www.w3.org/2000/svg"><text>SCOPED_ICON</text></svg>',
+    },
+  );
+  const entry = path.join(root, "entry.tsx");
+  await writeFile(entry, redStyleSource);
+  const context = compileContext(server, "client");
+  await project.compile("client", redStyleSource, entry, context);
+  await project.publish("client", context);
+
+  const css = await (await fetch(`${origin}/__stillwind/style.css?environment=client`)).text();
+  const url = /url\("?([^")]*icon\.svg)"?\)/.exec(css)?.[1];
+  if (url === undefined) {
+    expect.fail(`Expected an icon URL in the development CSS:\n${css}`);
+  }
+  const response = await fetch(new URL(url, origin));
+
+  expect(await response.text()).toContain("SCOPED_ICON");
+});
