@@ -72,6 +72,13 @@ fn normalize(expression: ProjectionExpression<'_>) -> ProjectionDecision {
             retained: value,
             checker: Some(value),
         },
+        // Volar copies the props of a component element into a constructor call for
+        // type inference, and maps only the later copy to the template.
+        ProjectionExpression::Call {
+            callee, witness, ..
+        } if callee.starts_with("__VLS_asFunctionalComponent") && witness.starts_with(", new ") => {
+            ProjectionDecision::IgnoreReferences
+        }
         ProjectionExpression::Call {
             callee,
             whole,

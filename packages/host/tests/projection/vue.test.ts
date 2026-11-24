@@ -296,6 +296,18 @@ for (const { version, core, exposure } of versions) {
       expect(module.composition).toHaveLength(1);
     });
 
+    test("component elements accept style calls in their props", async () => {
+      const prepared = await project(
+        component(
+          `${macroImport} import Button from './Button.vue'; const forwarded={};`,
+          `<Button v-bind="style('flex')">x</Button><Button :class="style('grid').class"/><Button v-bind="{...forwarded, ...style('flex')}"/>`,
+        ),
+      );
+      const { module } = compile(prepared);
+      expect(module.css).toMatch(/display:\s*flex/);
+      expect(module.css).toMatch(/display:\s*grid/);
+    });
+
     for (const language of ["ts", "js"]) {
       for (const { name, script, template, retained } of expressionCases) {
         test(`${language}: ${name}`, async () => {

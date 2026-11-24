@@ -396,7 +396,17 @@ fn generated_exposure_reads_and_nested_completion_reads_keep_import_guards_preci
             "__VLS_withDotValue(style, {} as import('vue').Ref<unknown>);",
             false,
         ),
+        (
+            "const __VLS_1 = __VLS_asFunctionalComponent1(Button, new Button({
+// @ts-ignore
+...(__VLS_unwrap(style, {} as import('vue').Ref<unknown>)('p-4')), }));",
+            false,
+        ),
         ("const __VLS_self = {setup(){return {leak:style};}};", true),
+        (
+            "const leak = wrap(Button, new Button({leak: style}));",
+            true,
+        ),
     ];
     for (scaffold, guarded) in scaffolds {
         let original = SourceFile::new(FileId(1), None, None, script).unwrap();
