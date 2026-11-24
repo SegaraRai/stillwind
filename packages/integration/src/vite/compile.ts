@@ -181,13 +181,21 @@ export async function compileProducer(
     id,
     {
       // Dependency reads supply type and style facts. Vite validates the imports retained in the
-      // transformed application when it constructs the JavaScript graph.
-      resolve: (specifier, importer) =>
-        resolveServerSource(
-          (specifier, importer, options) => context.resolve(specifier, importer, options),
-          specifier,
-          importer,
-        ),
+      // transformed application when it constructs the JavaScript graph, so a failed resolution
+      // here only leaves the facts of that import unknown. For example, Vite throws for
+      // `import type { HTMLAttributes } from "svelte/elements"`, because the package exports
+      // that path only under the `types` condition.
+      resolve: async (specifier, importer) => {
+        try {
+          return await resolveServerSource(
+            (specifier, importer, options) => context.resolve(specifier, importer, options),
+            specifier,
+            importer,
+          );
+        } catch {
+          return null;
+        }
+      },
       read: (id) => readFile(cleanModuleId(id), "utf8"),
       describe: (resolvedId) => {
         const virtual = resolvedId.startsWith("\0") || resolvedId.startsWith("virtual:");
