@@ -45,6 +45,23 @@ A component uses the entrypoint of its own framework. For example, a React
 island inside an Astro page imports `stillwind/react`, Gatsby uses
 `stillwind/react`, and Fresh 2 uses `stillwind/preact`.
 
+### Install the component converters
+
+Stillwind reads Vue, Svelte, and Astro components through converter packages.
+These packages are optional peer dependencies, so package managers do not
+install them automatically. Install the packages for each component format that
+the application uses:
+
+| Format | Packages                                                       |
+| ------ | -------------------------------------------------------------- |
+| Vue    | `@vue/compiler-dom`, `@vue/compiler-sfc`, `@vue/language-core` |
+| Svelte | `svelte`, `svelte2tsx`                                         |
+| Astro  | `@astrojs/astro2tsx`                                           |
+
+For example, a Svelte application installs `svelte2tsx` as a development
+dependency. If a package is missing, the build fails with an error such as
+`Cannot find package 'svelte2tsx'`.
+
 ### Alpine
 
 Register the `stillwind` plugin from `stillwind/alpine` before `Alpine.start()`,
@@ -395,7 +412,9 @@ every webpack stage:
 import { StillwindPlugin } from "@stillwind/integration/webpack";
 
 export function onCreateWebpackConfig({ actions, stage }) {
-  actions.setWebpackConfig({ plugins: [new StillwindPlugin()] });
+  actions.setWebpackConfig({
+    plugins: [new StillwindPlugin()],
+  });
   if (stage === "develop") {
     actions.setWebpackConfig({
       optimization: {
