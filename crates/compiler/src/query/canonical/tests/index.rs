@@ -361,3 +361,27 @@ fn canonical_candidates_keep_math_functions_around_inline_theme_values() {
         Some("rounded-md")
     );
 }
+
+#[test]
+fn canonical_candidates_do_not_assume_values_of_undeclared_inline_theme_variables() {
+    // The built-in `--radius` is `0.25rem`, but generated CSS does not declare it.
+    let query = make_query(
+        ":root { --radius: 0.625rem; } @theme inline { --radius-sm: calc(var(--radius) * 0.6); --radius-lg: var(--radius); }",
+        CompilerOptions::default(),
+    );
+    assert_eq!(query.canonical_candidate("rounded-[4px]").unwrap(), None);
+    assert_eq!(
+        query
+            .canonical_candidate("rounded-[var(--radius)]")
+            .unwrap()
+            .as_deref(),
+        Some("rounded-lg")
+    );
+    assert_eq!(
+        query
+            .canonical_candidate("rounded-[var(--radius-lg)]")
+            .unwrap()
+            .as_deref(),
+        Some("rounded-lg")
+    );
+}

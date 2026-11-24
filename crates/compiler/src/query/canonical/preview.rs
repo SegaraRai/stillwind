@@ -40,8 +40,9 @@ pub(in crate::query) struct CanonicalPreview {
     /// Candidate CSS with generated compatibility guards flattened, before known theme
     /// variables are substituted. Authored conditions remain present.
     pub(super) css: LeanStr,
-    /// CSS with known theme variables substituted. Unknown variables keep their
-    /// spelling. `None` when substitution exceeds the query's expansion limits.
+    /// CSS with known theme variables substituted. Unknown variables and variables of
+    /// inline values with the `reference` modifier keep their spelling. `None` when
+    /// substitution exceeds the query's expansion limits.
     pub(super) resolved_css: Option<LeanStr>,
     /// Registration dependencies compared alongside CSS before accepting a replacement.
     pub(super) required_properties: Vec<LeanStr>,
@@ -384,7 +385,7 @@ impl QueryContext {
                 .iter()
                 .map(GeneratedRule::to_css)
                 .collect();
-            let resolved_css = self.resolve_theme_values(&css);
+            let resolved_css = self.resolve_runtime_theme_values(&css);
             let composition = self.composition();
             let required_properties = canonical_requirements(
                 resolved_css.as_deref().unwrap_or(&css),

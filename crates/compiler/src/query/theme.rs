@@ -239,6 +239,13 @@ fn declaration_value(value: &str) -> &str {
     value.trim().trim_end_matches("!important").trim()
 }
 
+/// Whether generated CSS never declares `value` although utilities substitute it, as
+/// with the built-in `--radius`. A `var()` reference to such a value reads whatever the
+/// author declares outside the theme, such as `:root { --radius: 0.625rem; }`.
+pub(super) fn undeclared_inline(value: &ThemeValue) -> bool {
+    value.mode == ThemeValueMode::Inline && value.reference
+}
+
 /// An active theme scale, such as `--spacing`, that canonical comparisons substitute.
 #[derive(Clone, Debug)]
 pub(super) struct ScaleReference {
@@ -331,12 +338,25 @@ impl QueryContext {
         self.substitute_theme_values(input, |_| true, 64)
     }
 
+    /// Substitutes theme variables in `input` with the values that they have when the
+    /// CSS runs. A `var()` reference to an inline value with the `reference` modifier
+    /// retains its spelling, as do unknown variables. Returns `None` after 64
+    /// substitution passes or if an edit expands the CSS beyond 1 MiB.
+    pub(super) fn resolve_runtime_theme_values(&self, input: &str) -> Option<LeanStr> {
+        self.substitute_theme_values(input, |value| !undeclared_inline(value), 64)
+    }
+
     /// Substitutes `var()` references to inline theme values in `input` once, as a
     /// utility does when it reads such a value: `var()` calls inside a substituted
-    /// value remain. Other variables retain their spelling. Returns `None` if an edit
-    /// expands the CSS beyond 1 MiB.
+    /// value remain. Variables of inline values with the `reference` modifier and other
+    /// variables retain their spelling. Returns `None` if an edit expands the CSS
+    /// beyond 1 MiB.
     pub(super) fn inline_theme_values(&self, input: &str) -> Option<LeanStr> {
-        self.substitute_theme_values(input, |value| value.mode == ThemeValueMode::Inline, 1)
+        self.substitute_theme_values(
+            input,
+            |value| value.mode == ThemeValueMode::Inline && !undeclared_inline(value),
+            1,
+        )
     }
 
     /// Substitutes the `var()` references in `input` to the theme values that

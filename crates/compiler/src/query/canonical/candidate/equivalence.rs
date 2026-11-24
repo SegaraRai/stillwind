@@ -14,6 +14,7 @@ use super::super::index::policy;
 use super::super::preview::spacing_properties;
 use super::spelling;
 use crate::query::DesignSystemQuery;
+use crate::query::theme::undeclared_inline;
 
 impl DesignSystemQuery {
     /// Checks whether the candidate `right` can replace the candidate `left`.
@@ -79,9 +80,9 @@ impl DesignSystemQuery {
                     .filter(|name| !name.contains(','));
                 let Some(name) = name else { return Ok(false) };
                 let theme = self.context.design_system.theme();
-                let inline = theme
-                    .token_property(name)
-                    .is_some_and(|token| token.mode == ThemeValueMode::Inline);
+                let inline = theme.token_property(name).is_some_and(|token| {
+                    token.mode == ThemeValueMode::Inline && !undeclared_inline(token)
+                });
                 let selected = resolve_utility(right_raw, theme)?.is_ok_and(|utility| {
                     utility
                         .diagnostic_data
