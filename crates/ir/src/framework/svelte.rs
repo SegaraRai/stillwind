@@ -1,12 +1,16 @@
 //! Svelte adapter policy and bindings for helpers supplied by svelte2tsx.
 
-use super::{AdapterKind, FrameworkSpec, OutputFormat, ProjectionDecision, ProjectionExpression};
+use super::{
+    AdapterKind, ForwardSupport, FrameworkSpec, OutputFormat, ProjectionDecision,
+    ProjectionExpression,
+};
 
 /// Svelte receives custom properties as a serialized style string.
 pub(super) const SPEC: FrameworkSpec = FrameworkSpec {
     id: AdapterKind::Svelte,
     macro_import: "stillwind/svelte",
     output: OutputFormat::ClassString,
+    forward: ForwardSupport::Available,
     projected_input: true,
     normalize,
 };

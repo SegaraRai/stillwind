@@ -55,20 +55,21 @@ pub use composition::{
     validate_composition,
 };
 pub use framework::{
-    AdapterKind, FRAMEWORKS, FrameworkSpec, MODULE_CSS_IMPORT, OutputFormat, OutputSpec,
-    ProjectionDecision, ProjectionExpression, RUNTIME_IMPORT, RUNTIME_IMPORT_DEV, StyleFormat,
-    from_macro_import,
+    AdapterKind, FRAMEWORKS, ForwardSupport, FrameworkSpec, MODULE_CSS_IMPORT, OutputFormat,
+    OutputSpec, ProjectionDecision, ProjectionExpression, RUNTIME_IMPORT, RUNTIME_IMPORT_DEV,
+    StyleFormat, from_macro_import,
 };
 pub use input::{
-    AttributeQuote, ConverterIdentity, DirectSource, ImportRealm, PreparedSource, ProjectedSource,
-    ProjectionRegion, ScriptLanguage, ScriptModuleKind, ScriptSyntax, SourceDocument, SourceFormat,
-    SourceInput, SourceInputError, SourceProjection,
+    AttributeQuote, ConverterIdentity, DirectSource, ImportRealm, OrderingModule, PreparedSource,
+    ProjectedSource, ProjectionRegion, ScriptLanguage, ScriptModuleKind, ScriptSyntax,
+    SourceDocument, SourceFormat, SourceInput, SourceInputError, SourceProjection,
 };
 pub use model::{
     AnchorScope, AssetReference, BranchArm, ClassExpression, ConditionalBranches, ContainerType,
-    CssCall, CssInput, CustomPropertyEntry, CvaCall, CvaReplacement, GroupEntry, KeyframesBody,
-    KeyframesBranch, KeyframesDefinition, KeyframesFrame, MacroImport, MacroImportSpecifier,
-    MediaCall, ModuleImports, ModuleIr, RefCondition, RefDefinition, RefProjection, RuleExpression,
-    RuleExpressionError, RuleExpressionErrorKind, SelectEntry, StoredVariantDefinition, StyleCall,
-    StyleInput, StyleVariant, ViewTransitionDefinition, ViewTransitionKey, ViewTransitionName,
+    CssCall, CssInput, CustomPropertyEntry, CvaCall, CvaReplacement, ForwardCall, GroupEntry,
+    KeyframesBody, KeyframesBranch, KeyframesDefinition, KeyframesFrame, MacroImport,
+    MacroImportSpecifier, MediaCall, ModuleImports, ModuleIr, OrderingUse, RefCondition,
+    RefDefinition, RefProjection, RuleExpression, RuleExpressionError, RuleExpressionErrorKind,
+    SelectEntry, StoredVariantDefinition, StyleCall, StyleInput, StyleVariant,
+    ViewTransitionDefinition, ViewTransitionKey, ViewTransitionName,
 };

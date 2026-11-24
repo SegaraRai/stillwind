@@ -1,6 +1,8 @@
+import { stillwindClsx } from "./shared.ts";
+
 /**
  * Framework conventions and private channels used to materialize fragments.
- * The three keys must be distinct and belong to the runtime that created the fragments.
+ * The four keys must be distinct and belong to the runtime that created the fragments.
  */
 export type FragmentRuntimeOptions = readonly [
   /** Element prop that receives the combined class text. */
@@ -11,9 +13,21 @@ export type FragmentRuntimeOptions = readonly [
   stillwindClassKey: symbol,
   /** Own fragment property containing the last authored style payload. */
   stillwindStyleKey: symbol,
-  /** Own fragment property containing generated custom properties applied last. */
+  /** Own fragment property containing generated custom properties. */
   stillwindCustomPropertiesKey: symbol,
+  /** Own fragment property containing props that a caller forwarded, applied after all others. */
+  stillwindForwardKey: symbol,
 ];
+
+/** Class and style props that a component received from its caller. */
+interface ForwardedProps {
+  /** Class text joined from the forwarded `class` and `className` values. */
+  readonly class: string;
+  /** The forwarded style value, unchanged. */
+  readonly style: unknown;
+  /** Whether the framework accepts an array of style values. */
+  readonly styleArrays: boolean;
+}
 
 export function isObject(value: unknown): value is Record<PropertyKey, unknown> {
   return typeof value === "object" && value !== null;
@@ -42,6 +56,76 @@ export function serializeStyle(payload: unknown, styleFormat: "object" | "string
 }
 
 /**
+ * Merges a forwarded style value after the style that a call produced.
+ *
+ * Objects merge with the forwarded entries last, and strings are joined with `;`. When one
+ * value is a string and the other is an object, a framework that accepts style arrays receives
+ * both values in an array. Otherwise the object is serialized, because declaration text cannot
+ * be parsed into an object reliably. A forwarded array is used only when `styleArrays` is true.
+ *
+ * @param own - The style that the call produced, or undefined.
+ * @param forwarded - The style value that a caller forwarded.
+ * @param styleFormat - The style convention of the output format.
+ * @param styleArrays - Whether the framework accepts an array of style values.
+ * @returns The merged style, or undefined when neither value contributes.
+ */
+export function mergeForwardedStyle(
+  own: unknown,
+  forwarded: unknown,
+  styleFormat: "object" | "string",
+  styleArrays: boolean,
+): unknown {
+  if (forwarded == null || forwarded === "" || (Array.isArray(forwarded) && !styleArrays)) {
+    return own;
+  }
+  if (own == null || own === "") {
+    return Array.isArray(forwarded) ? forwarded : serializeStyle(forwarded, styleFormat);
+  }
+  if (Array.isArray(own) || Array.isArray(forwarded)) {
+    return [own, forwarded];
+  }
+  if (isObject(own) && isObject(forwarded)) {
+    return {
+      ...own,
+      ...forwarded,
+    };
+  }
+  if (styleArrays && isObject(own) !== isObject(forwarded)) {
+    return [own, forwarded];
+  }
+  return [serializeStyle(own, "string"), serializeStyle(forwarded, "string")]
+    .filter(Boolean)
+    .join(";");
+}
+
+/**
+ * Creates a fragment from the class and style props that a component received.
+ *
+ * @param options - The receiving framework's prop conventions and fragment keys.
+ * @param value - Received props. Both `class` and `className` are read, as `stillwindClsx` reads
+ * class values. Other props are ignored, and a value that is not an object contributes nothing.
+ * @param styleArrays - Whether the framework accepts an array of style values.
+ * @returns A fragment that `mergeFragments` applies after every other fragment.
+ */
+export function forwardFragment(
+  options: FragmentRuntimeOptions,
+  value: unknown,
+  styleArrays: boolean,
+): Record<PropertyKey, unknown> {
+  if (!isObject(value)) {
+    return {};
+  }
+  const forwarded: ForwardedProps = {
+    class: stillwindClsx(value.class, value.className),
+    style: value.style,
+    styleArrays,
+  };
+  return {
+    [options[5]]: forwarded,
+  };
+}
+
+/**
  * Materializes class and style fragments without mutating the inputs.
  *
  * @param options - Framework conventions and the keys of the runtime that created the fragments.
@@ -49,7 +133,9 @@ export function serializeStyle(payload: unknown, styleFormat: "object" | "string
  * Nonobjects are ignored. Materialized bases must first be converted with `toFragment`.
  * @returns Props with classes joined in traversal order. The last non-null fragment
  * style supplies inline style, and generated custom properties are combined and applied
- * last. Fragment symbol channels do not appear in the result.
+ * after it. Forwarded fragments apply last, in traversal order: their classes follow the
+ * other classes, and their styles merge as `mergeForwardedStyle` describes. Fragment
+ * symbol channels do not appear in the result.
  */
 export function mergeFragments(
   options: FragmentRuntimeOptions,
@@ -61,8 +147,10 @@ export function mergeFragments(
     stillwindClassKey,
     stillwindStyleKey,
     stillwindCustomPropertiesKey,
+    stillwindForwardKey,
   ] = options;
   const classes: string[] = [];
+  const forwards: ForwardedProps[] = [];
   const customProperties: Record<string, string> = {};
   let style: unknown;
   let hasStyle = false;
@@ -79,6 +167,9 @@ export function mergeFragments(
     }
     if (!isObject(value)) {
       return;
+    }
+    if (Object.hasOwn(value, stillwindForwardKey)) {
+      forwards.push(value[stillwindForwardKey] as ForwardedProps);
     }
     const fragment =
       Object.hasOwn(value, stillwindClassKey) ||
@@ -123,7 +214,26 @@ export function mergeFragments(
         ? [serializeStyle(result.style, styleFormat), serializeStyle(customProperties, styleFormat)]
             .filter(Boolean)
             .join(";")
-        : { ...(isObject(result.style) ? result.style : {}), ...customProperties };
+        : {
+            ...(isObject(result.style) ? result.style : {}),
+            ...customProperties,
+          };
+  }
+  for (const forwarded of forwards) {
+    if (forwarded.class) {
+      result[classProperty] = result[classProperty]
+        ? `${result[classProperty] as string} ${forwarded.class}`
+        : forwarded.class;
+    }
+    const style = mergeForwardedStyle(
+      result.style,
+      forwarded.style,
+      styleFormat,
+      forwarded.styleArrays,
+    );
+    if (style !== undefined) {
+      result.style = style;
+    }
   }
   return result;
 }

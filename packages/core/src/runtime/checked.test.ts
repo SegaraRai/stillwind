@@ -3,6 +3,9 @@ import { expect, test, vi } from "vite-plus/test";
 import {
   stillwindClassNameObjectMergeChecked,
   stillwindClassNameObjectToFragmentChecked,
+  stillwindClassObjectForwardArraysChecked,
+  stillwindClassObjectForwardChecked,
+  stillwindClassObjectMergeChecked,
   stillwindClsxChecked,
   stillwindRefClassChecked,
 } from "./checked.ts";
@@ -62,4 +65,20 @@ test("production and development runtimes share keys and valid materialization",
   expect(stillwindClassNameObjectMerge({ [stillwindClassNameObjectClassKey]: "a" })).toEqual({
     className: "a",
   });
+});
+
+test("checked forwarding rejects values that the framework cannot apply", () => {
+  expect(stillwindClassObjectForwardChecked(null)).toStrictEqual({});
+  expect(() => stillwindClassObjectForwardChecked("x")).toThrow(/as an object/);
+  expect(() => stillwindClassObjectForwardChecked({ class: Symbol("x") })).toThrow(
+    /unsupported class value/,
+  );
+  expect(() => stillwindClassObjectForwardChecked({ style: ["margin:0"] })).toThrow(
+    /string or an object/,
+  );
+  expect(
+    stillwindClassObjectMergeChecked(
+      stillwindClassObjectForwardArraysChecked({ style: ["margin:0"] }),
+    ),
+  ).toStrictEqual({ style: ["margin:0"] });
 });

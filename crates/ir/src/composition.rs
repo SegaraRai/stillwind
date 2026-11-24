@@ -293,6 +293,10 @@ fn inputs(values: &[StyleInput], dependencies: &mut BTreeSet<IdentityId>) -> boo
             StyleInput::Class(expression) => {
                 props |= class_expression(expression);
             }
+            // Forwarded props can carry inline style, which a base does not pass on.
+            StyleInput::Forward { .. } => {
+                props = true;
+            }
             StyleInput::ViewTransitionUse { name, .. }
             | StyleInput::DynamicViewTransitionUse { name, .. } => {
                 // A transition use marks the element with a class, which composes like any other

@@ -33,6 +33,14 @@ pub struct ModuleIr {
     /// `style.css()` calls in source order.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub css_calls: Vec<CssCall>,
+    /// `style.forward()` calls outside `style()` calls, such as the second argument of a
+    /// CVA factory, in source order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub forward_calls: Vec<ForwardCall>,
+    /// Imported values whose declaring modules must precede this module in CSS order,
+    /// in source order. One import can appear at several uses.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub ordering_uses: Vec<OrderingUse>,
     /// In source order. Each entry is a `style.ref()` declaration.
     pub ref_definitions: Vec<RefDefinition>,
     /// In source order. Each entry is a `style.keyframes()` declaration.
@@ -65,6 +73,8 @@ impl ModuleIr {
             cva_calls: Vec::new(),
             media_calls: Vec::new(),
             css_calls: Vec::new(),
+            forward_calls: Vec::new(),
+            ordering_uses: Vec::new(),
             ref_definitions: Vec::new(),
             keyframes_declarations: Vec::new(),
             view_transition_declarations: Vec::new(),
@@ -102,6 +112,38 @@ pub struct CvaReplacement {
     pub span: Span,
     /// Static JavaScript that preserves the enclosing object or array syntax.
     pub replacement: LeanStr,
+}
+
+/// A `style.forward()` call outside `style()` whose callee lowering replaces with the
+/// runtime helper that creates a forwarded fragment.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ForwardCall {
+    /// The `style.forward` callee in the original source.
+    pub callee_span: Span,
+    /// Prop representation selected by the macro binding.
+    pub output: OutputFormat,
+    /// Whether the framework accepts an array of style values.
+    pub style_arrays: bool,
+}
+
+/// A use that orders the CSS of the declaring module of an imported value before the CSS
+/// of this module.
+///
+/// The use is a component that receives a `style()` result or a `style.forward()` value
+/// in its props, or an imported value passed directly to `style()`. The host resolves
+/// [`Self::source`] and [`Self::imported`] to the declaring module.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OrderingUse {
+    /// Module specifier of the import declaration, as written.
+    pub source: LeanStr,
+    /// Exported name that the import reads: `default`, a named export, or the member
+    /// name read from a namespace import.
+    pub imported: LeanStr,
+    /// The `style()` or `style.forward()` call that makes the use, in the original
+    /// source.
+    pub span: Span,
 }
 
 /// A `style.media()` call that lowering replaces with a media query list string.

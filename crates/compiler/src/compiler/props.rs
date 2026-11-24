@@ -105,6 +105,16 @@ pub(crate) enum StyleEmissionPart {
         /// Original-source UTF-8 byte offset used for stable ordering before folding.
         position: u32,
     },
+    /// `style.forward(...)`: the class and style props that a component received.
+    Forward {
+        /// The forwarded props expression with retained occurrence mappings, or `None`
+        /// for a call without an argument.
+        expression: Option<Code>,
+        /// Whether the framework accepts style arrays, which selects the runtime helper.
+        style_arrays: bool,
+        /// Original-source UTF-8 byte offset used for stable ordering before folding.
+        position: u32,
+    },
 }
 
 /// Finalized CSS/class metadata and unrendered runtime contributions for one call.

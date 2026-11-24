@@ -519,9 +519,15 @@ impl ProjectSession {
     /// Adds transitive base producers from composition edges to `modules` and returns
     /// their dependency order, breaking ties between ready producers by module identity.
     ///
+    /// Ordering modules of each analysis also order `modules`, but only when they are
+    /// already in the set: they never add producers. When ordering modules form a cycle,
+    /// the smallest waiting module whose composition bases are all placed is placed
+    /// first, so the cycle does not fail the plan. [`ProjectSession::ordering_cycle`]
+    /// reports such cycles.
+    ///
     /// # Errors
     ///
-    /// Rejects a cyclic producer graph. Missing producers are validated by planning.
+    /// Rejects a cyclic composition graph. Missing producers are validated by planning.
     pub fn stylesheet_order(
         &self,
         modules: &mut BTreeSet<ModuleId>,
@@ -539,9 +545,10 @@ impl ProjectSession {
         }
         // Each producer waits for its distinct bases. A ready set ordered by identity gives
         // the same order as repeatedly taking the smallest ready producer, in time linear in
-        // the edges instead of quadratic in the producers.
-        let mut waiting = BTreeMap::new();
-        let mut consumers: BTreeMap<&ModuleId, Vec<&ModuleId>> = BTreeMap::new();
+        // the edges instead of quadratic in the producers. Composition bases and ordering
+        // modules are counted separately, because only ordering modules may be skipped.
+        let mut waiting: BTreeMap<&ModuleId, (usize, usize)> = BTreeMap::new();
+        let mut consumers: BTreeMap<&ModuleId, Vec<(&ModuleId, bool)>> = BTreeMap::new();
         for module in modules.iter() {
             let bases: BTreeSet<&ModuleId> = self
                 .artifacts()
@@ -551,23 +558,53 @@ impl ProjectSession {
                 .map(|edge| edge.base.module_id())
                 .filter(|base| *base != module)
                 .collect();
-            waiting.insert(module, bases.len());
+            let ordering: BTreeSet<&ModuleId> = self
+                .ordering_modules(module)
+                .filter(|base| *base != module && modules.contains(*base) && !bases.contains(base))
+                .collect();
+            waiting.insert(module, (bases.len(), ordering.len()));
             for base in bases {
-                consumers.entry(base).or_default().push(module);
+                consumers.entry(base).or_default().push((module, true));
+            }
+            for base in ordering {
+                consumers.entry(base).or_default().push((module, false));
             }
         }
         let mut ready: BTreeSet<&ModuleId> = waiting
             .iter()
-            .filter(|(_, count)| **count == 0)
+            .filter(|(_, count)| **count == (0, 0))
             .map(|(module, _)| *module)
             .collect();
+        let mut placed = BTreeSet::new();
         let mut order = Vec::with_capacity(modules.len());
-        while let Some(module) = ready.pop_first() {
+        loop {
+            let module = match ready.pop_first() {
+                Some(module) => module,
+                // Every waiting module waits for an ordering module in a cycle or for a
+                // composition base. Place the smallest one that waits only for ordering.
+                None => match waiting
+                    .iter()
+                    .find(|(module, count)| count.0 == 0 && !placed.contains(**module))
+                {
+                    Some((module, _)) => *module,
+                    None => break,
+                },
+            };
+            if !placed.insert(module) {
+                continue;
+            }
             order.push(module.clone());
-            for consumer in consumers.get(module).into_iter().flatten() {
+            for (consumer, composition) in consumers.get(module).into_iter().flatten() {
+                if placed.contains(*consumer) {
+                    continue;
+                }
                 if let Some(count) = waiting.get_mut(consumer) {
-                    *count -= 1;
-                    if *count == 0 {
+                    if *composition {
+                        count.0 -= 1;
+                    } else {
+                        count.1 -= 1;
+                    }
+                    if *count == (0, 0) {
                         ready.insert(consumer);
                     }
                 }
@@ -584,6 +621,62 @@ impl ProjectSession {
             ));
         }
         Ok(order)
+    }
+
+    /// Returns the ordering modules that the latest analysis of `module` names.
+    fn ordering_modules<'s>(&'s self, module: &ModuleId) -> impl Iterator<Item = &'s ModuleId> {
+        self.analyses()
+            .get(module)
+            .into_iter()
+            .flat_map(|analysis| &analysis.input.ordering_modules)
+            .map(|ordering| &ordering.module_id)
+    }
+
+    /// Returns the modules on an ordering cycle through `module`, starting with the
+    /// ordering module of `module` that closes the cycle, or `None` when `module` is on
+    /// no cycle.
+    ///
+    /// The search follows ordering modules and composition bases of the latest
+    /// analyses and published artifacts. Only cycles that include at least one
+    /// ordering module are reported, because a composition cycle fails compilation.
+    pub fn ordering_cycle(&self, module: &ModuleId) -> Option<(ModuleId, Vec<ModuleId>)> {
+        for start in self.ordering_modules(module) {
+            if start == module {
+                continue;
+            }
+            let mut parents: BTreeMap<&ModuleId, &ModuleId> = BTreeMap::new();
+            let mut pending = vec![start];
+            let mut visited = BTreeSet::from([start]);
+            while let Some(current) = pending.pop() {
+                let bases = self
+                    .ordering_modules(current)
+                    .chain(
+                        self.artifacts()
+                            .get(current)
+                            .into_iter()
+                            .flat_map(|artifact| &artifact.composition)
+                            .map(|edge| edge.base.module_id()),
+                    )
+                    .collect::<Vec<_>>();
+                for base in bases {
+                    if base == module {
+                        let mut path = vec![current.clone()];
+                        let mut cursor = current;
+                        while let Some(parent) = parents.get(cursor) {
+                            path.push((*parent).clone());
+                            cursor = parent;
+                        }
+                        path.reverse();
+                        return Some((start.clone(), path));
+                    }
+                    if visited.insert(base) {
+                        parents.insert(base, current);
+                        pending.push(base);
+                    }
+                }
+            }
+        }
+        None
     }
 }
 

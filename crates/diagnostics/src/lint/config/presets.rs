@@ -48,6 +48,8 @@ const RECOMMENDED: &[(LintKind, LintSeverity)] = &[
     (LintKind::SplitViewTransitionClass, LintSeverity::Warn),
     (LintKind::AmbiguousStyleBaseOrder, LintSeverity::Warn),
     (LintKind::InterferingImportedStyleBase, LintSeverity::Warn),
+    (LintKind::CyclicStyleOrder, LintSeverity::Warn),
+    (LintKind::MultipleStyleForwards, LintSeverity::Warn),
     (LintKind::IncompatiblePropertyValue, LintSeverity::Deny),
     (LintKind::InvalidUtility, LintSeverity::Deny),
     (LintKind::UnknownUtility, LintSeverity::Deny),

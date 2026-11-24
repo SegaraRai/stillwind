@@ -119,6 +119,10 @@ pub struct LintOverrides {
     pub ambiguous_style_base_order: Option<LintSeverity>,
     /// Reporting level for `interfering-imported-style-base`.
     pub interfering_imported_style_base: Option<LintSeverity>,
+    /// Reporting level for `cyclic-style-order`.
+    pub cyclic_style_order: Option<LintSeverity>,
+    /// Reporting level for `multiple-style-forwards`.
+    pub multiple_style_forwards: Option<LintSeverity>,
     /// Reporting level for `invalid-utility`.
     pub invalid_utility: Option<LintSeverity>,
     /// Reporting level for `unknown-utility`.
@@ -327,6 +331,7 @@ impl LintOverrides {
 
     fn resolve_reporting_levels(&self, settings: &mut LintSettings) {
         self.resolve_input_and_definition_reporting_levels(settings);
+        self.resolve_style_order_reporting_levels(settings);
         for (kind, severity) in [
             (
                 LintKind::MismatchedFrameworkImport,
@@ -377,14 +382,6 @@ impl LintOverrides {
                 LintKind::SplitViewTransitionClass,
                 self.split_view_transition_class,
             ),
-            (
-                LintKind::AmbiguousStyleBaseOrder,
-                self.ambiguous_style_base_order,
-            ),
-            (
-                LintKind::InterferingImportedStyleBase,
-                self.interfering_imported_style_base,
-            ),
             (LintKind::InvalidUtility, self.invalid_utility),
             (LintKind::UnknownUtility, self.unknown_utility),
             (LintKind::InvalidVariant, self.invalid_variant),
@@ -416,6 +413,28 @@ impl LintOverrides {
             (
                 LintKind::NoArbitraryBreakpoints,
                 self.no_arbitrary_breakpoints,
+            ),
+        ] {
+            if let Some(severity) = severity {
+                settings.insert(LintConfig::new(kind, severity));
+            }
+        }
+    }
+
+    fn resolve_style_order_reporting_levels(&self, settings: &mut LintSettings) {
+        for (kind, severity) in [
+            (
+                LintKind::AmbiguousStyleBaseOrder,
+                self.ambiguous_style_base_order,
+            ),
+            (
+                LintKind::InterferingImportedStyleBase,
+                self.interfering_imported_style_base,
+            ),
+            (LintKind::CyclicStyleOrder, self.cyclic_style_order),
+            (
+                LintKind::MultipleStyleForwards,
+                self.multiple_style_forwards,
             ),
         ] {
             if let Some(severity) = severity {

@@ -23,7 +23,7 @@ mod projection;
 pub use document::{
     DirectSource, ScriptLanguage, ScriptModuleKind, ScriptSyntax, SourceDocument, SourceFormat,
 };
-pub use prepared::{PreparedSource, SourceInput, SourceInputError};
+pub use prepared::{OrderingModule, PreparedSource, SourceInput, SourceInputError};
 pub use projection::{
     AttributeQuote, ConverterIdentity, ImportRealm, ProjectedSource, ProjectionRegion,
     SourceProjection,

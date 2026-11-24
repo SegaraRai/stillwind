@@ -14,7 +14,8 @@ use stillwind_compiler::{
 };
 use stillwind_design_system::{DesignSystemLoadError, DesignSystemSnapshot};
 use stillwind_diagnostics::{
-    CompileDiagnostic, CompileError, DiagnosticBatch, LintSurface, finish_lint_findings,
+    CompileDiagnostic, CompileError, DiagnosticBatch, LintDiagnostic, LintFinding, LintSurface,
+    finish_lint_findings,
 };
 use stillwind_ir::ModuleAnalysis;
 use stillwind_source::{FileId, ModuleId, SourceFile, SourceRegistry, SourceRegistryError, Span};
@@ -583,6 +584,7 @@ impl ProjectSession {
                     .collect::<Vec<_>>();
                 query.explain_conflicts(&mut style_findings);
                 findings.extend(style_findings);
+                findings.extend(self.ordering_cycle_findings(analysis));
                 finish_lint_findings(
                     &analysis.source,
                     LintSurface::Script,
@@ -600,6 +602,44 @@ impl ProjectSession {
                 artifact.lint_findings = findings;
             }
         }
+    }
+
+    /// Returns `cyclic-style-order` findings for the ordering uses of `analysis` whose
+    /// declaring module is ordered, through other modules, after the analyzed module.
+    ///
+    /// Only the first cycle that [`Self::ordering_cycle`] finds is reported, at every
+    /// use that orders the module that closes it.
+    fn ordering_cycle_findings(&self, analysis: &ModuleAnalysis) -> Vec<LintFinding> {
+        let Some((module, path)) = self.ordering_cycle(&analysis.module_id) else {
+            return Vec::new();
+        };
+        let path = path
+            .iter()
+            .chain(std::iter::once(&analysis.module_id))
+            .map(ModuleId::as_str)
+            .collect::<Vec<_>>()
+            .join(" -> ");
+        analysis
+            .ir
+            .ordering_uses
+            .iter()
+            .filter(|use_| {
+                analysis.input.ordering_modules.iter().any(|ordering| {
+                    ordering.module_id == module
+                        && ordering.source == use_.source
+                        && ordering.imported == use_.imported
+                })
+            })
+            .map(|use_| {
+                LintFinding::new(
+                    LintDiagnostic::CyclicStyleOrder {
+                        module: module.clone(),
+                        path: path.as_str().into(),
+                    },
+                    use_.span,
+                )
+            })
+            .collect()
     }
 
     /// Returns published modules that directly or indirectly depend on `module`.

@@ -29,6 +29,10 @@ impl<'a> MacroExtractor<'a> {
         {
             return;
         }
+        if self.style_forward_call(call).is_some() {
+            self.unconsumed_use(call.span, "style.forward(...)".into());
+            return;
+        }
         if self.is_style_member(&call.callee, "anchorScope") {
             self.unconsumed_use(call.span, "style.anchorScope(...)".into());
             return;
@@ -124,7 +128,7 @@ impl<'a> MacroExtractor<'a> {
     ///
     /// The span must refer to the current AST buffer. It is converted with the
     /// extractor's source-span constructor before being added to the diagnostic.
-    fn unconsumed_use(&mut self, span: Span, syntax: LeanStr) {
+    pub(crate) fn unconsumed_use(&mut self, span: Span, syntax: LeanStr) {
         self.diagnostics.push(CompileError::new(
             CompileDiagnostic::UnconsumedMacroUse { syntax },
             self.source_span(span),

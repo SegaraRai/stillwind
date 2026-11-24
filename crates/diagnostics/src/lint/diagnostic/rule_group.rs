@@ -21,4 +21,7 @@ pub enum RuleGroupInputErrorKind {
     /// A dynamic ref attachment.
     #[error("dynamic ref attachments")]
     DynamicRefAttachment,
+    /// Forwarded component props.
+    #[error("forwarded props")]
+    Forward,
 }

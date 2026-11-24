@@ -7,6 +7,7 @@
 
 import { createCva, type CompiledCvaConfig, type CvaValue } from "./cva.ts";
 import {
+  forwardFragment,
   mergeFragments,
   serializeStyle,
   toFragment,
@@ -21,12 +22,15 @@ export const stillwindClassObjectCustomPropertiesKey = /* @__PURE__ */ Symbol(
   "stillwind.class-object.custom-properties",
 );
 
+const stillwindClassObjectForwardKey = /* @__PURE__ */ Symbol("stillwind.class-object.forward");
+
 export const classObjectOptions: FragmentRuntimeOptions = [
   "class",
   "object",
   stillwindClassObjectClassKey,
   stillwindClassObjectStyleKey,
   stillwindClassObjectCustomPropertiesKey,
+  stillwindClassObjectForwardKey,
 ];
 
 /** Materializes ordered fragments with `class` and object styles. */
@@ -46,6 +50,16 @@ export function stillwindClassObjectStyleValue(value: unknown): unknown {
   return value == null ? undefined : serializeStyle(value, "object");
 }
 
+/** Creates a fragment from forwarded props for a framework without style arrays. */
+export function stillwindClassObjectForward(value: unknown): Record<PropertyKey, unknown> {
+  return forwardFragment(classObjectOptions, value, false);
+}
+
+/** Creates a fragment from forwarded props for a framework that accepts style arrays. */
+export function stillwindClassObjectForwardArrays(value: unknown): Record<PropertyKey, unknown> {
+  return forwardFragment(classObjectOptions, value, true);
+}
+
 /** Selects compiled CVA values and returns fresh props with `class` and object styles. */
 export function stillwindClassObjectCva(base?: CvaValue, config?: CompiledCvaConfig) {
   return createCva(classObjectOptions, base, config);
@@ -59,12 +73,15 @@ export const stillwindClassStringCustomPropertiesKey = /* @__PURE__ */ Symbol(
   "stillwind.class-string.custom-properties",
 );
 
+const stillwindClassStringForwardKey = /* @__PURE__ */ Symbol("stillwind.class-string.forward");
+
 export const classStringOptions: FragmentRuntimeOptions = [
   "class",
   "string",
   stillwindClassStringClassKey,
   stillwindClassStringStyleKey,
   stillwindClassStringCustomPropertiesKey,
+  stillwindClassStringForwardKey,
 ];
 
 /** Materializes ordered fragments with `class` and string styles. */
@@ -84,6 +101,11 @@ export function stillwindClassStringStyleValue(value: unknown): unknown {
   return value == null ? undefined : serializeStyle(value, "string");
 }
 
+/** Creates a fragment from forwarded props for a framework without style arrays. */
+export function stillwindClassStringForward(value: unknown): Record<PropertyKey, unknown> {
+  return forwardFragment(classStringOptions, value, false);
+}
+
 /** Selects compiled CVA values and returns fresh props with `class` and string styles. */
 export function stillwindClassStringCva(base?: CvaValue, config?: CompiledCvaConfig) {
   return createCva(classStringOptions, base, config);
@@ -101,12 +123,17 @@ export const stillwindClassNameObjectCustomPropertiesKey = /* @__PURE__ */ Symbo
   "stillwind.class-name-object.custom-properties",
 );
 
+const stillwindClassNameObjectForwardKey = /* @__PURE__ */ Symbol(
+  "stillwind.class-name-object.forward",
+);
+
 export const classNameObjectOptions: FragmentRuntimeOptions = [
   "className",
   "object",
   stillwindClassNameObjectClassKey,
   stillwindClassNameObjectStyleKey,
   stillwindClassNameObjectCustomPropertiesKey,
+  stillwindClassNameObjectForwardKey,
 ];
 
 /** Materializes ordered fragments with `className` and object styles. */
@@ -126,6 +153,11 @@ export function stillwindClassNameObjectToFragment(
 /** Returns the supplied style payload, or undefined for null or undefined. */
 export function stillwindClassNameObjectStyleValue(value: unknown): unknown {
   return value == null ? undefined : serializeStyle(value, "object");
+}
+
+/** Creates a fragment from forwarded props for a framework without style arrays. */
+export function stillwindClassNameObjectForward(value: unknown): Record<PropertyKey, unknown> {
+  return forwardFragment(classNameObjectOptions, value, false);
 }
 
 /** Selects compiled CVA values and returns fresh props with `className` and object styles. */

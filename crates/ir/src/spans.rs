@@ -73,6 +73,12 @@ impl ModuleIr {
                 }
             }
         }
+        for forward in &mut result.forward_calls {
+            forward.callee_span = map(forward.callee_span)?;
+        }
+        for ordering in &mut result.ordering_uses {
+            ordering.span = map(ordering.span)?;
+        }
         for media in &mut result.media_calls {
             media.span = map(media.span)?;
             for argument in &mut media.arguments {
@@ -268,6 +274,12 @@ fn map_input<E>(
         StyleInput::ViewTransitionUse { transition, name } => {
             map_asset(transition, map)?;
             map_view_transition_name(name, map)?;
+        }
+        StyleInput::Forward { call, value, .. } => {
+            *call = map(*call)?;
+            if let Some(value) = value {
+                *value = map(*value)?;
+            }
         }
         StyleInput::DynamicViewTransitionUse {
             value,

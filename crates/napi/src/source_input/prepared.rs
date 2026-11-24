@@ -1,5 +1,6 @@
 //! Registers direct and projected host inputs in their required source order.
 
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use napi::Error;
@@ -7,8 +8,8 @@ use napi_derive::napi;
 use serde::Deserialize;
 
 use stillwind_ir::{
-    AdapterKind, DirectSource, PreparedSource, ProjectedSource, ScriptSyntax, SourceDocument,
-    SourceInput,
+    AdapterKind, DirectSource, OrderingModule, PreparedSource, ProjectedSource, ScriptSyntax,
+    SourceDocument, SourceInput,
 };
 use stillwind_semantic::TypeFact;
 use stillwind_source::{ModuleId, SourceFile, SourceRegistry};
@@ -43,6 +44,9 @@ pub enum NativePreparedSource {
         stylesheet_imports: Option<Vec<String>>,
         /// Host-allocated module that exports this module's CSS value.
         module_css_import: Option<String>,
+        /// Modules whose CSS must precede this module's CSS, resolved from the summary's
+        /// ordering imports.
+        ordering_modules: Option<Vec<NativeOrderingModule>>,
     },
     /// Parses code produced from an editable component document.
     Projected {
@@ -61,7 +65,43 @@ pub enum NativePreparedSource {
         stylesheet_imports: Option<Vec<String>>,
         /// Host-allocated module that exports this module's CSS value.
         module_css_import: Option<String>,
+        /// Modules whose CSS must precede this module's CSS, resolved from the summary's
+        /// ordering imports.
+        ordering_modules: Option<Vec<NativeOrderingModule>>,
     },
+}
+
+/// A module whose CSS must precede the CSS of the prepared source.
+#[napi(object, object_to_js = false)]
+pub struct NativeOrderingModule {
+    /// Module specifier of the ordering import, as the summary reports it.
+    pub source: String,
+    /// Exported name of the ordering import, as the summary reports it.
+    pub imported: String,
+    /// Host identity of the module that declares the imported value.
+    pub module_id: String,
+}
+
+/// A module whose CSS must precede the CSS of the prepared source.
+#[derive(Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HostOrderingModule {
+    /// Module specifier of the ordering import.
+    pub source: String,
+    /// Exported name of the ordering import.
+    pub imported: String,
+    /// Host identity of the declaring module.
+    pub module_id: ModuleId,
+}
+
+impl From<NativeOrderingModule> for HostOrderingModule {
+    fn from(value: NativeOrderingModule) -> Self {
+        Self {
+            source: value.source,
+            imported: value.imported,
+            module_id: value.module_id.into(),
+        }
+    }
 }
 
 /// Host transport whose parser buffer is direct or projected.
@@ -91,6 +131,9 @@ pub enum HostPreparedSource {
         stylesheet_imports: Vec<String>,
         /// Host-allocated module that exports this module's CSS value.
         module_css_import: Option<String>,
+        /// Modules whose CSS must precede this module's CSS.
+        #[serde(default)]
+        ordering_modules: Vec<HostOrderingModule>,
     },
     /// Parses generated code while reporting and editing the component document.
     Projected {
@@ -111,6 +154,9 @@ pub enum HostPreparedSource {
         stylesheet_imports: Vec<String>,
         /// Host-allocated module that exports this module's CSS value.
         module_css_import: Option<String>,
+        /// Modules whose CSS must precede this module's CSS.
+        #[serde(default)]
+        ordering_modules: Vec<HostOrderingModule>,
     },
 }
 
@@ -119,6 +165,18 @@ impl HostPreparedSource {
     pub const fn module_id(&self) -> &ModuleId {
         match self {
             Self::Direct { module_id, .. } | Self::Projected { module_id, .. } => module_id,
+        }
+    }
+
+    /// Returns the modules whose CSS must precede this module's CSS.
+    pub fn ordering_modules(&self) -> &[HostOrderingModule] {
+        match self {
+            Self::Direct {
+                ordering_modules, ..
+            }
+            | Self::Projected {
+                ordering_modules, ..
+            } => ordering_modules,
         }
     }
 
@@ -263,8 +321,23 @@ impl HostPreparedSource {
             .map(|value| value.as_str().into())
             .collect();
         input.module_css_import = module_css_import.as_deref().map(Into::into);
+        input.ordering_modules = ordering_inputs(self.ordering_modules());
         Ok(input)
     }
+}
+
+/// Converts host ordering modules into sorted input entries without duplicates.
+fn ordering_inputs(modules: &[HostOrderingModule]) -> Vec<OrderingModule> {
+    modules
+        .iter()
+        .map(|module| OrderingModule {
+            source: module.source.as_str().into(),
+            imported: module.imported.as_str().into(),
+            module_id: module.module_id.clone(),
+        })
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
 }
 
 /// Returns whether `previous` is an editable document with the URI, source-map name,
@@ -330,6 +403,7 @@ impl TryFrom<NativePreparedSource> for HostPreparedSource {
                 framework,
                 stylesheet_imports,
                 module_css_import,
+                ordering_modules,
             } => Ok(Self::Direct {
                 document: document.try_into()?,
                 syntax: syntax.into(),
@@ -342,6 +416,11 @@ impl TryFrom<NativePreparedSource> for HostPreparedSource {
                 framework: framework.map(Into::into),
                 stylesheet_imports: stylesheet_imports.unwrap_or_default(),
                 module_css_import,
+                ordering_modules: ordering_modules
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(Into::into)
+                    .collect(),
             }),
             NativePreparedSource::Projected {
                 document,
@@ -351,6 +430,7 @@ impl TryFrom<NativePreparedSource> for HostPreparedSource {
                 framework,
                 stylesheet_imports,
                 module_css_import,
+                ordering_modules,
             } => Ok(Self::Projected {
                 document: document.try_into()?,
                 projection: projection.into(),
@@ -363,6 +443,11 @@ impl TryFrom<NativePreparedSource> for HostPreparedSource {
                 framework: framework.map(Into::into),
                 stylesheet_imports: stylesheet_imports.unwrap_or_default(),
                 module_css_import,
+                ordering_modules: ordering_modules
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(Into::into)
+                    .collect(),
             }),
         }
     }

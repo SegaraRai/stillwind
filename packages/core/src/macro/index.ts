@@ -15,6 +15,7 @@
 
 export type * from "./css.ts";
 export type * from "./cva.ts";
+export type { StyleForward, StyleForwardProps } from "./forward.ts";
 export type {
   StyleArgument,
   StyleCustomProperties,
@@ -40,11 +41,16 @@ export type {
   StyleRef,
   StyleVariantKey,
 } from "./refs.ts";
-export { createStyleMacro, type StillwindDeclarationIdentity, type StyleMacro } from "./style.ts";
+export {
+  createStyleMacro,
+  type StillwindDeclarationIdentity,
+  type StyleMacro,
+  type StyleMacroWithoutForward,
+} from "./style.ts";
 export type { StillwindClassValue, StyleCustomPropertyValue, StyleVariant } from "./values.ts";
-export type { StyleStoredVariant } from "./when.ts";
 export type {
   StyleViewTransition,
   StyleViewTransitionDefinition,
   StyleViewTransitionUse,
 } from "./view-transition.ts";
+export type { StyleStoredVariant } from "./when.ts";

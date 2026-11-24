@@ -139,6 +139,57 @@ combines the inputs:
 - A later custom property replaces an earlier one with the same name.
 - Custom properties apply on top of an inline style.
 
+## Forward props to a component's element
+
+`style.forward()` passes the class and style props that a component receives to
+the `style()` call of its element. Write it as one argument of the call:
+
+```tsx
+import { style } from "stillwind/react";
+
+export function Card({ className, style: inline, ...props }: CardProps) {
+  return <div {...props} {...style("rounded p-4", style.forward({ className, style: inline }))} />;
+}
+```
+
+The forwarded props apply after every other argument:
+
+- Forwarded classes come after the component's own classes.
+- Forwarded custom properties and inline style declarations replace the
+  component's ones with the same name.
+- An inline style object is merged with an object, and a string is joined with
+  a string. When one is a string and the other is an object, Vue receives
+  both in an array. The other frameworks receive one string.
+
+`style.forward()` reads the `class`, `className`, and `style` keys, so pass the
+props under the names that your framework uses. When both class keys are
+present, it joins them. Class values accept strings, arrays, and objects, as in
+`style()`. Inline style strings are not parsed into objects.
+
+You can also pass all props, as in `style.forward(props)`. In that form, make
+sure that no prop that comes after the result replaces its `className` or
+`style`:
+
+```tsx
+// Wrong: props.className replaces the merged class.
+<div {...style("p-4", style.forward(props))} {...props} />
+```
+
+`style.forward()` cannot be inside a variant object. A
+[`style.cva()`](/docs/macros/cva) factory takes it as its second argument. The
+Lit, Alpine, and vanilla entrypoints do not provide `style.forward()`.
+
+A call can have several `style.forward()` arguments. Their inline styles and
+custom properties apply in argument order, so a later value replaces an earlier
+one. Their classes are joined, and as with several bases, the CSS order decides
+which class wins, not the argument order.
+[multiple-style-forwards](/docs/lints/multiple-style-forwards) reports such
+calls.
+
+When a module passes a `style()` result to an imported component, the CSS of
+the component's module comes first, so the caller's utilities win. See
+[CSS ordering](/docs/concepts/css-ordering#files-that-pass-styles-to-components).
+
 ## Side effects in arguments
 
 The compiler can evaluate arguments in any order, and it can skip arguments

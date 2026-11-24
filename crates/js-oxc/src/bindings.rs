@@ -7,7 +7,7 @@
 
 use oxc::ast::ast::{CallExpression, Expression, ImportDeclaration};
 
-use stillwind_ir::{OutputFormat, from_macro_import};
+use stillwind_ir::{FrameworkSpec, OutputFormat, from_macro_import};
 
 use super::state::MacroExtractor;
 
@@ -23,6 +23,29 @@ impl<'a> MacroExtractor<'a> {
             Expression::StaticMemberExpression(member) => self.style_output(&member.object),
             _ => None,
         }
+    }
+
+    /// Returns the framework of the macro binding when `call` is `style.forward(...)`
+    /// on the imported macro.
+    pub(crate) fn style_forward_call(
+        &self,
+        call: &CallExpression<'a>,
+    ) -> Option<&'static FrameworkSpec> {
+        let callee = call.callee.get_inner_expression();
+        if !self.is_style_member(callee, "forward") {
+            return None;
+        }
+        let Expression::StaticMemberExpression(member) = callee else {
+            return None;
+        };
+        let Expression::Identifier(identifier) = &member.object else {
+            return None;
+        };
+        let symbol = self
+            .scoping
+            .get_reference(identifier.reference_id.get()?)
+            .symbol_id()?;
+        self.style_frameworks.get(&symbol).copied()
     }
 
     /// True when the import declaration's source is a Stillwind macro entry.

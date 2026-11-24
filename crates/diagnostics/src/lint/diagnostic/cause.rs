@@ -555,6 +555,22 @@ pub enum LintDiagnostic {
         /// The competing declarations, as `property` or `property and property`.
         properties: LeanStr,
     },
+    /// Components or imported style values order this module's CSS after a module
+    /// whose CSS is, through other modules, ordered after this module's CSS.
+    #[error(
+        "the CSS of `{module}` must precede this module's CSS, but it follows this module through {path}; the stylesheet keeps one of these orders"
+    )]
+    CyclicStyleOrder {
+        /// Host identity of the module that this use orders first.
+        module: ModuleId,
+        /// The modules that close the cycle, in order, joined with ` -> `.
+        path: LeanStr,
+    },
+    /// A `style()` call has more than one `style.forward()` argument.
+    #[error(
+        "this call has more than one style.forward() argument; CSS order, not argument order, decides which forwarded class wins"
+    )]
+    MultipleStyleForwards,
     /// A candidate names a marker class in a form that cannot add the class, and no
     /// utility resolves the candidate (`invalid-marker-use`).
     #[error("`{utility}` cannot add the marker class `{class}` {reason}")]
@@ -940,6 +956,8 @@ impl LintDiagnostic {
             Self::SplitViewTransitionClass => LintKind::SplitViewTransitionClass,
             Self::AmbiguousStyleBaseOrder { .. } => LintKind::AmbiguousStyleBaseOrder,
             Self::InterferingImportedStyleBase { .. } => LintKind::InterferingImportedStyleBase,
+            Self::CyclicStyleOrder { .. } => LintKind::CyclicStyleOrder,
+            Self::MultipleStyleForwards => LintKind::MultipleStyleForwards,
             Self::InvalidMarkerUse { .. } => LintKind::InvalidMarkerUse,
             Self::UnknownUtility { .. } => LintKind::UnknownUtility,
             Self::InvalidUtility { .. } => LintKind::InvalidUtility,

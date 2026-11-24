@@ -715,6 +715,7 @@ fn same_input(previous: &SourceInput, input: &SourceInput) -> bool {
         && previous.framework == input.framework
         && previous.stylesheet_imports == input.stylesheet_imports
         && previous.module_css_import == input.module_css_import
+        && previous.ordering_modules == input.ordering_modules
 }
 
 /// A source of a compile transaction before its facts are applied.

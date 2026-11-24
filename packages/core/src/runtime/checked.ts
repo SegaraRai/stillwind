@@ -2,7 +2,13 @@
 
 import { createCva, type CompiledCvaConfig, type CvaValue } from "./cva.ts";
 import { classNameObjectOptions, classObjectOptions, classStringOptions } from "./formats.ts";
-import { isObject, mergeFragments, toFragment, type FragmentRuntimeOptions } from "./fragment.ts";
+import {
+  forwardFragment,
+  isObject,
+  mergeFragments,
+  toFragment,
+  type FragmentRuntimeOptions,
+} from "./fragment.ts";
 import { stillwindClsx, stillwindViewTransitionName } from "./shared.ts";
 
 /**
@@ -75,8 +81,20 @@ export function mergeFragmentsChecked(
   options: FragmentRuntimeOptions,
   values: readonly unknown[],
 ): Record<string, unknown> {
-  const [, , stillwindClassKey, stillwindStyleKey, stillwindCustomPropertiesKey] = options;
-  const keys = [stillwindClassKey, stillwindStyleKey, stillwindCustomPropertiesKey];
+  const [
+    ,
+    ,
+    stillwindClassKey,
+    stillwindStyleKey,
+    stillwindCustomPropertiesKey,
+    stillwindForwardKey,
+  ] = options;
+  const keys = new Set([
+    stillwindClassKey,
+    stillwindStyleKey,
+    stillwindCustomPropertiesKey,
+    stillwindForwardKey,
+  ]);
 
   function check(value: unknown): void {
     if (Array.isArray(value)) {
@@ -87,11 +105,11 @@ export function mergeFragmentsChecked(
       return;
     }
     const symbols = Object.getOwnPropertySymbols(value);
-    if (symbols.some((key) => !keys.includes(key))) {
+    if (symbols.some((key) => !keys.has(key))) {
       throw new TypeError("Stillwind received a fragment from a different runtime instance.");
     }
     if (
-      !symbols.some((key) => keys.includes(key)) &&
+      !symbols.some((key) => keys.has(key)) &&
       (Object.hasOwn(value, "class") || Object.hasOwn(value, "className"))
     ) {
       throw new TypeError(
@@ -127,6 +145,44 @@ export function toFragmentChecked(
 }
 
 /**
+ * Validates forwarded props before converting them to a forwarded fragment.
+ *
+ * @param options - The receiving framework's conventions and distinct fragment keys.
+ * @param value - Received props, or null or undefined for no forwarded props.
+ * @param styleArrays - Whether the framework accepts an array of style values.
+ * @returns The result of `forwardFragment` for valid props.
+ * @throws TypeError when the value is neither an object nor null or undefined, when a class
+ * value is rejected by `stillwindClsxChecked`, or when the style is not a string, an object,
+ * or, with `styleArrays`, an array.
+ */
+export function forwardFragmentChecked(
+  options: FragmentRuntimeOptions,
+  value: unknown,
+  styleArrays: boolean,
+): Record<PropertyKey, unknown> {
+  if (value == null) {
+    return {};
+  }
+  if (!isObject(value)) {
+    throw new TypeError("Stillwind expected forwarded props as an object.");
+  }
+  stillwindClsxChecked(value.class, value.className);
+  const style = value.style;
+  if (
+    style != null &&
+    typeof style !== "string" &&
+    !(isObject(style) && (!Array.isArray(style) || styleArrays))
+  ) {
+    throw new TypeError(
+      styleArrays
+        ? "Stillwind expected a forwarded style as a string, an object, or an array."
+        : "Stillwind expected a forwarded style as a string or an object.",
+    );
+  }
+  return forwardFragment(options, value, styleArrays);
+}
+
+/**
  * Names a keyed view transition after reading its token once.
  *
  * @param value - A nonempty class token or a record whose `.v` contains that token.
@@ -156,6 +212,18 @@ export function stillwindClassObjectToFragmentChecked(
   return toFragmentChecked(classObjectOptions, value);
 }
 
+/** Checks forwarded class and style values for a framework without style arrays. */
+export function stillwindClassObjectForwardChecked(value: unknown): Record<PropertyKey, unknown> {
+  return forwardFragmentChecked(classObjectOptions, value, false);
+}
+
+/** Checks forwarded class and style values for a framework that accepts style arrays. */
+export function stillwindClassObjectForwardArraysChecked(
+  value: unknown,
+): Record<PropertyKey, unknown> {
+  return forwardFragmentChecked(classObjectOptions, value, true);
+}
+
 /** Checks external classes and selected fragments before materializing CVA props with `class` and object styles. */
 export function stillwindClassObjectCvaChecked(base?: CvaValue, config?: CompiledCvaConfig) {
   return createCvaChecked(classObjectOptions, base, config);
@@ -175,6 +243,11 @@ export function stillwindClassStringToFragmentChecked(
   return toFragmentChecked(classStringOptions, value);
 }
 
+/** Checks forwarded class and style values for a framework without style arrays. */
+export function stillwindClassStringForwardChecked(value: unknown): Record<PropertyKey, unknown> {
+  return forwardFragmentChecked(classStringOptions, value, false);
+}
+
 /** Checks external classes and selected fragments before materializing CVA props with `class` and string styles. */
 export function stillwindClassStringCvaChecked(base?: CvaValue, config?: CompiledCvaConfig) {
   return createCvaChecked(classStringOptions, base, config);
@@ -192,6 +265,13 @@ export function stillwindClassNameObjectToFragmentChecked(
   value: unknown,
 ): Record<PropertyKey, unknown> {
   return toFragmentChecked(classNameObjectOptions, value);
+}
+
+/** Checks forwarded class and style values for a framework without style arrays. */
+export function stillwindClassNameObjectForwardChecked(
+  value: unknown,
+): Record<PropertyKey, unknown> {
+  return forwardFragmentChecked(classNameObjectOptions, value, false);
 }
 
 /** Checks external classes and selected fragments before materializing CVA props with `className` and object styles. */

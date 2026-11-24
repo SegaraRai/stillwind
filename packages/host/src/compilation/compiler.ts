@@ -173,7 +173,18 @@ async function compileGraph(
       ? options.moduleCssImport
       : "stillwind/module-css";
     await graph.collectDependencies(entrySource, entrySummary);
-    const typedSources = await graph.collectTypedSources(entrySource);
+    const typedSources = await Promise.all(
+      (await graph.collectTypedSources(entrySource)).map(async (source) => {
+        const summary =
+          source.moduleId === entrySource.moduleId ? entrySummary : graph.summary(source.moduleId);
+        return summary && summary.orderingImports.length > 0
+          ? {
+              ...source,
+              orderingModules: await graph.orderingModules(source, summary),
+            }
+          : source;
+      }),
+    );
     const producer = analysis ? undefined : entrySource.moduleId;
     const projectOutput = await tracePhase("native-compile", typedSources.length, () =>
       compileWithPlugins(session, () => session.compile(typedSources, producer), PLUGIN_ROUNDS),

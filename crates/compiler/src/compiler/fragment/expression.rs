@@ -282,6 +282,14 @@ pub(super) enum Fragment {
         /// Payload expression retained as an opaque folding boundary.
         ValueExpr,
     ),
+    /// Forwarded class and style props, read at runtime and applied after every other
+    /// contribution; an opaque folding boundary.
+    Forward {
+        /// Forwarded props expression, or `None` for a call without an argument.
+        expression: Option<Code>,
+        /// Whether the framework accepts style arrays.
+        style_arrays: bool,
+    },
 }
 
 impl Fragment {
@@ -308,7 +316,8 @@ impl Fragment {
             StyleEmissionPart::Conditional { position, .. }
             | StyleEmissionPart::Class { position, .. }
             | StyleEmissionPart::CustomProperties { position, .. }
-            | StyleEmissionPart::Base { position, .. } => *position,
+            | StyleEmissionPart::Base { position, .. }
+            | StyleEmissionPart::Forward { position, .. } => *position,
         });
         Self::Sequence(
             parts
@@ -327,6 +336,14 @@ impl Fragment {
                     StyleEmissionPart::Base { expression, .. } => {
                         Self::FromProps(expression.clone())
                     }
+                    StyleEmissionPart::Forward {
+                        expression,
+                        style_arrays,
+                        ..
+                    } => Self::Forward {
+                        expression: expression.clone(),
+                        style_arrays: *style_arrays,
+                    },
                 })
                 .collect(),
         )

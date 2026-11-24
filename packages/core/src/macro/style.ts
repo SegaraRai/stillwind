@@ -9,6 +9,7 @@ import type {
   CvaSelection,
   CvaVariants,
 } from "./cva.ts";
+import type { StyleForward, StyleForwardProps } from "./forward.ts";
 import type { CheckedStyleInputs, StyleArgument } from "./input.ts";
 import type { StyleKeyframes, StyleKeyframesDefinition } from "./keyframes.ts";
 import type { StyleOutput, StyleResult } from "./output.ts";
@@ -51,7 +52,33 @@ export type StillwindDeclarationIdentity<Id extends string> = {
  * same value-expression contract. Declaration-identity overloads are internal checker
  * metadata.
  */
-export type StyleMacro<Props = object> = {
+export type StyleMacro<Props = object> = StyleMacroWithoutForward<Props> & {
+  /**
+   * Passes the class and style props that a component received to one of its `style()`
+   * calls, so the caller's styles override the component's own styles.
+   *
+   * Write the call directly as an argument of `style()` or as the second argument of a
+   * `style.cva()` factory. The forwarded classes come after the call's classes, and the
+   * forwarded style applies after the call's style and custom properties, whatever the
+   * argument position. Several forwarded values apply their styles in argument order, and
+   * CSS order, not argument order, decides which of their classes wins. In the CSS, the
+   * caller's module follows the module that declares the component.
+   *
+   * @param props - The received props, such as `{ className, style }` or the whole props
+   * object. Null and undefined forward nothing. When the whole props object is passed, do
+   * not spread the same props onto the element after the result, because they would
+   * replace its class and style.
+   * @returns A value that only `style()` and `style.cva()` factories accept.
+   */
+  forward(props: StyleForwardProps | null | undefined): StyleForward;
+};
+
+/**
+ * The `style` macro of an entrypoint whose framework has no component props, such as
+ * Lit, Alpine, and vanilla DOM code. It has every member of {@link StyleMacro} except
+ * `forward()`.
+ */
+export type StyleMacroWithoutForward<Props = object> = {
   /**
    * Compiles static utility branches and combines them with inline custom
    * properties, external classes, and completed style props.
@@ -284,12 +311,14 @@ export type StyleMacro<Props = object> = {
    * @param base - Optional styles included in every selection.
    * @param config - Static variants, defaults, and compound conditions.
    * @returns A reusable factory returning fresh framework class and style props.
-   * Its results cannot be passed to style() for composition.
+   * Its results cannot be passed to style() for composition. The factory's optional
+   * second argument is a `style.forward()` value, which applies after the selected
+   * styles.
    */
   cva<Variants extends CvaVariants = Record<never, never>>(
     base?: CvaInput,
     config?: CvaConfig<Variants>,
-  ): (props?: CvaSelection<Variants> & CvaClassProps) => CvaResult<Props>;
+  ): (props?: CvaSelection<Variants> & CvaClassProps, forwarded?: StyleForward) => CvaResult<Props>;
 };
 
 function uncompiledMacroError(name: string): Error {
@@ -339,6 +368,9 @@ export function createStyleMacro<Props>(): StyleMacro<Props> {
       },
       css(): never {
         throw uncompiledMacroError("style.css");
+      },
+      forward(): never {
+        throw uncompiledMacroError("style.forward");
       },
     },
   );

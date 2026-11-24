@@ -39,6 +39,11 @@ pub(crate) enum RuntimeHelper {
     CustomPropertiesKey,
     /// Selects compiled CVA values and materializes props of one output format.
     Cva,
+    /// Reads forwarded class and style props as a fragment of one output format.
+    Forward,
+    /// Reads forwarded class and style props as a fragment of one output format whose
+    /// framework accepts style arrays.
+    ForwardArrays,
     /// Materializes fragments as props of one output format.
     Merge,
     /// The `stillwindRefClassChecked` export, which only the development runtime
@@ -63,6 +68,8 @@ impl RuntimeHelper {
             Self::ClassKey
             | Self::CustomPropertiesKey
             | Self::Cva
+            | Self::Forward
+            | Self::ForwardArrays
             | Self::Merge
             | Self::StyleKey
             | Self::StyleValue
@@ -81,6 +88,8 @@ impl RuntimeHelper {
             Self::CssValue => "stillwindCssValue",
             Self::CustomPropertiesKey => "CustomPropertiesKey",
             Self::Cva => "Cva",
+            Self::Forward => "Forward",
+            Self::ForwardArrays => "ForwardArrays",
             Self::Merge => "Merge",
             Self::RefClassChecked => "stillwindRefClassChecked",
             Self::StyleKey => "StyleKey",

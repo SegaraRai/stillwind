@@ -5,13 +5,17 @@
 //! against the converter map before retaining expressions or ignoring import reads.
 //! Plain Vue JSX uses the same props and runtime without projection normalization.
 
-use super::{AdapterKind, FrameworkSpec, OutputFormat, ProjectionDecision, ProjectionExpression};
+use super::{
+    AdapterKind, ForwardSupport, FrameworkSpec, OutputFormat, ProjectionDecision,
+    ProjectionExpression,
+};
 
 /// Vue uses `class` and object styles in both SFC templates and JSX.
 pub(super) const SPEC: FrameworkSpec = FrameworkSpec {
     id: AdapterKind::Vue,
     macro_import: "stillwind/vue",
     output: OutputFormat::ClassObject,
+    forward: ForwardSupport::StyleArrays,
     projected_input: true,
     normalize,
 };

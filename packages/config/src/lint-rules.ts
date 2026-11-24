@@ -232,6 +232,18 @@ export const lintRules = {
     defaults: null,
     options: null,
   },
+  "cyclic-style-order": {
+    category: "hazard",
+    nativeName: "cyclicStyleOrder",
+    defaults: null,
+    options: null,
+  },
+  "multiple-style-forwards": {
+    category: "hazard",
+    nativeName: "multipleStyleForwards",
+    defaults: null,
+    options: null,
+  },
   "missing-ref-attachment": {
     category: "hazard",
     nativeName: "missingRefAttachment",

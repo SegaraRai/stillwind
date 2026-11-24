@@ -1,0 +1,35 @@
+---
+title: "SW10006: Unavailable style.forward()"
+description: style.forward() is used through an entrypoint that does not provide it.
+slug: docs/errors/SW10006
+---
+
+This error occurs when the code calls `style.forward()` through the Lit,
+Alpine, or vanilla entrypoint. These entrypoints have no component props to
+forward, so they do not provide `style.forward()`.
+
+## Reported
+
+<DiagnosticExample code="SW10006">
+
+```ts
+import { style } from "stillwind/vanilla";
+
+export const props = (attributes: { class?: string }) => style("p-4", style.forward(attributes));
+```
+
+</DiagnosticExample>
+
+## Fixed
+
+```ts
+import { style } from "stillwind/vanilla";
+
+export const props = (attributes: { class?: string }) => style("p-4", { class: attributes.class });
+```
+
+## How to fix
+
+- Pass the received classes in a `class` field, as in `{ class: attributes.class }`.
+  A `class` field passes classes only. To set inline style values, use custom
+  properties such as `{ "--size": value }`.

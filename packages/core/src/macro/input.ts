@@ -1,5 +1,6 @@
 /** Rule and prop inputs, with checks for the positions that accept them. */
 
+import type { StyleForward } from "./forward.ts";
 import type { StyleKeyframesUse } from "./keyframes.ts";
 import type { StyleResult } from "./output.ts";
 import type { StyleRefProjection } from "./projection.ts";
@@ -84,7 +85,8 @@ export type StyleArgument =
   | StyleVariantKey
   | StyleKeyframesUse
   | StyleViewTransition
-  | StyleViewTransitionUse;
+  | StyleViewTransitionUse
+  | StyleForward;
 
 declare const utilityStringCompletion: unique symbol;
 
@@ -134,6 +136,7 @@ type CheckedClassInput<Input> = Input extends readonly unknown[]
   : Input extends StyleResult
     ? StyleArgument
     : Input extends
+          | StyleForward
           | StyleRef
           | StyleRefProjection
           | StyleKeyframesUse

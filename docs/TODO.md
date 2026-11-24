@@ -475,46 +475,9 @@ Sources: [component conversion](../packages/projection/src/frameworks/index.ts),
 
 ## Styles passed to imported components
 
-A `style()` result that a module passes to a component from another module has
-no defined CSS order relative to the component's own styles. Files without a
-base relationship are ordered by path, so an override from `src/App.tsx` loses
-to a component in `src/components/ui/`. Checks with shadcn/ui, shadcn-vue,
-shadcn-svelte, HeroUI, and JollyUI showed this result. The expected direction
-is as follows. It does not depend on a framework.
+Open work for `style.forward()` and for the CSS order of files that pass styles
+to imported components:
 
-- Ordering edges. When a module uses a style value that it imports, such as a
-  `style()` result or a `style.cva()` factory, the defining module is ordered
-  first. When a `style()` result enters the props of a JSX tag or a call that
-  references an imported symbol, the module that declares the symbol, after
-  re-exports are resolved, is ordered before the caller. This edge only orders
-  CSS. It does not inherit classes, and it does not check whether the receiver
-  forwards the class. Detection reads the projected TS or TSX, so Vue, Svelte,
-  and Astro components need no separate parser. Unlike base edges, these edges
-  do not add producers to the stylesheet. A cycle of these edges must not fail
-  the build, but it must be reportable as a diagnostic.
-- `style.forward()`. A receiver passes the caller's class and style properties
-  to its own `style()` call as one argument:
-  `style("own-style", style.forward({ className, style: s }))` or
-  `style("own-style", style.forward(props))`. The first form is recommended.
-  With the second form, the user must not let other props overwrite the
-  result, and the documentation must say so. A call accepts at most one
-  `style.forward()`, outside variant objects. A `style.cva()` factory takes it
-  as its second argument: `button({ variant }, style.forward(props))`.
-  The keys follow the output format of the entrypoint: `className` and `style`
-  for React, and `class` and `style` for the others. An entrypoint whose
-  framework accepts both `class` and `className` reads both. Class values are
-  joined as `stillwindClsx` joins them, so strings, arrays, and objects are
-  accepted. Style values of the same form merge: objects are spread with the
-  forwarded properties last, and strings are joined with `;`. When one value
-  is a string and the other is an object, a framework that accepts style
-  arrays, such as Vue, receives `[own, forwarded]`. Other frameworks receive
-  one string: the object is serialized as declarations. Strings are not parsed
-  into objects. Forwarded custom properties win at run time regardless of
-  argument position, and forwarded classes are ordered after the receiver's
-  classes. The Lit, Alpine, and vanilla entrypoints, which have no component
-  props, do not expose `style.forward()` yet. Decide later whether they read
-  forwarded values from element attributes. Vue falls through `class` and `style` to the root element
-  automatically. Check in an application that this needs no forward.
 - Lint. Extend `interfering-imported-style-base` with an option such as
   `componentOverrides: "allow" | "report"` and `overridableProperties` (for
   example margins, widths, and placement) for flows that `style.forward()`
@@ -526,7 +489,15 @@ is as follows. It does not depend on a framework.
   an override that loses under a receiver's variant condition that the caller
   does not cover, such as `bg-blue-600` against `hover:bg-primary/80`.
   `prefer-style-forward` may suggest `style.forward()` for receivers that pass
-  `{ class: className }`.
+  `{ class: className }`. Report props spread after a `style.forward(props)`
+  result that can replace its class or style.
+- Lit, Alpine, and vanilla. Decide whether `style.forward()` reads forwarded
+  values from element attributes in these entrypoints.
+- Vue falls through `class` and `style` to the root element automatically.
+  Check in an application that this needs no forward.
+- Re-exports. The host follows a re-export to the declaring module only when it
+  has already scanned the re-exporting module. Decide whether ordering should
+  load barrel modules that no other demand loads.
 
 Sources: [CSS ordering](../packages/core/docs/concepts/css-ordering.md),
 [component conversion](../packages/projection/src/frameworks/index.ts).

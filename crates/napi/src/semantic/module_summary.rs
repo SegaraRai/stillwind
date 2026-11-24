@@ -231,6 +231,10 @@ pub struct NativeModuleSummary {
     pub probe_imports: Vec<NativeImportBinding>,
     /// Imports each export depends on.
     pub export_imports: Vec<NativeExportImports>,
+    /// Imports whose declaring modules must precede this module in CSS order, sorted by
+    /// source and imported name. Pass each declaring module, after following re-exports,
+    /// back as an ordering module of the prepared source.
+    pub ordering_imports: Vec<NativeImportBinding>,
     /// Assets declared by this module.
     pub assets: Vec<NativeAssetRecord>,
     /// Values this module exports.
@@ -280,6 +284,11 @@ impl NativeModuleSummary {
                     name: (name).into(),
                     imports: value.into_iter().map(Into::into).collect(),
                 })
+                .collect(),
+            ordering_imports: summary
+                .ordering_imports
+                .into_iter()
+                .map(Into::into)
                 .collect(),
             assets: summary.assets.into_iter().map(Into::into).collect(),
             exports: summary

@@ -89,6 +89,10 @@ pub struct NativeLintOptions {
     pub ambiguous_style_base_order: Option<String>,
     /// Settings for `interfering-imported-style-base`.
     pub interfering_imported_style_base: Option<String>,
+    /// Settings for `cyclic-style-order`.
+    pub cyclic_style_order: Option<String>,
+    /// Settings for `multiple-style-forwards`.
+    pub multiple_style_forwards: Option<String>,
     /// Settings for `missing-ref-attachment`.
     pub missing_ref_attachment: Option<String>,
     /// Settings for `document-scoped-selector`.
@@ -326,6 +330,14 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
                 .transpose()?,
             interfering_imported_style_base: input
                 .interfering_imported_style_base
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            cyclic_style_order: input
+                .cyclic_style_order
+                .map(|value| lint_severity(&value))
+                .transpose()?,
+            multiple_style_forwards: input
+                .multiple_style_forwards
                 .map(|value| lint_severity(&value))
                 .transpose()?,
             missing_ref_attachment: input

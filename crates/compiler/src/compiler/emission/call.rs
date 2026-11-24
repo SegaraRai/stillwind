@@ -346,6 +346,21 @@ impl<'a> CallEmitter<'a> {
                 let expression = ref_class_read(self.source_expression(*value)?, *value);
                 self.push_expression(expression, value.start.0);
             }
+            StyleInput::Forward {
+                call,
+                value,
+                style_arrays,
+            } => {
+                let expression = match value {
+                    Some(value) => Some(self.source_expression(*value)?),
+                    None => None,
+                };
+                self.parts.push(StyleEmissionPart::Forward {
+                    expression,
+                    style_arrays: *style_arrays,
+                    position: call.start.0,
+                });
+            }
             StyleInput::ViewTransitionUse { transition, name } => {
                 if let Some(emitted) =
                     self.emit_view_transition_expression(transition, name, guard, &[], true)

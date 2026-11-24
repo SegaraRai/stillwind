@@ -19,8 +19,8 @@ use oxc::span::Span as OxcSpan;
 
 use stillwind_diagnostics::{CompileError, LintFinding};
 use stillwind_ir::{
-    CssCall, CvaCall, CvaReplacement, KeyframesDefinition, MediaCall, OutputFormat, RefDefinition,
-    StoredVariantDefinition, StyleCall, ViewTransitionDefinition,
+    CssCall, CvaCall, CvaReplacement, ForwardCall, FrameworkSpec, KeyframesDefinition, MediaCall,
+    OutputFormat, RefDefinition, StoredVariantDefinition, StyleCall, ViewTransitionDefinition,
 };
 use stillwind_semantic::{
     AssetKind, AssetMetadata, AssetRecord, CheckedValue, DeclarationKey, ExportedValue, IdentityId,
@@ -49,6 +49,8 @@ pub(crate) struct MacroExtractor<'a> {
     pub(crate) scoping: &'a Scoping,
     /// Output format selected by each imported macro binding.
     pub(crate) style_symbols: HashMap<SymbolId, OutputFormat>,
+    /// Framework of the entrypoint that each macro binding comes from.
+    pub(crate) style_frameworks: HashMap<SymbolId, &'static FrameworkSpec>,
     /// Symbols bound to a `style.ref()` declaration, with their definitions.
     pub(crate) ref_symbols: HashMap<SymbolId, RefDefinition>,
     /// Marker and provider uses in source order, matched within each style call.
@@ -73,6 +75,14 @@ pub(crate) struct MacroExtractor<'a> {
     pub(crate) local_values: HashMap<SymbolId, ExportedValue>,
     /// Style call sites in source order.
     pub(crate) style_calls: Vec<StyleCall>,
+    /// `style.forward()` calls passed to a call other than `style()`, in source order.
+    pub(crate) forward_calls: Vec<ForwardCall>,
+    /// Symbols that each constant binding forwards to, used to resolve generated
+    /// component aliases.
+    pub(crate) ordering_aliases: HashMap<SymbolId, Vec<SymbolId>>,
+    /// References that may order CSS: the referenced symbol, the member name read from
+    /// it, and the triggering `style()` or `style.forward()` span, in visit order.
+    pub(crate) ordering_roots: Vec<(SymbolId, Option<LeanStr>, Span)>,
     /// CVA factory calls whose values use the ordinary style-input parser.
     pub(crate) cva_calls: Vec<CvaCall>,
     /// `style.media()` calls in source order.
@@ -95,7 +105,8 @@ pub(crate) struct MacroExtractor<'a> {
     pub(crate) lint: bool,
     /// Import bindings of this module, in source order.
     pub(crate) imports: Vec<ImportBinding>,
-    /// Ranges of parsed scope-only calls, used when removing their macro imports.
+    /// Ranges of parsed scope-only and `style.forward()` calls, used when removing their
+    /// macro imports.
     /// They refer to the AST buffer until mapped back to the original source.
     pub(crate) consumed_macro_uses: Vec<Span>,
     /// Inputs whose source expressions are erased, including their nested macro reads.
@@ -148,6 +159,7 @@ impl<'a> MacroExtractor<'a> {
             coordinates,
             scoping,
             style_symbols: HashMap::new(),
+            style_frameworks: HashMap::new(),
             ref_symbols: HashMap::new(),
             ref_definitions: Vec::new(),
             keyframes_symbols: HashMap::new(),
@@ -158,6 +170,9 @@ impl<'a> MacroExtractor<'a> {
             stored_variants: Vec::new(),
             local_values: HashMap::new(),
             style_calls: Vec::new(),
+            forward_calls: Vec::new(),
+            ordering_aliases: HashMap::new(),
+            ordering_roots: Vec::new(),
             cva_calls: Vec::new(),
             media_calls: Vec::new(),
             css_calls: Vec::new(),

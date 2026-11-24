@@ -338,6 +338,8 @@ define_lint_rules! {
         UnverifiedStyleBase => "unverified-style-base",
         AmbiguousStyleBaseOrder => "ambiguous-style-base-order",
         InterferingImportedStyleBase => "interfering-imported-style-base",
+        CyclicStyleOrder => "cyclic-style-order",
+        MultipleStyleForwards => "multiple-style-forwards",
         MissingRefAttachment => "missing-ref-attachment",
         DocumentScopedSelector => "document-scoped-selector",
         RepeatedNestingSelector => "repeated-nesting-selector",

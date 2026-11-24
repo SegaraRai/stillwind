@@ -81,6 +81,18 @@ impl AdapterKind {
     }
 }
 
+/// Whether an entrypoint provides `style.forward()`, and how its framework accepts style
+/// values.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ForwardSupport {
+    /// Elements receive no component props, as in Lit, Alpine, and vanilla DOM code.
+    Unavailable,
+    /// The framework accepts a string or an object as a style value.
+    Available,
+    /// The framework also accepts an array of style values, as Vue does.
+    StyleArrays,
+}
+
 /// Static policy for one framework.
 pub struct FrameworkSpec {
     /// The adapter this specification describes; used to close the loop back from a
@@ -91,6 +103,9 @@ pub struct FrameworkSpec {
     pub macro_import: &'static str,
     /// Compiled prop representation shared with other compatible entrypoints.
     pub output: OutputFormat,
+    /// Whether components receive class and style props that `style.forward()` passes
+    /// on.
+    pub forward: ForwardSupport,
     /// Enabled only after the original-source projection path is validated.
     pub projected_input: bool,
     /// Policy for converter-generated expressions and helper bindings in projected

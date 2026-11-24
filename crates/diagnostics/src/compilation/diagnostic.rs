@@ -89,6 +89,13 @@ pub enum CompileDiagnostic {
         /// Range of the macro read left intact by lowering.
         span: Span,
     },
+    /// `style.forward()` is called through an entrypoint whose framework has no
+    /// component props to forward.
+    #[error("style.forward() is not available from `{entrypoint}`")]
+    UnavailableStyleForward {
+        /// Module specifier of the macro entrypoint, such as `stillwind/lit`.
+        entrypoint: LeanStr,
+    },
     /// Style producers form a cycle within the composition graph.
     #[error("style composition contains a circular dependency")]
     CompositionCycle,

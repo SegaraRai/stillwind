@@ -47,7 +47,9 @@ export class CompilationFailure extends Error {
         .flatMap((batch) => batch.reports)
         .map((report) => formatReport(report))
         .join("\n"),
-      { cause },
+      {
+        cause,
+      },
     );
     this.batches = batches;
   }
@@ -625,12 +627,106 @@ export class ModuleGraph {
         throw error;
       }
       observed.status = "unsupported";
-      this.analysis.unverified.push({ moduleId: source.moduleId, reason: String(error) });
+      this.analysis.unverified.push({
+        moduleId: source.moduleId,
+        reason: String(error),
+      });
       if (error instanceof CompilationFailure) {
         this.analysis.batches.push(...error.batches);
       }
     }
     return undefined;
+  }
+
+  /**
+   * Resolves the ordering imports of a source to the modules that declare the imported values.
+   *
+   * A named re-export is followed when the summary of the re-exporting module is already
+   * available, so a barrel module is replaced by the module it re-exports from. Imports that do
+   * not resolve, or resolve to an external module, produce no entry.
+   *
+   * @param source - Importer whose ordering imports are resolved.
+   * @param summary - Scan result of that importer.
+   * @returns Ordering modules for the prepared source, in the order of the summary's imports.
+   */
+  async orderingModules(
+    source: PreparedSource,
+    summary: NativeModuleSummary,
+  ): Promise<
+    {
+      source: string;
+      imported: string;
+      moduleId: string;
+    }[]
+  > {
+    const modules: {
+      source: string;
+      imported: string;
+      moduleId: string;
+    }[] = [];
+    for (const ordering of summary.orderingImports) {
+      let importer = source.resolverId;
+      let specifier = ordering.source;
+      let imported = ordering.imported;
+      let moduleId: string | undefined;
+      // Barrel chains are short; the limit only stops a re-export cycle.
+      for (let depth = 0; depth < 8; depth++) {
+        const resolved = await this.#resolveOrdering(importer, specifier);
+        if (!resolved) {
+          break;
+        }
+        moduleId = resolved.moduleId;
+        const target = this.project?.source(resolved.id);
+        const next = (
+          (target && this.project?.summary(target)) ??
+          this.#summaries.get(resolved.moduleId)
+        )?.reExports.find((entry) => entry.exported === imported && imported !== "*");
+        if (!next) {
+          break;
+        }
+        importer = resolved.id;
+        specifier = next.source;
+        imported = next.imported;
+      }
+      if (moduleId !== undefined && moduleId !== source.moduleId) {
+        modules.push({
+          source: ordering.source,
+          imported: ordering.imported,
+          moduleId,
+        });
+      }
+    }
+    return modules;
+  }
+
+  /**
+   * Resolves one ordering specifier without loading the target.
+   *
+   * @param importer - Full resolver identity of the importing module.
+   * @param specifier - Authored module request.
+   * @returns The resolver identity and compiler identity of the target, or undefined when the
+   * request does not resolve to a local source.
+   */
+  async #resolveOrdering(importer: string, specifier: string) {
+    try {
+      const resolved = await (this.project
+        ? this.project.resolveImport(this.host, specifier, importer)
+        : this.host.resolve(specifier, importer, { skipSelf: true }));
+      if (!resolved || resolved.external) {
+        return undefined;
+      }
+      const id = this.project?.source(resolved.id)?.resolverId ?? resolved.id;
+      if (sourceSupport(this.host, id) !== "source") {
+        return undefined;
+      }
+      return {
+        id,
+        moduleId: this.project?.source(id)?.moduleId ?? this.host.describe(id).moduleId,
+      };
+    } catch {
+      // Ordering is advisory: a module that cannot be resolved keeps the default order.
+      return undefined;
+    }
   }
 
   /**

@@ -204,6 +204,23 @@ impl Renderer<'_, '_> {
                 let key = self.runtime.require(RuntimeHelper::StyleKey, self.span);
                 code!["{[", key, "]:", expression.render(self.runtime), "}"]
             }
+            Fragment::Forward {
+                expression,
+                style_arrays,
+            } => {
+                let helper = self.runtime.require(
+                    if *style_arrays {
+                        RuntimeHelper::ForwardArrays
+                    } else {
+                        RuntimeHelper::Forward
+                    },
+                    self.span,
+                );
+                match expression {
+                    Some(expression) => code![helper, "((", expression, "))"],
+                    None => code![helper, "()"],
+                }
+            }
         }
     }
 

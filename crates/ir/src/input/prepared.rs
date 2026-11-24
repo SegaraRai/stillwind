@@ -95,6 +95,18 @@ pub enum SourceInputError {
     },
 }
 
+/// A module whose CSS must precede the CSS of an input module, as the host resolved it
+/// from one [`OrderingUse`](crate::OrderingUse) import.
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct OrderingModule {
+    /// Module specifier of the import declaration, as written.
+    pub source: LeanStr,
+    /// Exported name that the import reads.
+    pub imported: LeanStr,
+    /// Module that declares the imported value after re-exports are followed.
+    pub module_id: ModuleId,
+}
+
 /// One module with an immutable, validated preparation of its source.
 #[derive(Clone, Debug)]
 pub struct SourceInput {
@@ -108,6 +120,9 @@ pub struct SourceInput {
     pub stylesheet_imports: Vec<LeanStr>,
     /// Host-allocated JavaScript module exporting this module's CSS value.
     pub module_css_import: Option<LeanStr>,
+    /// Modules whose CSS must precede this module's CSS, sorted and without duplicates.
+    /// They order CSS only and do not add producers to a stylesheet.
+    pub ordering_modules: Vec<OrderingModule>,
 }
 
 impl SourceInput {
@@ -120,6 +135,7 @@ impl SourceInput {
             framework: None,
             stylesheet_imports: Vec::new(),
             module_css_import: None,
+            ordering_modules: Vec::new(),
         }
     }
 

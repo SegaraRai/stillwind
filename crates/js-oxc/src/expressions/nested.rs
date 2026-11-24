@@ -16,8 +16,9 @@ use stillwind_diagnostics::{LintDiagnostic, LintFinding};
 use crate::state::MacroExtractor;
 
 /// Macro members whose calls have their own lowering, with their display spellings.
-const MACRO_MEMBERS: [(&str, &str); 7] = [
+const MACRO_MEMBERS: [(&str, &str); 8] = [
     ("cva", "style.cva()"),
+    ("forward", "style.forward()"),
     ("ref", "style.ref()"),
     ("keyframes", "style.keyframes()"),
     ("viewTransition", "style.viewTransition()"),

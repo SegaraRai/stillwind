@@ -17,7 +17,7 @@ use oxc::ast::ast::{
 use oxc::ast_visit::{Visit, walk};
 use oxc::semantic::{Scoping, SymbolId};
 
-use stillwind_ir::{OutputFormat, from_macro_import};
+use stillwind_ir::{FrameworkSpec, OutputFormat, from_macro_import};
 use stillwind_semantic::{AssetKind, ExportedValue, IdentityId, SymbolicValue};
 use stillwind_source::{SourceFile, Span};
 
@@ -31,10 +31,15 @@ impl<'a> MacroExtractor<'a> {
     /// call look like the macro.
     pub(crate) fn seed_style_bindings(&mut self, program: &Program<'a>) {
         let mut collector = MacroBindings {
-            outputs: HashMap::new(),
+            specs: HashMap::new(),
         };
         collector.visit_program(program);
-        let macros = collector.outputs;
+        let macros = collector
+            .specs
+            .iter()
+            .map(|(symbol, spec)| (*symbol, spec.output))
+            .collect::<HashMap<_, _>>();
+        self.style_frameworks.extend(collector.specs);
         let mut collector = Bindings {
             macros: &macros,
             scoping: self.scoping,
@@ -65,7 +70,7 @@ impl<'a> MacroExtractor<'a> {
 
 /// Macro bindings from all scopes, including projected client scripts.
 struct MacroBindings {
-    outputs: HashMap<SymbolId, OutputFormat>,
+    specs: HashMap<SymbolId, &'static FrameworkSpec>,
 }
 
 impl<'a> Visit<'a> for MacroBindings {
@@ -83,7 +88,7 @@ impl<'a> Visit<'a> for MacroBindings {
                 && name.name == "style"
                 && let Some(symbol) = specifier.local.symbol_id.get()
             {
-                self.outputs.insert(symbol, spec.output);
+                self.specs.insert(symbol, spec);
             }
         }
     }

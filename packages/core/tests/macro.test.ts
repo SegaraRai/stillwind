@@ -1,4 +1,4 @@
-import type { StyleMacro } from "stillwind/macro";
+import type { StyleMacroWithoutForward } from "stillwind/macro";
 import { expect, test } from "vite-plus/test";
 
 const frameworks = [
@@ -17,7 +17,7 @@ const frameworks = [
 for (const [framework, load] of frameworks) {
   test(`${framework} reports missing integration for every uncompiled macro`, async () => {
     const { style: frameworkStyle } = await load();
-    const style: StyleMacro = frameworkStyle;
+    const style: StyleMacroWithoutForward = frameworkStyle;
     for (const call of [
       () => style("flex"),
       () => style.ref(),
@@ -29,9 +29,10 @@ for (const [framework, load] of frameworks) {
       () => style.cva("flex"),
       () => style.media("sm"),
       () => style.css("host:block"),
+      ...("forward" in frameworkStyle ? [() => frameworkStyle.forward({})] : []),
     ]) {
       expect(call).toThrow(
-        /Stillwind style(?:\.(?:ref|anchorScope|keyframes|viewTransition|when|cva|media|css))?\(\) is a compile-time macro.*integrations\.md/,
+        /Stillwind style(?:\.(?:ref|anchorScope|keyframes|viewTransition|when|cva|media|css|forward))?\(\) is a compile-time macro.*integrations\.md/,
       );
     }
   }, 30_000);

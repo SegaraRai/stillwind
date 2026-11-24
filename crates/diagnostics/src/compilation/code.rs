@@ -120,6 +120,7 @@ define_compile_codes! {
         InvalidUnicodeString => "SW10003",
         UnconsumedMacroUse { .. } => "SW10004",
         UntransformedMacroReference { .. } => "SW10005",
+        UnavailableStyleForward { .. } => "SW10006",
         // 11: style composition
         CompositionCycle => "SW11001",
         CompositionModuleCycle => "SW11002",

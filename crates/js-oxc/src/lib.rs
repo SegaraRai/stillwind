@@ -29,12 +29,14 @@
 //! - [`demand`] finds the imports that unresolved values need.
 //! - [`entry`] coordinates parsing and extraction.
 //! - [`expressions`] lowers style inputs.
+//! - [`forward`] recognizes `style.forward()` arguments.
 //! - [`imports`] records bindings and their reads.
 //! - [`keyframes`] extracts keyframes declarations and their uses.
 //! - [`keys`] allocates declaration keys that survive edits elsewhere in a module.
 //! - [`local_span`] supplies file-local range keys for extraction and checker
 //!   bookkeeping.
 //! - [`media`] records `style.media()` arguments.
+//! - [`ordering`] records imported values that order CSS between modules.
 //! - [`normalization`] validates the correspondence between authored expressions and
 //!   converter code.
 //! - [`projected_scan`] restores editable source coordinates for converted framework
@@ -71,12 +73,14 @@ mod declarations;
 mod demand;
 mod entry;
 mod expressions;
+mod forward;
 mod imports;
 mod keyframes;
 mod keys;
 mod local_span;
 mod media;
 mod normalization;
+mod ordering;
 mod projected_scan;
 mod refs;
 mod resolution;

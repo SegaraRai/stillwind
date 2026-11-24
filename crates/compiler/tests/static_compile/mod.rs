@@ -13,6 +13,7 @@
 //! - [`cva`] checks CVA extraction, style lowering, and runtime imports.
 //! - [`definitions`] checks animation and view-transition compilation.
 //! - [`folding`] checks fragment layouts, macro contracts, and source attribution.
+//! - [`forward`] checks `style.forward()` lowering.
 //! - [`media`] checks `style.media()` lowering.
 //! - [`numeric`] runs property tests over numeric candidates.
 //! - [`parity`] compares output with the checked-in Tailwind v4 fixtures.
@@ -47,6 +48,7 @@ mod css_call;
 mod cva;
 mod definitions;
 mod folding;
+mod forward;
 mod media;
 mod numeric;
 mod parity;

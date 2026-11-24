@@ -92,6 +92,10 @@ pub struct ModuleSummary {
     /// Import bindings needed by each explicitly exported local variable.
     #[serde(default)]
     pub export_imports: BTreeMap<LeanStr, Vec<ImportBinding>>,
+    /// Imports whose declaring modules must precede this module in CSS order, sorted by
+    /// `(source, imported)`. The host resolves each one after following re-exports.
+    #[serde(default)]
+    pub ordering_imports: Vec<ImportBinding>,
 }
 
 impl ModuleSummary {
@@ -111,6 +115,7 @@ impl ModuleSummary {
             exports: BTreeMap::new(),
             probe_imports: Vec::new(),
             export_imports: BTreeMap::new(),
+            ordering_imports: Vec::new(),
         }
     }
 

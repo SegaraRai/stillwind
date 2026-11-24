@@ -1598,6 +1598,10 @@ export interface NativeLintOptions {
   ambiguousStyleBaseOrder?: string
   /** Settings for `interfering-imported-style-base`. */
   interferingImportedStyleBase?: string
+  /** Settings for `cyclic-style-order`. */
+  cyclicStyleOrder?: string
+  /** Settings for `multiple-style-forwards`. */
+  multipleStyleForwards?: string
   /** Settings for `missing-ref-attachment`. */
   missingRefAttachment?: string
   /** Settings for `document-scoped-selector`. */
@@ -1821,12 +1825,28 @@ export interface NativeModuleSummary {
   probeImports: Array<NativeImportBinding>
   /** Imports each export depends on. */
   exportImports: Array<NativeExportImports>
+  /**
+   * Imports whose declaring modules must precede this module in CSS order, sorted by
+   * source and imported name. Pass each declaring module, after following re-exports,
+   * back as an ordering module of the prepared source.
+   */
+  orderingImports: Array<NativeImportBinding>
   /** Assets declared by this module. */
   assets: Array<NativeAssetRecord>
   /** Values this module exports. */
   exports: Array<NativeExport>
   /** Bodies of the comments that contain `swlint-*` directives, in source order. */
   lintComments: Array<NativeLintComment>
+}
+
+/** A module whose CSS must precede the CSS of the prepared source. */
+export interface NativeOrderingModule {
+  /** Module specifier of the ordering import, as the summary reports it. */
+  source: string
+  /** Exported name of the ordering import, as the summary reports it. */
+  imported: string
+  /** Host identity of the module that declares the imported value. */
+  moduleId: string
 }
 
 /** Half-open UTF-16 offsets in the original document; surrogate interiors are invalid. */
@@ -1858,7 +1878,11 @@ export type NativePreparedSource =
      */
     framework?: NativeFramework; /** Host-allocated stylesheet modules to insert at the macro import. */
     stylesheetImports?: Array<string>; /** Host-allocated module that exports this module's CSS value. */
-  moduleCssImport?: string }
+    moduleCssImport?: string; /**
+     * Modules whose CSS must precede this module's CSS, resolved from the summary's
+     * ordering imports.
+     */
+  orderingModules?: Array<NativeOrderingModule> }
   | { kind: 'projected'; /** Editable source document. */
     document: NativeSourceDocument; /** Generated code and its correspondence to the document. */
     projection: NativeSourceProjection; /** Host-chosen identity of this module. */
@@ -1869,7 +1893,11 @@ export type NativePreparedSource =
      */
     framework?: NativeFramework; /** Host-allocated stylesheet modules to insert at the macro import. */
     stylesheetImports?: Array<string>; /** Host-allocated module that exports this module's CSS value. */
-  moduleCssImport?: string }
+    moduleCssImport?: string; /**
+     * Modules whose CSS must precede this module's CSS, resolved from the summary's
+     * ordering imports.
+     */
+  orderingModules?: Array<NativeOrderingModule> }
 
 /**
  * The comments that a formatted preview adds after values. An omitted field uses its

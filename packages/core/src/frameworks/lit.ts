@@ -3,12 +3,22 @@ import { AsyncDirective } from "lit/async-directive.js";
 import { directive, PartType, type ElementPart, type PartInfo } from "lit/directive.js";
 
 import { applyStyle as apply, clearStyle, type StyleElement } from "../dom/style.ts";
-import type { StyleProps } from "../outputs/class-object.ts";
+import {
+  style as classObjectStyle,
+  type StyleMacroWithoutForward,
+  type StyleProps,
+} from "../outputs/class-object.ts";
 
 export type * from "../macro/index.ts";
-export { style } from "../outputs/class-object.ts";
-export type { StyleMacro, StyleProps, StyleResult } from "../outputs/class-object.ts";
 export type { StyleResult as StyleResultOf } from "../macro/output.ts";
+export type {
+  StyleMacroWithoutForward as StyleMacro,
+  StyleProps,
+  StyleResult,
+} from "../outputs/class-object.ts";
+
+/** The `style` macro. Elements here receive no component props, so it has no `forward()`. */
+export const style: StyleMacroWithoutForward = classObjectStyle;
 
 class StyleDirective extends AsyncDirective {
   #element?: StyleElement;

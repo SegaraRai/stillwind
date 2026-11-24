@@ -88,6 +88,16 @@ the keys of `variants`, every matching compound variant in array order, and the
 `class` or `className` from the call. The option values are not passed to the
 element. Each call returns a new props object.
 
+The factory takes a [`style.forward()`](/docs/macros/style#forward-props-to-a-components-element)
+value as its second argument. The forwarded classes come last, and the
+forwarded inline style applies on top of the result:
+
+```tsx
+export function Button({ variant, className, style: inline }: ButtonProps) {
+  return <button {...button({ variant }, style.forward({ className, style: inline }))} />;
+}
+```
+
 The factory does not merge utilities at runtime. When two selected styles set
 the same property, the compiler's CSS order decides which one wins.
 

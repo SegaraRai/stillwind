@@ -14,13 +14,14 @@ use lean_string::ToLeanStr;
 use oxc::ast::ast::{
     Argument, BindingPattern, CallExpression, Declaration, ExportAllDeclaration, ExportDeclaration,
     ExportFromDeclaration, ExportNamedDeclaration, Expression, ImportDeclaration,
-    ImportDeclarationSpecifier, ModuleExportName, VariableDeclarator,
+    ImportDeclarationSpecifier, JSXOpeningElement, ModuleExportName, NewExpression,
+    VariableDeclarator,
 };
 use oxc::ast_visit::{Visit, walk};
 use oxc::span::GetSpan;
 
 use stillwind_diagnostics::{LintDiagnostic, LintFinding};
-use stillwind_ir::StyleCall;
+use stillwind_ir::{StyleCall, StyleInput};
 use stillwind_semantic::{
     AssetKind, ExportedValue, ImportBinding, ModuleSpecifier, ReExport, SymbolicValue,
 };
@@ -195,8 +196,16 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
             return;
         }
         let Some(output) = self.style_call_output(call) else {
+            let first_style = self.style_calls.len();
+            let first_forward = self.forward_calls.len();
+            self.collect_forward_call(call);
             self.report_unconsumed_call(call);
             walk::walk_call_expression(self, call);
+            let forward = self
+                .forward_calls
+                .get(first_forward)
+                .map(|forward| forward.callee_span);
+            self.record_call_ordering(&call.callee, first_style, forward);
             return;
         };
 
@@ -225,9 +234,26 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
             if let Argument::SpreadElement(spread) = argument {
                 self.collect_style_spread(&spread.argument, &mut inputs);
             } else if let Some(expression) = argument.as_expression() {
-                self.collect_style_expression(expression, &mut inputs);
+                match self.style_forward_argument(expression) {
+                    Some(input) => inputs.extend(input),
+                    None => self.collect_style_expression(expression, &mut inputs),
+                }
             }
         }
+        for forward in inputs
+            .iter()
+            .filter_map(|input| match input {
+                StyleInput::Forward { call, .. } => Some(*call),
+                _ => None,
+            })
+            .skip(1)
+        {
+            self.lint_findings.push(LintFinding::new(
+                LintDiagnostic::MultipleStyleForwards,
+                forward,
+            ));
+        }
+        self.record_style_argument_ordering(&call.arguments, span);
         self.style_calls.push(StyleCall {
             span: self.source_span(call.span),
             key: self.style_key(self.source_span(call.span)),
@@ -246,6 +272,7 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
     /// stored-variant declarations are collected before this visit by
     /// [`MacroExtractor::seed_declarations`].
     fn visit_variable_declarator(&mut self, declarator: &VariableDeclarator<'a>) {
+        self.record_ordering_alias(declarator);
         if let (
             BindingPattern::BindingIdentifier(identifier),
             Some(Expression::CallExpression(call)),
@@ -293,5 +320,20 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
             self.view_transition_declarations.push(definition);
         }
         walk::walk_variable_declarator(self, declarator);
+    }
+
+    /// Records the component of an element whose attributes contain a `style()` call.
+    fn visit_jsx_opening_element(&mut self, element: &JSXOpeningElement<'a>) {
+        let first_style = self.style_calls.len();
+        walk::walk_jsx_opening_element(self, element);
+        self.record_jsx_ordering(&element.name, first_style);
+    }
+
+    /// Records the constructor of a `new` expression whose arguments contain a `style()`
+    /// call.
+    fn visit_new_expression(&mut self, expression: &NewExpression<'a>) {
+        let first_style = self.style_calls.len();
+        walk::walk_new_expression(self, expression);
+        self.record_call_ordering(&expression.callee, first_style, None);
     }
 }

@@ -30,13 +30,13 @@ the base's CSS first.
 Read the following table from top to bottom. Stillwind orders files first, then
 calls within each file, then the rules that each call produces:
 
-| Step | What Stillwind orders               | Which CSS comes first                                                                                                                                                                                         |
-| ---- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1    | Different files                     | A file that defines a base comes before a file that uses it in `style(base, ...)`. For files without this relationship, Stillwind uses a stable order based on their paths.                                   |
-| 2    | `style()` calls in one file         | The base's CSS comes before CSS added by `style(base, ...)`. Other calls follow the order in which they appear in the file.                                                                                   |
-| 3    | JavaScript conditions in one call   | CSS without a JavaScript condition comes first. CSS for conditions follows in the order the conditions are written. If conditions are nested, CSS for the outer condition comes before CSS for the inner one. |
-| 4    | CSS variants on one generated class | Rules without variants come first. The stylesheet sets the order of variants, such as `hover:` before `disabled:` or `sm:` before `md:` in the default stylesheet.                                            |
-| 5    | Utilities with the same variants    | By default, utilities follow the order of their definitions in the stylesheet, regardless of their order in `style()`.                                                                                        |
+| Step | What Stillwind orders               | Which CSS comes first                                                                                                                                                                                                |
+| ---- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Different files                     | A file that defines a base comes before a file that uses it in `style(base, ...)`. A file that declares a component comes before a file that passes it a style. Other files use a stable order based on their paths. |
+| 2    | `style()` calls in one file         | The base's CSS comes before CSS added by `style(base, ...)`. Other calls follow the order in which they appear in the file.                                                                                          |
+| 3    | JavaScript conditions in one call   | CSS without a JavaScript condition comes first. CSS for conditions follows in the order the conditions are written. If conditions are nested, CSS for the outer condition comes before CSS for the inner one.        |
+| 4    | CSS variants on one generated class | Rules without variants come first. The stylesheet sets the order of variants, such as `hover:` before `disabled:` or `sm:` before `md:` in the default stylesheet.                                                   |
+| 5    | Utilities with the same variants    | By default, utilities follow the order of their definitions in the stylesheet, regardless of their order in `style()`.                                                                                               |
 
 For example, the variant order in step 4 only applies to rules for the same
 class. It does not move a rule ahead of CSS from an earlier file or call.
@@ -67,6 +67,36 @@ The background is red whether `active` is true or false. All three selectors are
 plain classes, and none of the declarations uses `!important`. The red rule wins
 because it comes last. The same rule applies when you import `base` from another
 file.
+
+### Files that pass styles to components
+
+When a file passes a `style()` result to a component that it imports, the file
+that declares the component comes first. This lets the caller's utilities win
+over the component's own utilities:
+
+```tsx
+// src/App.tsx
+import { Button } from "./components/ui/button";
+
+<Button {...style("w-full")} />;
+```
+
+Here `src/components/ui/button.tsx` comes before `src/App.tsx`, although the
+paths sort the other way. The same applies to a file that passes an imported
+value directly to `style()`, and to a file that passes a `style.forward()`
+value to an imported `style.cva()` factory. Stillwind follows re-exports to the
+file that declares the component when it has already read the re-exporting
+file. Components in Vue, Svelte, and Astro files are recognized in the same
+way.
+
+This order only places CSS. The component still has to apply the props, for
+example with [`style.forward()`](/docs/macros/style#forward-props-to-a-components-element).
+It does not add the component's CSS to a stylesheet that does not include the
+component.
+
+When two files pass styles to components of each other, both orders cannot
+hold. Stillwind keeps one of them and reports
+[cyclic-style-order](/docs/lints/cyclic-style-order).
 
 ### Within one call, conditional rules come last
 

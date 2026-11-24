@@ -1,0 +1,52 @@
+---
+title: multiple-style-forwards
+description: Reports a style() call with more than one style.forward() argument.
+slug: docs/lints/multiple-style-forwards
+---
+
+This rule reports a `style()` call that has more than one
+[`style.forward()`](/docs/macros/style#forward-props-to-a-components-element)
+argument. The call is valid, but the forwarded values combine in two different
+ways:
+
+- Inline styles and custom properties apply in argument order. A later value
+  replaces an earlier value with the same name.
+- Classes are joined in the class attribute. As with several base styles, the
+  CSS order of the files that generated them decides which class wins. The
+  argument order does not decide it.
+
+## Reported
+
+<DiagnosticExample code="multiple-style-forwards">
+
+```tsx
+import { style } from "stillwind/react";
+
+export const Panel = ({ outer, inner }: PanelProps) => (
+  <div {...style("p-4", style.forward(outer), style.forward(inner))} />
+);
+```
+
+</DiagnosticExample>
+
+## Fixed
+
+```tsx
+import { style } from "stillwind/react";
+
+export const Panel = ({ outer, inner }: PanelProps) => (
+  <div {...style("p-4", style.forward(outer))}>
+    <div {...style(style.forward(inner))} />
+  </div>
+);
+```
+
+## How to fix
+
+- Forward each set of props to its own element.
+- When one element must receive both sets, make sure that their classes do not
+  set the same properties, and suppress the finding.
+
+## Rule settings
+
+<LintRuleSummary name="multiple-style-forwards" />

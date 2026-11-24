@@ -19,7 +19,9 @@ function optionKey(value: unknown): unknown {
  * Creates a selector over compiler-produced values using the supplied framework channels.
  * Values are captured at creation. Each call returns fresh props without mutating inputs.
  * Undefined selections keep defaults; null suppresses an option. Matching compounds
- * contribute in array order, followed by external class and className inputs.
+ * contribute in array order, followed by external class and className inputs. The optional
+ * second argument is a fragment that `style.forward()` produced. It applies after every other
+ * contribution.
  *
  * @param options - Framework conventions and the keys used by compiled fragments.
  * @param base - Compiled styles included in every selection.
@@ -34,7 +36,7 @@ export function createCva(
   config: CompiledCvaConfig = {},
   classes: typeof stillwindClsx = stillwindClsx,
   merge: typeof mergeFragments = mergeFragments,
-): (props?: Readonly<Record<string, unknown>>) => Record<string, unknown> {
+): (props?: Readonly<Record<string, unknown>>, forwarded?: unknown) => Record<string, unknown> {
   const axes = Object.keys(config.variants ?? {});
   const compounds = (config.compoundVariants ?? []).map((compound) => ({
     conditions: Object.entries(compound).filter(([key]) => key !== "class" && key !== "className"),
@@ -44,7 +46,7 @@ export function createCva(
   const fragment = (value: CvaValue): unknown =>
     typeof value === "string" ? { [options[2]]: value } : value;
 
-  return (props = {}) => {
+  return (props = {}, forwarded) => {
     const values: unknown[] = [fragment(base)];
     const variants = config.variants;
     if (variants) {
@@ -73,7 +75,12 @@ export function createCva(
         }
       }
     }
-    values.push({ [options[2]]: classes(props.class, props.className) });
+    values.push(
+      {
+        [options[2]]: classes(props.class, props.className),
+      },
+      forwarded,
+    );
     return merge(options, values);
   };
 }

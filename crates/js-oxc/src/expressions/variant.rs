@@ -125,5 +125,9 @@ fn rule_class_input(input: &StyleInput) -> Result<RuleExpression, VariantInputEr
             reason: RuleGroupInputErrorKind::DynamicRefAttachment,
             span: *value,
         }),
+        StyleInput::Forward { call, .. } => Err(VariantInputError {
+            reason: RuleGroupInputErrorKind::Forward,
+            span: *call,
+        }),
     }
 }

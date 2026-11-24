@@ -210,7 +210,7 @@ mod tests {
                 assert_eq!(config.severity(), severity);
             }
         }
-        assert_eq!(names.len(), 72);
+        assert_eq!(names.len(), 74);
         for name in [
             "custom",
             "",
@@ -259,6 +259,8 @@ mod tests {
                 "split-view-transition-class": "warn",
                 "ambiguous-style-base-order": "warn",
                 "interfering-imported-style-base": "warn",
+                "cyclic-style-order": "warn",
+                "multiple-style-forwards": "warn",
                 "prefer-canonical-utilities": "warn",
                 "duplicate-utility": "warn",
                 "conflicting-utilities": "warn",

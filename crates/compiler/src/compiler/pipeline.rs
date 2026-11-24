@@ -316,6 +316,22 @@ impl Compiler {
                     expressions: Vec::new(),
                 }));
         }
+        for forward in &module.forward_calls {
+            runtime.select_output(forward.output);
+            let helper = runtime.require(
+                if forward.style_arrays {
+                    RuntimeHelper::ForwardArrays
+                } else {
+                    RuntimeHelper::Forward
+                },
+                forward.callee_span,
+            );
+            result.transforms.push(SourceTransform {
+                call_span: forward.callee_span,
+                replacement: helper.into(),
+                expressions: Vec::new(),
+            });
+        }
         for media in &module.media_calls {
             let query = media_query(media, theme, &mut result.lint_findings);
             result.transforms.push(SourceTransform {

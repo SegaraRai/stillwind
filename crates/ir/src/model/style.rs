@@ -271,6 +271,18 @@ pub enum StyleInput {
         /// How the use names its participants.
         name: ViewTransitionName,
     },
+    /// `style.forward(props)` written directly as an argument: the class and style props
+    /// that the component received, applied after every other contribution at runtime.
+    Forward {
+        /// The whole `style.forward(...)` call.
+        call: Span,
+        /// The props expression, emitted verbatim. `None` when the call has no argument,
+        /// which forwards nothing.
+        value: Option<Span>,
+        /// Whether the framework accepts an array of style values, which selects how the
+        /// runtime merges a string style with an object style.
+        style_arrays: bool,
+    },
     /// A transition value that is only known at runtime.
     DynamicViewTransitionUse {
         /// The runtime transition value.
