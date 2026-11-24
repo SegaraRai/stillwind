@@ -537,3 +537,23 @@ fn utilities_without_a_value_read_bare_theme_tokens() {
         );
     }
 }
+
+#[test]
+fn shadow_theme_values_that_are_one_variable_set_the_shadow() {
+    let theme = parse_fixture_theme(
+        &SourceFile::new(
+            FileId(2),
+            None,
+            None,
+            "@import 'stillwind'; @theme { --shadow-surface: var(--surface-shadow); }",
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert!(
+        resolve_utility("shadow-surface", &theme)
+            .unwrap()
+            .declaration
+            .contains_css("--tw-shadow:var(--surface-shadow);")
+    );
+}

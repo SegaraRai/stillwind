@@ -247,23 +247,26 @@ pub(in crate::evaluation) fn resolve_shadow_color(
         [domain, color_property, alpha] => (*domain, *color_property, Some(alpha.trim())),
         _ => return None,
     };
-    let value = if domain.trim() == "[shadow]" {
-        let value = resolve_value_domains(domain, capture, theme)?;
-        // A variable hides the shadow's color, so it has no color to override.
-        if is_single_var_reference(&value) {
-            return Some(value.into());
-        }
-        value
+    // Whether the value is the authored shadow or the value of a theme token, such as
+    // `--shadow-surface: var(--surface-shadow)`. A theme branch that receives `(--x)`
+    // fails here, so `inset-shadow-(--x)` reaches the `[shadow]` branch that adds `inset`.
+    let (value, variable_passes) = if domain.trim() == "[shadow]" {
+        (resolve_value_domains(domain, capture, theme)?, true)
     } else {
         let pattern = domain.trim().strip_prefix("--")?;
         match (pattern.strip_suffix("-*"), capture) {
-            (Some(name), Some(capture)) => {
-                theme_value_literal(theme.namespaces().get(name)?, capture, theme)?
-            }
-            (None, None) => bare_token_literal(pattern, theme)?,
+            (Some(name), Some(capture)) => (
+                theme_value_literal(theme.namespaces().get(name)?, capture, theme)?,
+                theme.token_in(name, capture).is_some(),
+            ),
+            (None, None) => (bare_token_literal(pattern, theme)?, true),
             _ => return None,
         }
     };
+    // A variable hides the shadow's color, so it has no color to override.
+    if variable_passes && is_single_var_reference(&value) {
+        return Some(value.into());
+    }
     let color_property = color_property.trim();
     color_property.strip_prefix("--").filter(|name| {
         !name.is_empty()
