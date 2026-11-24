@@ -69,6 +69,54 @@ fn native_runtime_imports_are_binding_safe() {
 }
 
 #[test]
+fn style_calls_in_arrow_function_bodies_produce_expressions() {
+    let theme = css_source(FileId(2), "@import 'stillwind';").unwrap();
+    for framework in ["react", "vue"] {
+        let component = SourceFile::new(
+            FileId(1),
+            None,
+            None,
+            format!(
+                "import {{style}} from 'stillwind/{framework}';
+                 export const read = (extra: string) => style('p-4', {{class: extra}});
+                 export const spaced = () =>
+  style('m-2');"
+            ),
+        )
+        .unwrap();
+        let result = Compiler::compile_source(
+            &OxcSourceAnalyzer,
+            &component,
+            &ModuleId::from("test.tsx"),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+            &theme,
+            &CssSourceName::from("stillwind.css"),
+            &CompilerOptions::default(),
+        );
+        assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
+        let code = result.apply_to_source(&component).unwrap();
+        assert!(code.contains("=> ({"), "{code}");
+        assert!(
+            code.contains(
+                "=>
+  ({"
+            ),
+            "{code}"
+        );
+        let reparsed = parse(
+            &SourceFile::new(FileId(3), None, None, code).unwrap(),
+            &ModuleId::from("test.tsx"),
+            &[],
+            &std::collections::BTreeMap::default(),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        );
+        assert_eq!(reparsed.diagnostics, [] as [CompileError; 0], "{framework}");
+    }
+}
+
+#[test]
 fn residual_macro_references_fail_the_entire_compilation() {
     let theme = css_source(FileId(2), "").unwrap();
     for suffix in ["const uncompiled = style;", "export {style};"] {

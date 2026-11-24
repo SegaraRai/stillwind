@@ -47,7 +47,7 @@ use super::symbols::{
 use super::{Compiler, CssContribution};
 use crate::compiler::rewrite_generated_css;
 use crate::editor_lint::detect;
-use crate::generated::js_string;
+use crate::generated::{code, js_string};
 use crate::identifiers::IdentifierContext;
 use crate::options::validate_lint_settings;
 use crate::runtime::{RuntimeBindings, RuntimeHelper, encode_projected_edits};
@@ -282,11 +282,14 @@ impl Compiler {
             result.classes.extend(emission.classes.iter().cloned());
             symbols.extend(emission.written_name_symbols.iter().cloned());
             runtime.select_output(call.output);
-            let replacement = if cva {
+            let mut replacement = if cva {
                 render_cva_value(&emission, call.output.spec(), &mut runtime)
             } else {
                 render_style_call(&emission, call.output.spec(), &mut runtime)
             };
+            if replacement.text.starts_with('{') && is_arrow_body(source.text(), call.span) {
+                replacement = code!["(", replacement, ")"];
+            }
             result.transforms.push(SourceTransform {
                 call_span: call.span,
                 replacement: (replacement.text),
@@ -603,6 +606,15 @@ impl Compiler {
             .extend(identifiers.drain_rejected().into_entries());
         result
     }
+}
+
+/// Whether `span` in `text` directly follows `=>`, apart from whitespace.
+///
+/// An object literal in that position is read as a block, so `() => style("p-4")` must
+/// become `() => ({className: "..."})` rather than `() => {className: "..."}`.
+fn is_arrow_body(text: &str, span: Span) -> bool {
+    text.get(..span.start.0 as usize)
+        .is_some_and(|before| before.trim_end().ends_with("=>"))
 }
 
 /// Drops repeated records for one written name.
