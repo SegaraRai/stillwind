@@ -97,6 +97,28 @@ impl CanonicalPreview {
             .insert(key, result.clone());
         result
     }
+
+    /// Returns normalized `css` without substituting theme values or scales, so the
+    /// result holds for every value of the referenced theme variables.
+    ///
+    /// `css` must come from a candidate of the owning query, such as this preview's
+    /// [`css`](Self::css) after inline theme values are substituted. `root_font_size`
+    /// must match the owning query's value. Returns `None` when normalization fails.
+    pub(super) fn theme_independent_signature(
+        &self,
+        css: &str,
+        properties: &BTreeSet<LeanStr>,
+        root_font_size: RootFontSize,
+    ) -> Option<LeanStr> {
+        normalized_signature(
+            css,
+            &[],
+            properties,
+            root_font_size,
+            self.preserve_specificity,
+            &self.composition,
+        )
+    }
 }
 
 /// Normalizes CSS whose known theme variables have already been substituted.

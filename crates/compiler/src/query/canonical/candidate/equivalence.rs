@@ -23,7 +23,9 @@ impl DesignSystemQuery {
     /// every theme token that `left` references, because two tokens with equal values
     /// can differ after a theme change. Each `var()` call that the author wrote in
     /// `left` must also appear in the CSS of `right`, unless the variable is an inline
-    /// theme token that `right` uses. When the `prefer-typed-variables` rule is
+    /// theme token that `right` uses. When `left` has such calls, both candidates must
+    /// also produce the same CSS before theme values are substituted, apart from the
+    /// inline values that utilities substitute. When the `prefer-typed-variables` rule is
     /// enabled, a replacement that adds a variable without a type hint is rejected.
     /// Returns false when either candidate does not resolve or cannot be normalized.
     ///
@@ -98,6 +100,19 @@ impl DesignSystemQuery {
             spacing_properties(&left.css, &scales, &mut policy.properties, 0);
         }
         let font = self.context.options.root_font_size;
+        if !variables.is_empty() {
+            // With the theme's values, `min(var(--radius-md), 10px)` folds to the value
+            // of `rounded-md`. A theme with a larger radius makes them differ.
+            let Some(inlined) = self.context.inline_theme_values(&left.css) else {
+                return Ok(false);
+            };
+            let before = left.theme_independent_signature(&inlined, &policy.properties, font);
+            if before.is_none()
+                || before != right.theme_independent_signature(&right.css, &policy.properties, font)
+            {
+                return Ok(false);
+            }
+        }
         let signature = left.signature(&scales, &policy.properties, font);
         Ok(
             (signature.is_some()

@@ -340,3 +340,24 @@ fn canonical_search_matches_finite_css_reference() {
         Some("padded-4".into())
     );
 }
+
+#[test]
+fn canonical_candidates_keep_math_functions_around_inline_theme_values() {
+    let query = make_query(
+        "@theme inline { --radius-md: calc(var(--radius) * 0.8); }",
+        CompilerOptions::default(),
+    );
+    assert_eq!(
+        query
+            .canonical_candidate("rounded-[min(var(--radius-md),10px)]")
+            .unwrap(),
+        None
+    );
+    assert_eq!(
+        query
+            .canonical_candidate("rounded-[var(--radius-md)]")
+            .unwrap()
+            .as_deref(),
+        Some("rounded-md")
+    );
+}

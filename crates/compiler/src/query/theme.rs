@@ -328,8 +328,29 @@ impl QueryContext {
     /// spelling. Returns `None` after 64 substitution passes or if an edit expands the
     /// CSS beyond 1 MiB.
     pub(super) fn resolve_theme_values(&self, input: &str) -> Option<LeanStr> {
+        self.substitute_theme_values(input, |_| true, 64)
+    }
+
+    /// Substitutes `var()` references to inline theme values in `input` once, as a
+    /// utility does when it reads such a value: `var()` calls inside a substituted
+    /// value remain. Other variables retain their spelling. Returns `None` if an edit
+    /// expands the CSS beyond 1 MiB.
+    pub(super) fn inline_theme_values(&self, input: &str) -> Option<LeanStr> {
+        self.substitute_theme_values(input, |value| value.mode == ThemeValueMode::Inline, 1)
+    }
+
+    /// Substitutes the `var()` references in `input` to the theme values that
+    /// `include` accepts, in at most `passes` passes. Each pass also substitutes the
+    /// references that the previous pass inserted. Returns `None` if an edit expands
+    /// the CSS beyond 1 MiB, or if `passes` is greater than 1 and every pass made edits.
+    fn substitute_theme_values(
+        &self,
+        input: &str,
+        include: impl Fn(&ThemeValue) -> bool,
+        passes: usize,
+    ) -> Option<LeanStr> {
         let mut css = input.to_lean_string();
-        for _ in 0..64 {
+        for _ in 0..passes {
             let mut edits = Vec::new();
             let mut covered = 0;
             for function in find_css_functions(&css, &["var"], 0) {
@@ -344,6 +365,7 @@ impl QueryContext {
                     .values()
                     .get(name)
                     .and_then(|tokens| tokens.first())
+                    && include(token)
                     && let Some(end) = function.end
                 {
                     edits.push((function.start..end, token.value.value.clone()));
@@ -360,7 +382,7 @@ impl QueryContext {
                 }
             }
         }
-        None
+        (passes == 1).then(|| css.into())
     }
 }
 
