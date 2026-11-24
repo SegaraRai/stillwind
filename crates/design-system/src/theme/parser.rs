@@ -28,7 +28,9 @@ use stillwind_source::{CssSourceName, FileId, SourceFile, Span};
 
 use super::banners::extract_stylesheet_banners;
 use super::builder::ThemeBuilder;
-use super::declarations::{ThemeValueMode, ThemeValueRole, extract_theme_declarations};
+use super::declarations::{
+    ThemeValueMode, ThemeValueRole, extract_theme_declarations, has_reference_modifier,
+};
 use super::index::ThemeIndex;
 use crate::output::{parse_css_templates, parse_output_template, theme_blocks};
 use crate::registry::{
@@ -440,6 +442,7 @@ fn extract_theme_tokens(file: FileId, css: &str) -> Result<ThemeBuilder, Compile
         for token in &mut declarations {
             token.precedence = precedence;
             token.role = ThemeValueRole::parse(&modifier);
+            token.reference = has_reference_modifier(&modifier);
         }
         tokens.extend(declarations);
     }

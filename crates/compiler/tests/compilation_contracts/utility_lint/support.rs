@@ -14,7 +14,8 @@ pub(super) fn kinds_in(code: &str, fixture: &CompilationFixture) -> Vec<LintKind
     result.lint_findings.iter().map(LintFinding::kind).collect()
 }
 
-pub(super) const VALUE_CSS: &str = "@theme inline { --color-primary:#123; --spacing-unit:1rem; }
+pub(super) const VALUE_CSS: &str = ":root { @stillwind-slot theme; }
+@theme inline { --color-primary:#123; --spacing-unit:1rem; }
 @utility paint-* {color:--value(--color-*,[color]);}
 @utility pad-* {padding:--value(--spacing-*,[length-percentage]);}
 @utility mixed-* {color:--value([color]); margin:--value([length]); border-width:1px;}

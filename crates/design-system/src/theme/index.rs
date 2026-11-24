@@ -709,9 +709,12 @@ impl ThemeIndex {
     }
 
     /// Selects tokens and assets referenced by `css` and their transitive dependencies.
-    /// Static values seed selection, and inline values are not emitted. Authored CSS
-    /// also contributes references when `include_preflight` is true. `omit_rules`
-    /// contains prefix/condition pairs that prune names when `css` contains a condition.
+    /// Static values seed selection. An inline token is selected only through a
+    /// `var()` reference that the CSS author wrote, because utilities substitute its
+    /// value. Values from a `reference` block and inline assets are never selected.
+    /// These rules match Tailwind's emission. Authored CSS also contributes references
+    /// when `include_preflight` is true. `omit_rules` contains prefix/condition pairs
+    /// that prune names when `css` contains a condition.
     ///
     /// Pruning runs after dependency closure, so a rule may drop an intermediate alias
     /// without changing which declarations were considered.
@@ -733,11 +736,17 @@ impl ThemeIndex {
             }
         }
 
+        // A value that is never declared does not pull in the values that it references.
+        let declarable = |token: &ThemeValue| {
+            let inline_asset =
+                token.role == ThemeValueRole::Asset && token.mode == ThemeValueMode::Inline;
+            !token.reference && !inline_asset
+        };
         let mut changed = true;
         while changed {
             changed = false;
             for token in &tokens {
-                if required.contains(&token.name.value) {
+                if declarable(token) && required.contains(&token.name.value) {
                     for dependency in custom_property_references(&token.value.value) {
                         changed |= required.insert(dependency);
                     }
@@ -753,10 +762,7 @@ impl ThemeIndex {
         }
         tokens
             .into_iter()
-            .filter(|token| {
-                required.contains(&token.name.value)
-                    && !matches!(token.mode, ThemeValueMode::Inline)
-            })
+            .filter(|token| declarable(token) && required.contains(&token.name.value))
             .collect()
     }
 

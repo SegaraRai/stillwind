@@ -309,7 +309,8 @@ export const extended=style('extended');`;
     const { compileSource, NativeDesignSystemLoader, NativeProjectSession } = await import(
       bindingSpecifier
     );
-    const css = `@theme inline { --spacing-ref-small:20px; }
+    const css = `:root { @stillwind-slot theme; }
+@theme inline { --spacing-ref-small:20px; }
 @utility fixed (implementation) { width:var(--spacing-ref-small)!important; }
 @utility input-* (implementation) { width:--value(--spacing-*)!important; }
 @utility extended (implementation) { width:var(--spacing-ref-small)!important; }
@@ -396,7 +397,8 @@ export const input=style('input-ref-small'); export const extended=style('extend
     const { compileSource, NativeDesignSystemLoader, NativeProjectSession } = await import(
       bindingSpecifier
     );
-    const css = `@theme inline { --spacing:0.25rem; --spacing-ref-small:1rem; --spacing-gutter:var(--spacing-ref-small); --duration-ref-fast:100ms; }
+    const css = `:root { @stillwind-slot theme; }
+@theme inline { --spacing:0.25rem; --spacing-ref-small:1rem; --spacing-gutter:var(--spacing-ref-small); --duration-ref-fast:100ms; }
 @utility p-* {padding:--value(--spacing-*);} @utility flex {display:flex;} @utility gap {gap:1rem;}
 @variant speed-* { & {transition-duration:--value(--duration-*); @slot;} }
 @variant max-* { @media (width < --value([length])) { @slot; } }

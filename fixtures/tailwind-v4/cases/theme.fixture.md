@@ -98,3 +98,40 @@ bg-action animate-enter [--brand-color:rebeccapurple]
   }
 }
 ```
+
+## `theme.inline-variable-referenced-by-arbitrary-value`
+
+### Input CSS
+
+```css
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+@theme inline {
+  --radius-md: calc(var(--radius) * 0.8);
+}
+```
+
+### Candidates
+
+```text
+rounded-md rounded-[min(var(--radius-md),12px)]
+```
+
+### Expected CSS
+
+```css
+/*! tailwindcss v4.3.5 | MIT License | https://tailwindcss.com */
+@layer theme {
+  :root, :host {
+    --radius-md: calc(var(--radius) * 0.8);
+  }
+}
+@layer utilities {
+  .rounded-\[min\(var\(--radius-md\)\,12px\)\] {
+    border-radius: min(var(--radius-md), 12px);
+  }
+  .rounded-md {
+    border-radius: calc(var(--radius) * 0.8);
+  }
+}
+```

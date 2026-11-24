@@ -37,10 +37,20 @@ fn extracts_spanned_theme_tokens_after_lightningcss_validates_css() {
 fn matches_tailwind_theme_token_emission_modes() {
     let source = SourceFile::new(
         FileId(7), None, None,
-        "@theme { --color-used: red; --color-unused: blue; }\n@theme static { --spacing-static: 1rem; }\n@theme inline { --color-alias: var(--brand); }",
+        "@theme { --color-used: red; --color-unused: blue; }\n@theme static { --spacing-static: 1rem; }\n@theme inline { --color-alias: var(--brand); --radius-md: calc(var(--radius) * .8); }\n@theme default inline reference { --shadow: 0 1px red; }",
     ).unwrap();
     let theme = parse_theme(&source, &CssSourceName::from("test.css")).unwrap();
-    let required = theme.values_required_by("color:var(--color-used);", false, &[]);
+    let required = theme.values_required_by(
+        "color:var(--color-used);border-radius:min(var(--radius-md),12px);box-shadow:var(--shadow);",
+        false,
+        &[],
+    );
+    assert!(
+        required
+            .iter()
+            .any(|token| token.name.value == "--radius-md")
+    );
+    assert!(!required.iter().any(|token| token.name.value == "--shadow"));
     assert!(
         required
             .iter()

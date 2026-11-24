@@ -79,6 +79,47 @@ fn renders_effective_theme_custom_properties_with_tailwind_reset_semantics() {
 }
 
 #[test]
+fn emits_inline_theme_values_that_generated_css_references_by_var() {
+    let fixture = include_str!("../../../../fixtures/tailwind-v4/cases/theme.fixture.md");
+    let section = case_named(
+        fixture,
+        "theme.inline-variable-referenced-by-arbitrary-value",
+    );
+    let input_css = code_block(section, "Input CSS", "css").unwrap();
+    let component = SourceFile::new(
+        FileId(1),
+        None,
+        None,
+        "import { style } from \"stillwind/react\"; const props = style(\"rounded-md rounded-[min(var(--radius-md),12px)]\");",
+    )
+    .unwrap();
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        &ModuleId::from("test.tsx"),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &css_source(FileId(2), fixture_css(&input_css)).unwrap(),
+        &CssSourceName::from("stillwind.css"),
+        &CompilerOptions::default(),
+    );
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert!(
+        result
+            .css
+            .contains_css("--radius-md:calc(var(--radius) * 0.8);"),
+        "{}",
+        result.css
+    );
+    assert!(
+        result
+            .css
+            .contains_css("border-radius:min(var(--radius-md),12px);")
+    );
+}
+
+#[test]
 fn shadow_utilities_follow_multiple_theme_overrides_and_namespace_removal() {
     let fixture =
         include_str!("../../../../fixtures/tailwind-v4/cases/theme-shadow-tokens.fixture.md");

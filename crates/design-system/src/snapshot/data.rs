@@ -300,10 +300,11 @@ impl DesignSystemSnapshot {
                     token.name.value.clone(),
                     Fingerprint::of(
                         format_args!(
-                            "{:?}\0{:?}\0{:?}\0{:?}\0{}\0",
+                            "{:?}\0{:?}\0{:?}\0{}\0{:?}\0{}\0",
                             token_class(&theme, token),
                             token.role,
                             token.mode,
+                            token.reference,
                             token.precedence,
                             token.value.value
                         )
@@ -323,6 +324,7 @@ impl DesignSystemSnapshot {
                     token_class(&theme, t),
                     t.role,
                     t.mode,
+                    t.reference,
                     t.precedence,
                 )
             })

@@ -28,7 +28,8 @@ fn implementation_restrictions(check_implementation: Option<bool>) -> CompilerOp
     options
 }
 
-const IMPLEMENTATION_CSS: &str = r"@theme inline { --spacing-ref-small:20px; }
+const IMPLEMENTATION_CSS: &str = r":root { @stillwind-slot theme; }
+    @theme inline { --spacing-ref-small:20px; }
     @utility fixed (implementation) { width:var(--spacing-ref-small)!important; }
     @utility nested (implementation) { &::before { width:var(--spacing-ref-small)!important; } @media (width > 40rem) { height:var(--spacing-ref-small)!important; } }
     @utility input-* (implementation) { width:--value(--spacing-*,[length])!important; height:1em; }

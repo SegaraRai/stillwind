@@ -66,6 +66,11 @@ impl ThemeValueMode {
     }
 }
 
+/// Returns whether a `@theme` block modifier contains the `reference` word.
+pub(crate) fn has_reference_modifier(modifier: &str) -> bool {
+    modifier.split_whitespace().any(|word| word == "reference")
+}
+
 /// Which definition of a value wins, independent of source order. A definition replaces
 /// an earlier one of the same or lower precedence. Resets remove values of their own
 /// role when those values have the same or lower precedence.
@@ -107,6 +112,9 @@ pub struct ThemeValue {
     pub role: ThemeValueRole,
     /// Emission policy: referenced value, inline substitution, or static retention.
     pub mode: ThemeValueMode,
+    /// Whether the generated CSS never declares the value, as with Tailwind's
+    /// `reference` modifier. Utilities still use it as [`mode`](Self::mode) describes.
+    pub reference: bool,
     /// Which definition wins, independent of source order.
     pub precedence: ThemeValuePrecedence,
 }
@@ -116,8 +124,9 @@ pub struct ThemeValue {
 /// `body_start` is the body's byte offset in its file, so returned spans refer to the
 /// file rather than to the slice. Comments, at-rules, and statements that are not
 /// custom-property declarations are skipped; a declaration with an empty value or a
-/// non-`--` name is skipped. Definitions start with the token role and ordinary
-/// precedence; the containing block's parser applies its role and precedence.
+/// non-`--` name is skipped. Definitions start with the token role, ordinary
+/// precedence, and no `reference` modifier; the containing block's parser applies
+/// its own.
 ///
 /// # Errors
 ///
@@ -170,6 +179,7 @@ pub(crate) fn extract_theme_declarations(
                 ),
             ),
             mode,
+            reference: false,
             role: ThemeValueRole::Token,
             precedence: ThemeValuePrecedence::Ordinary,
         });
