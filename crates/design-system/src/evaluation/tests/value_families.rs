@@ -557,3 +557,48 @@ fn shadow_theme_values_that_are_one_variable_set_the_shadow() {
             .contains_css("--tw-shadow:var(--surface-shadow);")
     );
 }
+
+fn stillwind_theme(css: &str) -> ThemeIndex {
+    parse_fixture_theme(&SourceFile::new(FileId(2), None, None, css).unwrap()).unwrap()
+}
+
+#[test]
+fn named_values_of_builtin_utilities_read_one_theme_namespace() {
+    let theme = stillwind_theme(
+        "@import 'stillwind'; @theme { --shadow-plain: 0 1px 2px red; --text-plain: 2rem; \
+         --color-plain: blue; --color-2: green; }",
+    );
+    let shadow = resolve_utility("shadow-plain", &theme).unwrap().declaration;
+    assert!(shadow.contains_css("--tw-shadow:0 1px 2px var(--tw-shadow-color, red);"));
+    assert!(!shadow.contains("--tw-shadow-color:"));
+
+    let text = resolve_utility("text-plain", &theme).unwrap().declaration;
+    assert!(text.contains_css("color:var(--color-plain);"));
+    assert!(!text.contains("font-size"));
+
+    let border = resolve_utility("border-2", &theme).unwrap().declaration;
+    assert!(border.contains_css("border-color:var(--color-2);"));
+    assert!(!border.contains("border-width"));
+}
+
+#[test]
+fn exclusive_definitions_read_the_source_of_the_first_definition_that_accepts_the_value() {
+    let theme = stillwind_theme(
+        "@theme { --size-a: 1px; --color-a: red; --color-b: blue; } \
+         @utility probe-* (exclusive) { width: --value(--size-*); } \
+         @utility probe-* (exclusive) { color: --value(--color-*); } \
+         @utility probe-* (exclusive) { outline-color: --value(--color-*); } \
+         @utility mixed-* { width: --value(--size-*); } \
+         @utility mixed-* { color: --value(--color-*); }",
+    );
+    assert_css_eq!(
+        resolve_utility("probe-a", &theme).unwrap().declaration,
+        "width:var(--size-a);"
+    );
+    let color = resolve_utility("probe-b", &theme).unwrap().declaration;
+    assert!(color.contains_css("color:var(--color-b);"));
+    assert!(color.contains_css("outline-color:var(--color-b);"));
+    let mixed = resolve_utility("mixed-a", &theme).unwrap().declaration;
+    assert!(mixed.contains_css("width:var(--size-a);"));
+    assert!(mixed.contains_css("color:var(--color-a);"));
+}

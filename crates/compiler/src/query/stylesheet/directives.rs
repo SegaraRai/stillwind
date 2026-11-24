@@ -216,7 +216,7 @@ pub(super) const DIRECTIVES: &[Directive] = &[
         purpose: Purpose::Registry,
         family: Family::Stillwind,
         positions: Positions::RULES.union(Positions::REGISTRY),
-        syntax: "@stillwind-utility name-* [(tw-sort: property)] { ... }",
+        syntax: "@stillwind-utility name-* [(descriptors)] { ... }",
         description: "Defines a registry utility with its authored cascade order.",
     },
     Directive {

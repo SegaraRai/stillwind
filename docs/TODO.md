@@ -11,6 +11,12 @@ The compatibility baseline is Tailwind CSS 4.3.5. These contracts still need wor
 - Built-in color utilities resolve numeric alpha modifiers without looking up
   `--opacity-*` tokens. Define named opacity support and verify its precedence
   against numeric modifiers, including inline theme values and canonicalization.
+- `ring-*`, `inset-ring-*`, `outline-*`, and `decoration-*` still combine a width
+  from a bare number with a color whose token has the same number as its name, such
+  as `--color-2`. Tailwind reads the color first for `ring-2`, `inset-ring-2`, and
+  `outline-2`, and the thickness first for `decoration-2`. `(exclusive)` follows
+  registration order, and reordering these definitions changes the authored utility
+  order. Choose a priority that does not depend on the authored position.
 - Arbitrary breakpoint variants such as `max-[64rem]:flex` and selector variants
   such as `[&_::before]:flex` remain unchanged instead of using the named or child
   variants that Tailwind suggests. Verify equivalent output before adding replacements.

@@ -114,7 +114,7 @@
     var(--tw-ring-shadow), var(--tw-shadow);
 }
 
-@stillwind-utility shadow-* {
+@stillwind-utility shadow-* (exclusive) {
   --tw-shadow: --stillwind-builtin-shadow-color(--shadow-*, --tw-shadow-color);
   box-shadow:
     var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
@@ -133,14 +133,14 @@ An untyped variable selects the earliest registered branch that accepts it. Keep
 branch before the shadow color branches so `shadow-(--x)` sets the shadow, as in
 Tailwind.
 */
-@stillwind-utility shadow-* {
+@stillwind-utility shadow-* (exclusive) {
   --tw-shadow: --stillwind-builtin-shadow-color([shadow], --tw-shadow-color);
   box-shadow:
     var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
     var(--tw-ring-shadow), var(--tw-shadow);
 }
 
-@stillwind-utility shadow-* {
+@stillwind-utility shadow-* (exclusive) {
   --tw-shadow-alpha: --alpha(--modifier());
   --tw-shadow: --stillwind-builtin-shadow-color(
     --shadow-*,
@@ -184,11 +184,11 @@ Tailwind.
     var(--tw-ring-shadow), var(--tw-shadow);
 }
 
-@stillwind-utility shadow-* {
+@stillwind-utility shadow-* (exclusive) {
   --tw-shadow-color: --value(inherit);
 }
 
-@stillwind-utility shadow-* {
+@stillwind-utility shadow-* (exclusive) {
   --tw-shadow-color: --compat-color(
     --value(--color-*, current, transparent),
     100%,
@@ -196,7 +196,7 @@ Tailwind.
   );
 }
 
-@stillwind-utility shadow-* {
+@stillwind-utility shadow-* (exclusive) {
   --tw-shadow-color: --compat-color(
     --value(--color-*, current, transparent),
     --alpha(--modifier()),
@@ -303,7 +303,7 @@ width branch after the ring color branches so `ring-(--x)` sets the color, as in
     var(--tw-ring-shadow), var(--tw-shadow);
 }
 
-@stillwind-utility inset-shadow-* {
+@stillwind-utility inset-shadow-* (exclusive) {
   --tw-inset-shadow: --stillwind-builtin-shadow-color(--inset-shadow-*, --tw-inset-shadow-color);
   box-shadow:
     var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
@@ -322,7 +322,7 @@ Theme inset shadows already contain `inset`, while arbitrary shadows receive it 
 Keep this branch before the inset shadow color branches so `inset-shadow-(--x)` sets the
 shadow.
 */
-@stillwind-utility inset-shadow-* {
+@stillwind-utility inset-shadow-* (exclusive) {
   --tw-inset-shadow: inset --stillwind-builtin-shadow-color([shadow], --tw-inset-shadow-color);
   box-shadow:
     var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
@@ -334,7 +334,7 @@ A token shadow with a slash opacity modifier needs its authored color, rather th
 `var()` reference. `--stillwind-builtin-shadow-color` is the registry extension for this
 CSS Color 5 relative-color operation.
 */
-@stillwind-utility inset-shadow-* {
+@stillwind-utility inset-shadow-* (exclusive) {
   --tw-inset-shadow-alpha: --alpha(--modifier());
   --tw-inset-shadow: --stillwind-builtin-shadow-color(
     --inset-shadow-*,
@@ -358,11 +358,11 @@ CSS Color 5 relative-color operation.
     var(--tw-ring-shadow), var(--tw-shadow);
 }
 
-@stillwind-utility inset-shadow-* {
+@stillwind-utility inset-shadow-* (exclusive) {
   --tw-inset-shadow-color: --value(--color-*, current, inherit, transparent, [color]);
 }
 
-@stillwind-utility inset-shadow-* {
+@stillwind-utility inset-shadow-* (exclusive) {
   --tw-inset-shadow-color: --compat-color(
     --value(--color-*, current, transparent, [color]),
     --alpha(--modifier()),
@@ -370,11 +370,11 @@ CSS Color 5 relative-color operation.
   );
 }
 
-@stillwind-utility inset-shadow-* {
+@stillwind-utility inset-shadow-* (exclusive) {
   --tw-inset-shadow-color: --value(--color-*, current, inherit, transparent);
 }
 
-@stillwind-utility inset-shadow-* {
+@stillwind-utility inset-shadow-* (exclusive) {
   --tw-inset-shadow-color: --compat-color(
     --value(current, transparent),
     100%,
@@ -382,7 +382,7 @@ CSS Color 5 relative-color operation.
   );
 }
 
-@stillwind-utility inset-shadow-* {
+@stillwind-utility inset-shadow-* (exclusive) {
   --tw-inset-shadow-color: --compat-color(
     --value(--color-*, current, transparent),
     --alpha(--modifier()),
@@ -479,7 +479,7 @@ CSS Color 5 relative-color operation.
     var(--tw-drop-shadow,);
 }
 
-@stillwind-utility drop-shadow-* {
+@stillwind-utility drop-shadow-* (exclusive) {
   --tw-drop-shadow-size: drop-shadow(
     --stillwind-builtin-shadow-color(--drop-shadow-*, --tw-drop-shadow-color)
   );
@@ -499,7 +499,7 @@ CSS Color 5 relative-color operation.
     var(--tw-drop-shadow,);
 }
 
-@stillwind-utility drop-shadow-* {
+@stillwind-utility drop-shadow-* (exclusive) {
   --tw-drop-shadow-size: drop-shadow(
     --stillwind-builtin-shadow-color([shadow], --tw-drop-shadow-color)
   );
@@ -509,7 +509,7 @@ CSS Color 5 relative-color operation.
     var(--tw-drop-shadow,);
 }
 
-@stillwind-utility drop-shadow-* {
+@stillwind-utility drop-shadow-* (exclusive) {
   --tw-drop-shadow-alpha: --alpha(--modifier());
   --tw-drop-shadow-size: drop-shadow(
     --stillwind-builtin-shadow-color(--drop-shadow-*, --tw-drop-shadow-color, --alpha(--modifier()))
@@ -531,12 +531,12 @@ CSS Color 5 relative-color operation.
     var(--tw-drop-shadow,);
 }
 
-@stillwind-utility drop-shadow-* {
+@stillwind-utility drop-shadow-* (exclusive) {
   --tw-drop-shadow-color: --value(--color-*, current, inherit, transparent, [color]);
   --tw-drop-shadow: var(--tw-drop-shadow-size);
 }
 
-@stillwind-utility drop-shadow-* {
+@stillwind-utility drop-shadow-* (exclusive) {
   --tw-drop-shadow-color: --compat-color(
     --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier()),
@@ -545,14 +545,14 @@ CSS Color 5 relative-color operation.
   --tw-drop-shadow: var(--tw-drop-shadow-size);
 }
 
-@stillwind-utility drop-shadow-* {
+@stillwind-utility drop-shadow-* (exclusive) {
   --tw-drop-shadow-color: --value(--color-*, current, transparent);
   --tw-drop-shadow: var(--tw-drop-shadow-size);
 }
 
 @stillwind-arbitrary-property --tw-drop-shadow-color;
 
-@stillwind-utility drop-shadow-* {
+@stillwind-utility drop-shadow-* (exclusive) {
   --tw-drop-shadow-color: --compat-color(
     --value(current, transparent),
     100%,
@@ -560,7 +560,7 @@ CSS Color 5 relative-color operation.
   );
 }
 
-@stillwind-utility drop-shadow-* {
+@stillwind-utility drop-shadow-* (exclusive) {
   --tw-drop-shadow-color: --compat-color(
     --value(--color-*, current, transparent),
     --alpha(--modifier()),
@@ -1146,7 +1146,7 @@ CSS Color 5 relative-color operation.
   text-shadow: none;
 }
 
-@stillwind-utility text-shadow-* {
+@stillwind-utility text-shadow-* (exclusive) {
   text-shadow: --stillwind-builtin-shadow-color(--text-shadow-*, --tw-text-shadow-color);
 }
 
@@ -1154,11 +1154,11 @@ CSS Color 5 relative-color operation.
   text-shadow: --stillwind-builtin-shadow-color(--text-shadow, --tw-text-shadow-color);
 }
 
-@stillwind-utility text-shadow-* {
+@stillwind-utility text-shadow-* (exclusive) {
   text-shadow: --stillwind-builtin-shadow-color([shadow], --tw-text-shadow-color);
 }
 
-@stillwind-utility text-shadow-* {
+@stillwind-utility text-shadow-* (exclusive) {
   --tw-text-shadow-alpha: --alpha(--modifier());
   text-shadow: --stillwind-builtin-shadow-color(
     --text-shadow-*,
@@ -1176,11 +1176,11 @@ CSS Color 5 relative-color operation.
   );
 }
 
-@stillwind-utility text-shadow-* {
+@stillwind-utility text-shadow-* (exclusive) {
   --tw-text-shadow-color: --value(--color-*, current, inherit, transparent, [color]);
 }
 
-@stillwind-utility text-shadow-* {
+@stillwind-utility text-shadow-* (exclusive) {
   --tw-text-shadow-color: --compat-color(
     --value(--color-*, current, transparent, [color]),
     --alpha(--modifier()),
@@ -1188,11 +1188,11 @@ CSS Color 5 relative-color operation.
   );
 }
 
-@stillwind-utility text-shadow-* {
+@stillwind-utility text-shadow-* (exclusive) {
   --tw-text-shadow-color: --value(--color-*, current, inherit, transparent);
 }
 
-@stillwind-utility text-shadow-* {
+@stillwind-utility text-shadow-* (exclusive) {
   --tw-text-shadow-color: --compat-color(
     --value(current, transparent),
     100%,
@@ -1200,7 +1200,7 @@ CSS Color 5 relative-color operation.
   );
 }
 
-@stillwind-utility text-shadow-* {
+@stillwind-utility text-shadow-* (exclusive) {
   --tw-text-shadow-color: --compat-color(
     --value(--color-*, current, transparent),
     --alpha(--modifier()),

@@ -22,7 +22,7 @@ use stillwind_css::{ValueType, declaration_ranges, parse_structure, split_top_le
 use stillwind_syntax::{Value, decode_arbitrary_value, utility_registration_key};
 
 use super::super::context::ArbitraryValueCheck;
-use super::super::values::{expand_placeholder, theme_domain_pattern};
+use super::super::values::{expand_placeholder, named_value_source, theme_domain_pattern};
 use super::body::{
     UtilityResolution, UtilityResolutionDiagnosticData, UtilityResolutionError,
     resolve_css_utility_body,
@@ -398,6 +398,10 @@ fn append_resolution(resolution: &mut Option<UtilityResolution>, next: UtilityRe
 /// Declaration and selection records follow the retained declarations, including
 /// their implementation classifications.
 ///
+/// An [`(exclusive)`](crate::UtilityRole::exclusive) definition applies to a named
+/// value only when it reads the value from the source that the first such definition
+/// in registration order accepts, as [`exclusive_value_source`] selects.
+///
 /// Without an exact definition, an unhinted arbitrary value keeps only the branches
 /// that accept its inferred type. A `var()` reference or CSS-wide keyword can stand for
 /// any type, so only the earliest registered branch that accepts it is kept. When
@@ -414,9 +418,10 @@ pub(in crate::evaluation) fn resolve_css_utility_branches<'a>(
 ) -> Result<Option<UtilityResolution>, UtilityResolutionError> {
     let mut branches = Vec::new();
     let variable = unhinted_arbitrary_value(name).is_some_and(|value| value.contains("var("));
+    let utilities = retain_exclusive_source(utilities.collect(), name, theme);
     // Registries list matching definitions newest first, so a project definition
     // without a directive position registers earlier the later it appears here.
-    for (index, utility) in utilities.enumerate() {
+    for (index, utility) in utilities.into_iter().enumerate() {
         if let Some(mut resolution) =
             resolve_css_utility_body(utility, name, modifier, theme, arbitrary_check)?
         {
@@ -527,6 +532,65 @@ pub(in crate::evaluation) fn resolve_css_utility_branches<'a>(
     }
     order_targets_by_registration(&mut resolution, base_registration, registrations);
     Ok(Some(resolution))
+}
+
+/// Returns `utilities` without the [`(exclusive)`](crate::UtilityRole::exclusive)
+/// definitions that read the named capture of `name` from a source other than the one
+/// that [`exclusive_value_source`] selects. Returns every definition when no source is
+/// selected.
+fn retain_exclusive_source<'a>(
+    mut utilities: Vec<&'a CustomUtility>,
+    name: &str,
+    theme: &ThemeIndex,
+) -> Vec<&'a CustomUtility> {
+    if let Some(source) = exclusive_value_source(&utilities, name, theme) {
+        utilities.retain(|utility| {
+            !utility.role.exclusive
+                || named_capture_source(utility, name, theme).as_ref() == Some(&source)
+        });
+    }
+    utilities
+}
+
+/// Returns the value source that the [`(exclusive)`](crate::UtilityRole::exclusive)
+/// definitions among `utilities` use for the candidate `name`: the source of the first
+/// such definition in registration order whose `--value()` accepts the named capture.
+///
+/// `utilities` must list matching definitions newest first, as registries do. The
+/// source is chosen whether or not that definition resolves, so a definition that
+/// rejects the modifier still excludes definitions that read another source, as a
+/// Tailwind functional utility returns without trying its later sources. Returns
+/// `None` when no exclusive definition accepts a named capture.
+fn exclusive_value_source(
+    utilities: &[&CustomUtility],
+    name: &str,
+    theme: &ThemeIndex,
+) -> Option<LeanStr> {
+    utilities
+        .iter()
+        .enumerate()
+        .filter(|(_, utility)| utility.role.exclusive)
+        .filter_map(|(index, utility)| {
+            let source = named_capture_source(utility, name, theme)?;
+            Some((utility.position.unwrap_or(usize::MAX - index), source))
+        })
+        .min_by_key(|(registration, _)| *registration)
+        .map(|(_, source)| source)
+}
+
+/// Returns the source from which the wildcard definition `utility` reads the named
+/// capture of `name`, as [`named_value_source`] describes. Returns `None` for an exact
+/// definition, an empty capture, and an arbitrary value or a variable.
+fn named_capture_source(
+    utility: &CustomUtility,
+    name: &str,
+    theme: &ThemeIndex,
+) -> Option<LeanStr> {
+    let capture = name.strip_prefix(utility.name.strip_suffix('*')?)?;
+    if capture.is_empty() || capture.starts_with(['[', '(']) {
+        return None;
+    }
+    named_value_source(&utility.body, capture, theme)
 }
 
 /// Whether branches can merge by property name. A nested rule can set the same property

@@ -3647,11 +3647,11 @@ An untyped variable selects the earliest registered branch that accepts it. Keep
 color branch before the font-size branches so `text-(--x)` sets the color, as in
 Tailwind.
 */
-@stillwind-utility text-* {
+@stillwind-utility text-* (exclusive) {
   color: --value(--color-*, current, inherit, transparent);
 }
 
-@stillwind-utility text-* {
+@stillwind-utility text-* (exclusive) {
   color: --compat-color(
     --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
@@ -3660,22 +3660,22 @@ Tailwind.
 
 @stillwind-arbitrary-property font-size;
 
-@stillwind-utility text-* {
+@stillwind-utility text-* (exclusive) {
   font-size: --value(--text-*, [length-percentage]);
 }
 
-@stillwind-utility text-* {
+@stillwind-utility text-* (exclusive) {
   font-size: --value(--text-*);
 }
 
 @stillwind-arbitrary-property line-height;
 
-@stillwind-utility text-* {
+@stillwind-utility text-* (exclusive) {
   font-size: --value(--text-*);
   line-height: var(--tw-leading, --stillwind-theme-suffix(--text-*, --line-height));
 }
 
-@stillwind-utility text-* {
+@stillwind-utility text-* (exclusive) {
   font-size: --value(--text-*);
   line-height: --modifier(--leading-*, --spacing(), [length-percentage]);
 }
@@ -5048,23 +5048,23 @@ their stops. Without color stop utilities, the value is the complete argument li
 
 @stillwind-arbitrary-property border-color;
 
-@stillwind-utility border-* {
+@stillwind-utility border-* (exclusive) {
   border-color: --compat-color(
     --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
 
-@stillwind-utility border-* {
+@stillwind-utility border-* (exclusive) {
   border-color: --value(--color-*, current, inherit, transparent);
 }
 
-@stillwind-utility border-* {
+@stillwind-utility border-* (exclusive) {
   border-style: var(--tw-border-style);
   border-width: calc(--value(integer) * 1px);
 }
 
-@stillwind-utility border-* {
+@stillwind-utility border-* (exclusive) {
   border-style: var(--tw-border-style);
   border-width: --value([line-width]);
 }
@@ -5079,23 +5079,23 @@ their stops. Without color stop utilities, the value is the complete argument li
 
 @stillwind-arbitrary-property border-inline-color;
 
-@stillwind-utility border-x-* {
+@stillwind-utility border-x-* (exclusive) {
   border-inline-color: --value(--color-*, current, inherit, transparent, [color]);
 }
 
-@stillwind-utility border-x-* {
+@stillwind-utility border-x-* (exclusive) {
   border-inline-color: --compat-color(
     --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
 
-@stillwind-utility border-x-* {
+@stillwind-utility border-x-* (exclusive) {
   border-inline-style: var(--tw-border-style);
   border-inline-width: calc(--value(integer) * 1px);
 }
 
-@stillwind-utility border-x-* {
+@stillwind-utility border-x-* (exclusive) {
   border-inline-style: var(--tw-border-style);
   border-inline-width: --value([line-width]);
 }
@@ -5110,23 +5110,23 @@ their stops. Without color stop utilities, the value is the complete argument li
 
 @stillwind-arbitrary-property border-block-color;
 
-@stillwind-utility border-y-* {
+@stillwind-utility border-y-* (exclusive) {
   border-block-color: --value(--color-*, current, inherit, transparent, [color]);
 }
 
-@stillwind-utility border-y-* {
+@stillwind-utility border-y-* (exclusive) {
   border-block-color: --compat-color(
     --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
 
-@stillwind-utility border-y-* {
+@stillwind-utility border-y-* (exclusive) {
   border-block-style: var(--tw-border-style);
   border-block-width: calc(--value(integer) * 1px);
 }
 
-@stillwind-utility border-y-* {
+@stillwind-utility border-y-* (exclusive) {
   border-block-style: var(--tw-border-style);
   border-block-width: --value([line-width]);
 }
@@ -5141,23 +5141,23 @@ their stops. Without color stop utilities, the value is the complete argument li
 
 @stillwind-arbitrary-property border-inline-start-color;
 
-@stillwind-utility border-s-* {
+@stillwind-utility border-s-* (exclusive) {
   border-inline-start-color: --value(--color-*, current, inherit, transparent, [color]);
 }
 
-@stillwind-utility border-s-* {
+@stillwind-utility border-s-* (exclusive) {
   border-inline-start-color: --compat-color(
     --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
 
-@stillwind-utility border-s-* {
+@stillwind-utility border-s-* (exclusive) {
   border-inline-start-style: var(--tw-border-style);
   border-inline-start-width: calc(--value(integer) * 1px);
 }
 
-@stillwind-utility border-s-* {
+@stillwind-utility border-s-* (exclusive) {
   border-inline-start-style: var(--tw-border-style);
   border-inline-start-width: --value([line-width]);
 }
@@ -5172,23 +5172,23 @@ their stops. Without color stop utilities, the value is the complete argument li
 
 @stillwind-arbitrary-property border-inline-end-color;
 
-@stillwind-utility border-e-* {
+@stillwind-utility border-e-* (exclusive) {
   border-inline-end-color: --value(--color-*, current, inherit, transparent, [color]);
 }
 
-@stillwind-utility border-e-* {
+@stillwind-utility border-e-* (exclusive) {
   border-inline-end-color: --compat-color(
     --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
 
-@stillwind-utility border-e-* {
+@stillwind-utility border-e-* (exclusive) {
   border-inline-end-style: var(--tw-border-style);
   border-inline-end-width: calc(--value(integer) * 1px);
 }
 
-@stillwind-utility border-e-* {
+@stillwind-utility border-e-* (exclusive) {
   border-inline-end-style: var(--tw-border-style);
   border-inline-end-width: --value([line-width]);
 }
@@ -5203,23 +5203,23 @@ their stops. Without color stop utilities, the value is the complete argument li
 
 @stillwind-arbitrary-property border-block-start-color;
 
-@stillwind-utility border-bs-* {
+@stillwind-utility border-bs-* (exclusive) {
   border-block-start-color: --value(--color-*, current, inherit, transparent, [color]);
 }
 
-@stillwind-utility border-bs-* {
+@stillwind-utility border-bs-* (exclusive) {
   border-block-start-color: --compat-color(
     --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
 
-@stillwind-utility border-bs-* {
+@stillwind-utility border-bs-* (exclusive) {
   border-block-start-style: var(--tw-border-style);
   border-block-start-width: calc(--value(integer) * 1px);
 }
 
-@stillwind-utility border-bs-* {
+@stillwind-utility border-bs-* (exclusive) {
   border-block-start-style: var(--tw-border-style);
   border-block-start-width: --value([line-width]);
 }
@@ -5234,23 +5234,23 @@ their stops. Without color stop utilities, the value is the complete argument li
 
 @stillwind-arbitrary-property border-block-end-color;
 
-@stillwind-utility border-be-* {
+@stillwind-utility border-be-* (exclusive) {
   border-block-end-color: --value(--color-*, current, inherit, transparent, [color]);
 }
 
-@stillwind-utility border-be-* {
+@stillwind-utility border-be-* (exclusive) {
   border-block-end-color: --compat-color(
     --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
 
-@stillwind-utility border-be-* {
+@stillwind-utility border-be-* (exclusive) {
   border-block-end-style: var(--tw-border-style);
   border-block-end-width: calc(--value(integer) * 1px);
 }
 
-@stillwind-utility border-be-* {
+@stillwind-utility border-be-* (exclusive) {
   border-block-end-style: var(--tw-border-style);
   border-block-end-width: --value([line-width]);
 }
@@ -5265,23 +5265,23 @@ their stops. Without color stop utilities, the value is the complete argument li
 
 @stillwind-arbitrary-property border-top-color;
 
-@stillwind-utility border-t-* {
+@stillwind-utility border-t-* (exclusive) {
   border-top-color: --value(--color-*, current, inherit, transparent, [color]);
 }
 
-@stillwind-utility border-t-* {
+@stillwind-utility border-t-* (exclusive) {
   border-top-color: --compat-color(
     --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
 
-@stillwind-utility border-t-* {
+@stillwind-utility border-t-* (exclusive) {
   border-top-style: var(--tw-border-style);
   border-top-width: calc(--value(integer) * 1px);
 }
 
-@stillwind-utility border-t-* {
+@stillwind-utility border-t-* (exclusive) {
   border-top-style: var(--tw-border-style);
   border-top-width: --value([line-width]);
 }
@@ -5296,23 +5296,23 @@ their stops. Without color stop utilities, the value is the complete argument li
 
 @stillwind-arbitrary-property border-right-color;
 
-@stillwind-utility border-r-* {
+@stillwind-utility border-r-* (exclusive) {
   border-right-color: --value(--color-*, current, inherit, transparent, [color]);
 }
 
-@stillwind-utility border-r-* {
+@stillwind-utility border-r-* (exclusive) {
   border-right-color: --compat-color(
     --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
 
-@stillwind-utility border-r-* {
+@stillwind-utility border-r-* (exclusive) {
   border-right-style: var(--tw-border-style);
   border-right-width: calc(--value(integer) * 1px);
 }
 
-@stillwind-utility border-r-* {
+@stillwind-utility border-r-* (exclusive) {
   border-right-style: var(--tw-border-style);
   border-right-width: --value([line-width]);
 }
@@ -5327,23 +5327,23 @@ their stops. Without color stop utilities, the value is the complete argument li
 
 @stillwind-arbitrary-property border-bottom-color;
 
-@stillwind-utility border-b-* {
+@stillwind-utility border-b-* (exclusive) {
   border-bottom-color: --value(--color-*, current, inherit, transparent, [color]);
 }
 
-@stillwind-utility border-b-* {
+@stillwind-utility border-b-* (exclusive) {
   border-bottom-color: --compat-color(
     --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
 
-@stillwind-utility border-b-* {
+@stillwind-utility border-b-* (exclusive) {
   border-bottom-style: var(--tw-border-style);
   border-bottom-width: calc(--value(integer) * 1px);
 }
 
-@stillwind-utility border-b-* {
+@stillwind-utility border-b-* (exclusive) {
   border-bottom-style: var(--tw-border-style);
   border-bottom-width: --value([line-width]);
 }
@@ -5358,23 +5358,23 @@ their stops. Without color stop utilities, the value is the complete argument li
 
 @stillwind-arbitrary-property border-left-color;
 
-@stillwind-utility border-l-* {
+@stillwind-utility border-l-* (exclusive) {
   border-left-color: --value(--color-*, current, inherit, transparent, [color]);
 }
 
-@stillwind-utility border-l-* {
+@stillwind-utility border-l-* (exclusive) {
   border-left-color: --compat-color(
     --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
 
-@stillwind-utility border-l-* {
+@stillwind-utility border-l-* (exclusive) {
   border-left-style: var(--tw-border-style);
   border-left-width: calc(--value(integer) * 1px);
 }
 
-@stillwind-utility border-l-* {
+@stillwind-utility border-l-* (exclusive) {
   border-left-style: var(--tw-border-style);
   border-left-width: --value([line-width]);
 }
@@ -5804,7 +5804,7 @@ Tailwind.
     var(--tw-ring-shadow), var(--tw-shadow);
 }
 
-@stillwind-utility shadow-* {
+@stillwind-utility shadow-* (exclusive) {
   --tw-shadow: --stillwind-builtin-shadow-color(--shadow-*, --tw-shadow-color);
   box-shadow:
     var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
@@ -5823,14 +5823,14 @@ An untyped variable selects the earliest registered branch that accepts it. Keep
 branch before the shadow color branches so `shadow-(--x)` sets the shadow, as in
 Tailwind.
 */
-@stillwind-utility shadow-* {
+@stillwind-utility shadow-* (exclusive) {
   --tw-shadow: --stillwind-builtin-shadow-color([shadow], --tw-shadow-color);
   box-shadow:
     var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
     var(--tw-ring-shadow), var(--tw-shadow);
 }
 
-@stillwind-utility shadow-* {
+@stillwind-utility shadow-* (exclusive) {
   --tw-shadow-alpha: --alpha(--modifier());
   --tw-shadow: --stillwind-builtin-shadow-color(
     --shadow-*,
@@ -5874,11 +5874,11 @@ Tailwind.
     var(--tw-ring-shadow), var(--tw-shadow);
 }
 
-@stillwind-utility shadow-* {
+@stillwind-utility shadow-* (exclusive) {
   --tw-shadow-color: --value(inherit);
 }
 
-@stillwind-utility shadow-* {
+@stillwind-utility shadow-* (exclusive) {
   --tw-shadow-color: --compat-color(
     --value(--color-*, current, transparent),
     100%,
@@ -5886,7 +5886,7 @@ Tailwind.
   );
 }
 
-@stillwind-utility shadow-* {
+@stillwind-utility shadow-* (exclusive) {
   --tw-shadow-color: --compat-color(
     --value(--color-*, current, transparent),
     --alpha(--modifier()),
@@ -5993,7 +5993,7 @@ width branch after the ring color branches so `ring-(--x)` sets the color, as in
     var(--tw-ring-shadow), var(--tw-shadow);
 }
 
-@stillwind-utility inset-shadow-* {
+@stillwind-utility inset-shadow-* (exclusive) {
   --tw-inset-shadow: --stillwind-builtin-shadow-color(--inset-shadow-*, --tw-inset-shadow-color);
   box-shadow:
     var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
@@ -6012,7 +6012,7 @@ Theme inset shadows already contain `inset`, while arbitrary shadows receive it 
 Keep this branch before the inset shadow color branches so `inset-shadow-(--x)` sets the
 shadow.
 */
-@stillwind-utility inset-shadow-* {
+@stillwind-utility inset-shadow-* (exclusive) {
   --tw-inset-shadow: inset --stillwind-builtin-shadow-color([shadow], --tw-inset-shadow-color);
   box-shadow:
     var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
@@ -6024,7 +6024,7 @@ A token shadow with a slash opacity modifier needs its authored color, rather th
 `var()` reference. `--stillwind-builtin-shadow-color` is the registry extension for this
 CSS Color 5 relative-color operation.
 */
-@stillwind-utility inset-shadow-* {
+@stillwind-utility inset-shadow-* (exclusive) {
   --tw-inset-shadow-alpha: --alpha(--modifier());
   --tw-inset-shadow: --stillwind-builtin-shadow-color(
     --inset-shadow-*,
@@ -6048,11 +6048,11 @@ CSS Color 5 relative-color operation.
     var(--tw-ring-shadow), var(--tw-shadow);
 }
 
-@stillwind-utility inset-shadow-* {
+@stillwind-utility inset-shadow-* (exclusive) {
   --tw-inset-shadow-color: --value(--color-*, current, inherit, transparent, [color]);
 }
 
-@stillwind-utility inset-shadow-* {
+@stillwind-utility inset-shadow-* (exclusive) {
   --tw-inset-shadow-color: --compat-color(
     --value(--color-*, current, transparent, [color]),
     --alpha(--modifier()),
@@ -6060,11 +6060,11 @@ CSS Color 5 relative-color operation.
   );
 }
 
-@stillwind-utility inset-shadow-* {
+@stillwind-utility inset-shadow-* (exclusive) {
   --tw-inset-shadow-color: --value(--color-*, current, inherit, transparent);
 }
 
-@stillwind-utility inset-shadow-* {
+@stillwind-utility inset-shadow-* (exclusive) {
   --tw-inset-shadow-color: --compat-color(
     --value(current, transparent),
     100%,
@@ -6072,7 +6072,7 @@ CSS Color 5 relative-color operation.
   );
 }
 
-@stillwind-utility inset-shadow-* {
+@stillwind-utility inset-shadow-* (exclusive) {
   --tw-inset-shadow-color: --compat-color(
     --value(--color-*, current, transparent),
     --alpha(--modifier()),
@@ -6169,7 +6169,7 @@ CSS Color 5 relative-color operation.
     var(--tw-drop-shadow,);
 }
 
-@stillwind-utility drop-shadow-* {
+@stillwind-utility drop-shadow-* (exclusive) {
   --tw-drop-shadow-size: drop-shadow(
     --stillwind-builtin-shadow-color(--drop-shadow-*, --tw-drop-shadow-color)
   );
@@ -6189,7 +6189,7 @@ CSS Color 5 relative-color operation.
     var(--tw-drop-shadow,);
 }
 
-@stillwind-utility drop-shadow-* {
+@stillwind-utility drop-shadow-* (exclusive) {
   --tw-drop-shadow-size: drop-shadow(
     --stillwind-builtin-shadow-color([shadow], --tw-drop-shadow-color)
   );
@@ -6199,7 +6199,7 @@ CSS Color 5 relative-color operation.
     var(--tw-drop-shadow,);
 }
 
-@stillwind-utility drop-shadow-* {
+@stillwind-utility drop-shadow-* (exclusive) {
   --tw-drop-shadow-alpha: --alpha(--modifier());
   --tw-drop-shadow-size: drop-shadow(
     --stillwind-builtin-shadow-color(--drop-shadow-*, --tw-drop-shadow-color, --alpha(--modifier()))
@@ -6221,12 +6221,12 @@ CSS Color 5 relative-color operation.
     var(--tw-drop-shadow,);
 }
 
-@stillwind-utility drop-shadow-* {
+@stillwind-utility drop-shadow-* (exclusive) {
   --tw-drop-shadow-color: --value(--color-*, current, inherit, transparent, [color]);
   --tw-drop-shadow: var(--tw-drop-shadow-size);
 }
 
-@stillwind-utility drop-shadow-* {
+@stillwind-utility drop-shadow-* (exclusive) {
   --tw-drop-shadow-color: --compat-color(
     --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier()),
@@ -6235,14 +6235,14 @@ CSS Color 5 relative-color operation.
   --tw-drop-shadow: var(--tw-drop-shadow-size);
 }
 
-@stillwind-utility drop-shadow-* {
+@stillwind-utility drop-shadow-* (exclusive) {
   --tw-drop-shadow-color: --value(--color-*, current, transparent);
   --tw-drop-shadow: var(--tw-drop-shadow-size);
 }
 
 @stillwind-arbitrary-property --tw-drop-shadow-color;
 
-@stillwind-utility drop-shadow-* {
+@stillwind-utility drop-shadow-* (exclusive) {
   --tw-drop-shadow-color: --compat-color(
     --value(current, transparent),
     100%,
@@ -6250,7 +6250,7 @@ CSS Color 5 relative-color operation.
   );
 }
 
-@stillwind-utility drop-shadow-* {
+@stillwind-utility drop-shadow-* (exclusive) {
   --tw-drop-shadow-color: --compat-color(
     --value(--color-*, current, transparent),
     --alpha(--modifier()),
@@ -6836,7 +6836,7 @@ CSS Color 5 relative-color operation.
   text-shadow: none;
 }
 
-@stillwind-utility text-shadow-* {
+@stillwind-utility text-shadow-* (exclusive) {
   text-shadow: --stillwind-builtin-shadow-color(--text-shadow-*, --tw-text-shadow-color);
 }
 
@@ -6844,11 +6844,11 @@ CSS Color 5 relative-color operation.
   text-shadow: --stillwind-builtin-shadow-color(--text-shadow, --tw-text-shadow-color);
 }
 
-@stillwind-utility text-shadow-* {
+@stillwind-utility text-shadow-* (exclusive) {
   text-shadow: --stillwind-builtin-shadow-color([shadow], --tw-text-shadow-color);
 }
 
-@stillwind-utility text-shadow-* {
+@stillwind-utility text-shadow-* (exclusive) {
   --tw-text-shadow-alpha: --alpha(--modifier());
   text-shadow: --stillwind-builtin-shadow-color(
     --text-shadow-*,
@@ -6866,11 +6866,11 @@ CSS Color 5 relative-color operation.
   );
 }
 
-@stillwind-utility text-shadow-* {
+@stillwind-utility text-shadow-* (exclusive) {
   --tw-text-shadow-color: --value(--color-*, current, inherit, transparent, [color]);
 }
 
-@stillwind-utility text-shadow-* {
+@stillwind-utility text-shadow-* (exclusive) {
   --tw-text-shadow-color: --compat-color(
     --value(--color-*, current, transparent, [color]),
     --alpha(--modifier()),
@@ -6878,11 +6878,11 @@ CSS Color 5 relative-color operation.
   );
 }
 
-@stillwind-utility text-shadow-* {
+@stillwind-utility text-shadow-* (exclusive) {
   --tw-text-shadow-color: --value(--color-*, current, inherit, transparent);
 }
 
-@stillwind-utility text-shadow-* {
+@stillwind-utility text-shadow-* (exclusive) {
   --tw-text-shadow-color: --compat-color(
     --value(current, transparent),
     100%,
@@ -6890,7 +6890,7 @@ CSS Color 5 relative-color operation.
   );
 }
 
-@stillwind-utility text-shadow-* {
+@stillwind-utility text-shadow-* (exclusive) {
   --tw-text-shadow-color: --compat-color(
     --value(--color-*, current, transparent),
     --alpha(--modifier()),

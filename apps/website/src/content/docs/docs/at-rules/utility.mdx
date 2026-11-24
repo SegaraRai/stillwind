@@ -10,6 +10,7 @@ sidebar:
 @utility name { ... }
 @utility name-* { ... }
 @utility name (implementation) { ... }
+@utility name-* (exclusive) { ... }
 ```
 
 `@utility` defines a utility for [`style()`](/docs/macros/style),
@@ -109,6 +110,35 @@ A static definition replaces a functional one for its exact name:
 `@utility shadow-lg { ... }` replaces the built-in `shadow-*` for `shadow-lg`
 only. To remove built-in definitions, use
 [`@stillwind-undef-utility`](/docs/at-rules/stillwind-undef-utility).
+
+### Read a value from one source
+
+By default, every definition that accepts a named value contributes, even when
+the definitions read the value from different theme namespaces. Add
+`(exclusive)` to definitions that must read a named value from one source, as one
+Tailwind utility does. The first `(exclusive)` definition, in source order, whose
+`--value()` accepts the value decides the source. Other `(exclusive)` definitions
+apply only when they read the value from the same source.
+
+```css
+@theme {
+  --size-wide: 40rem;
+  --color-wide: oklch(0.9 0.02 250);
+}
+
+@utility box-* (exclusive) {
+  width: --value(--size-*);
+}
+
+@utility box-* (exclusive) {
+  background-color: --value(--color-*);
+}
+```
+
+`box-wide` sets only `width`. Without `(exclusive)`, it also sets
+`background-color`. The descriptor does not change how arbitrary values and
+variables select definitions. The built-in utilities that read a size and a
+color, such as `shadow-*`, `text-*`, and `border-*`, use this descriptor.
 
 ## Body
 

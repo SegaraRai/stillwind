@@ -6,8 +6,8 @@
 //! supplies the candidate precedence of authored utility ordering, so it must stay the
 //! authored position rather than a counter over parsed definitions. A definition header
 //! may also carry a descriptor list such as `(tw-sort: property)`, which supplies the
-//! property indices of Tailwind utility ordering, or the [`UtilityRole`] flags of a
-//! definition that a Tailwind plugin adapter registers. CSS escapes in a name decode as
+//! property indices of Tailwind utility ordering, or the [`UtilityRole`] flags that
+//! decide how the definitions of one name combine. CSS escapes in a name decode as
 //! in Tailwind, so `@utility foo-1\/2` defines `foo-1/2`.
 //!
 //! Trailing-`*` names are ordinary here; wildcard matching happens when a candidate is
@@ -87,10 +87,13 @@ pub struct CustomUtility {
     pub origin: DefinitionOrigin,
 }
 
-/// Header flags of a definition that stands for one candidate of a functional
-/// utility. A Tailwind plugin adapter registers the CSS that a `matchUtilities`
-/// callback returned for one candidate this way, because the callback cannot be
-/// expressed as a `--value()` body.
+/// Header flags that decide how a definition combines with the other definitions of
+/// its name. A Tailwind plugin adapter registers the CSS that a `matchUtilities`
+/// callback returned for one candidate with `functional`, because the callback cannot
+/// be expressed as a `--value()` body.
+// Each flag is an independent header descriptor, and every combination that the parser
+// accepts is valid.
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct UtilityRole {
     /// `(functional)`: the name is one complete candidate, including a leading `-` and
@@ -105,6 +108,14 @@ pub struct UtilityRole {
     /// definitions that Tailwind registers after it. Tailwind stops this way when a
     /// typed `matchUtilities` callback rejects an arbitrary value.
     pub stop: bool,
+    /// `(exclusive)`: for a named value, the definitions of a name in one registration
+    /// group with this flag read the value from one source, as one Tailwind functional
+    /// utility returns the first source that matches. The first of them in
+    /// registration order whose `--value()` accepts the value decides the source, such
+    /// as `--shadow` for `shadow-md`. The others apply only when they read the value
+    /// from the same source. Definitions without the flag, arbitrary values, and
+    /// variables are not affected.
+    pub exclusive: bool,
 }
 
 /// Parsed definition header: the decoded name and its descriptors.
@@ -119,7 +130,7 @@ struct UtilityHeader {
 ///
 /// The name is the first whitespace-delimited token. The descriptor list, when present,
 /// is one parenthesized, comma-separated list of `tw-sort: <identifier>`, `functional`,
-/// `fallback`, `stop`, and `implementation`. `tw-sort` can occur only once. `fallback`
+/// `fallback`, `stop`, `exclusive`, and `implementation`. `tw-sort` can occur only once. `fallback`
 /// and `stop` require `functional`. Returns `None` when the header is empty, its name
 /// cannot be decoded, or its descriptor list is invalid or unsupported. Callers omit
 /// rejected definitions from the registry.
@@ -152,6 +163,9 @@ fn parse_utility_header(header: &str) -> Option<UtilityHeader> {
             }
             None if descriptor.trim() == "stop" => {
                 parsed.role.stop = true;
+            }
+            None if descriptor.trim() == "exclusive" => {
+                parsed.role.exclusive = true;
             }
             None if descriptor.trim() == "implementation" => {
                 parsed.implementation = true;

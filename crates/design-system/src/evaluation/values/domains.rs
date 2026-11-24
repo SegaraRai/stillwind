@@ -276,6 +276,52 @@ pub fn named_domain_values(body: &str, theme: &ThemeIndex) -> Vec<LeanString> {
     names
 }
 
+/// Returns the source of the named capture `capture` in `body`: the first domain that
+/// accepts it, in authored order, of the domain lists of `--value(...)` placeholders and
+/// the first arguments of `--stillwind-builtin-shadow-color(...)` placeholders.
+///
+/// A theme namespace pattern or a declared scale is identified by its namespace, such
+/// as `--text` for both `--text-*` and `--text-*--line-height`, and any other domain by
+/// its text, such as `integer` or `current`. The result ignores the modifier and the
+/// other placeholders of `body`, so a definition that fails for its modifier still has
+/// the source of its value. Returns `None` when no domain accepts `capture`.
+pub(in crate::evaluation) fn named_value_source(
+    body: &str,
+    capture: &str,
+    theme: &ThemeIndex,
+) -> Option<LeanStr> {
+    let context = EvaluationContext::untracked(theme);
+    find_css_functions(body, &["--value", "--stillwind-builtin-shadow-color"], 0)
+        .into_iter()
+        .find_map(|call| {
+            let arguments = &body[call.arguments];
+            let domains = if call.name_index == 0 {
+                arguments
+            } else {
+                split_top_level(arguments, |token| matches!(token, Token::Comma))
+                    .first()
+                    .copied()?
+            };
+            split_top_level(domains, |token| matches!(token, Token::Comma))
+                .into_iter()
+                .map(str::trim)
+                .find(|domain| resolve_value_domains(domain, Some(capture), &context).is_some())
+        })
+        .map(|domain| {
+            theme
+                .namespaces()
+                .scale_domain(domain)
+                .map(|namespace| namespace.name.as_str())
+                .or_else(|| {
+                    theme_domain_pattern(domain, theme).map(|(namespace, _)| namespace.name())
+                })
+                .map_or_else(
+                    || domain.to_lean_str(),
+                    |namespace| format_args!("--{namespace}").to_lean_str(),
+                )
+        })
+}
+
 /// Returns placeholder shapes for the non-enumerable `--value(...)` domains of `body`.
 ///
 /// Numeric domains produce `<integer>`, `<number>`, or `<percentage>`; declared scales

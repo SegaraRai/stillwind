@@ -368,6 +368,17 @@ definition wins. Rules with different selectors are emitted in registration orde
 `@utility probe { & > p { margin: 1em; } } @utility probe { & > :first-child { margin: 0; } }`
 emits the `:first-child` rule last, and it wins for a first paragraph.
 
+The `(exclusive)` header descriptor makes definitions in one group read a named value
+from one source, as one Tailwind functional utility returns the first source that
+matches. The first `(exclusive)` definition in registration order whose `--value()`
+accepts the value decides the source: a theme namespace, such as `--shadow` for both
+`--shadow-*` and `--shadow-*--alt`, or another domain, such as `integer` or `current`.
+The other `(exclusive)` definitions apply only when they read the value from that
+source, and the choice does not depend on whether the first definition accepts the
+modifier. With `--shadow-plain` and `--color-plain` in `@theme`, `shadow-plain` sets
+only the shadow. Arbitrary values, variables, and definitions without the descriptor
+are not affected. `@utility` and `@stillwind-utility` accept it.
+
 A candidate is static when a definition without `*` has its complete name, including a
 leading `-` and the modifier. Then only such definitions apply, as Tailwind parses a
 candidate with a static utility only as that utility: `@utility shadow-lg { ... }`

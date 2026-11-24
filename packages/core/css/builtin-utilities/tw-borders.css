@@ -313,23 +313,23 @@
 
 @stillwind-arbitrary-property border-color;
 
-@stillwind-utility border-* {
+@stillwind-utility border-* (exclusive) {
   border-color: --compat-color(
     --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
 
-@stillwind-utility border-* {
+@stillwind-utility border-* (exclusive) {
   border-color: --value(--color-*, current, inherit, transparent);
 }
 
-@stillwind-utility border-* {
+@stillwind-utility border-* (exclusive) {
   border-style: var(--tw-border-style);
   border-width: calc(--value(integer) * 1px);
 }
 
-@stillwind-utility border-* {
+@stillwind-utility border-* (exclusive) {
   border-style: var(--tw-border-style);
   border-width: --value([line-width]);
 }
@@ -344,23 +344,23 @@
 
 @stillwind-arbitrary-property border-inline-color;
 
-@stillwind-utility border-x-* {
+@stillwind-utility border-x-* (exclusive) {
   border-inline-color: --value(--color-*, current, inherit, transparent, [color]);
 }
 
-@stillwind-utility border-x-* {
+@stillwind-utility border-x-* (exclusive) {
   border-inline-color: --compat-color(
     --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
 
-@stillwind-utility border-x-* {
+@stillwind-utility border-x-* (exclusive) {
   border-inline-style: var(--tw-border-style);
   border-inline-width: calc(--value(integer) * 1px);
 }
 
-@stillwind-utility border-x-* {
+@stillwind-utility border-x-* (exclusive) {
   border-inline-style: var(--tw-border-style);
   border-inline-width: --value([line-width]);
 }
@@ -375,23 +375,23 @@
 
 @stillwind-arbitrary-property border-block-color;
 
-@stillwind-utility border-y-* {
+@stillwind-utility border-y-* (exclusive) {
   border-block-color: --value(--color-*, current, inherit, transparent, [color]);
 }
 
-@stillwind-utility border-y-* {
+@stillwind-utility border-y-* (exclusive) {
   border-block-color: --compat-color(
     --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
 
-@stillwind-utility border-y-* {
+@stillwind-utility border-y-* (exclusive) {
   border-block-style: var(--tw-border-style);
   border-block-width: calc(--value(integer) * 1px);
 }
 
-@stillwind-utility border-y-* {
+@stillwind-utility border-y-* (exclusive) {
   border-block-style: var(--tw-border-style);
   border-block-width: --value([line-width]);
 }
@@ -406,23 +406,23 @@
 
 @stillwind-arbitrary-property border-inline-start-color;
 
-@stillwind-utility border-s-* {
+@stillwind-utility border-s-* (exclusive) {
   border-inline-start-color: --value(--color-*, current, inherit, transparent, [color]);
 }
 
-@stillwind-utility border-s-* {
+@stillwind-utility border-s-* (exclusive) {
   border-inline-start-color: --compat-color(
     --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
 
-@stillwind-utility border-s-* {
+@stillwind-utility border-s-* (exclusive) {
   border-inline-start-style: var(--tw-border-style);
   border-inline-start-width: calc(--value(integer) * 1px);
 }
 
-@stillwind-utility border-s-* {
+@stillwind-utility border-s-* (exclusive) {
   border-inline-start-style: var(--tw-border-style);
   border-inline-start-width: --value([line-width]);
 }
@@ -437,23 +437,23 @@
 
 @stillwind-arbitrary-property border-inline-end-color;
 
-@stillwind-utility border-e-* {
+@stillwind-utility border-e-* (exclusive) {
   border-inline-end-color: --value(--color-*, current, inherit, transparent, [color]);
 }
 
-@stillwind-utility border-e-* {
+@stillwind-utility border-e-* (exclusive) {
   border-inline-end-color: --compat-color(
     --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
 
-@stillwind-utility border-e-* {
+@stillwind-utility border-e-* (exclusive) {
   border-inline-end-style: var(--tw-border-style);
   border-inline-end-width: calc(--value(integer) * 1px);
 }
 
-@stillwind-utility border-e-* {
+@stillwind-utility border-e-* (exclusive) {
   border-inline-end-style: var(--tw-border-style);
   border-inline-end-width: --value([line-width]);
 }
@@ -468,23 +468,23 @@
 
 @stillwind-arbitrary-property border-block-start-color;
 
-@stillwind-utility border-bs-* {
+@stillwind-utility border-bs-* (exclusive) {
   border-block-start-color: --value(--color-*, current, inherit, transparent, [color]);
 }
 
-@stillwind-utility border-bs-* {
+@stillwind-utility border-bs-* (exclusive) {
   border-block-start-color: --compat-color(
     --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
 
-@stillwind-utility border-bs-* {
+@stillwind-utility border-bs-* (exclusive) {
   border-block-start-style: var(--tw-border-style);
   border-block-start-width: calc(--value(integer) * 1px);
 }
 
-@stillwind-utility border-bs-* {
+@stillwind-utility border-bs-* (exclusive) {
   border-block-start-style: var(--tw-border-style);
   border-block-start-width: --value([line-width]);
 }
@@ -499,23 +499,23 @@
 
 @stillwind-arbitrary-property border-block-end-color;
 
-@stillwind-utility border-be-* {
+@stillwind-utility border-be-* (exclusive) {
   border-block-end-color: --value(--color-*, current, inherit, transparent, [color]);
 }
 
-@stillwind-utility border-be-* {
+@stillwind-utility border-be-* (exclusive) {
   border-block-end-color: --compat-color(
     --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
 
-@stillwind-utility border-be-* {
+@stillwind-utility border-be-* (exclusive) {
   border-block-end-style: var(--tw-border-style);
   border-block-end-width: calc(--value(integer) * 1px);
 }
 
-@stillwind-utility border-be-* {
+@stillwind-utility border-be-* (exclusive) {
   border-block-end-style: var(--tw-border-style);
   border-block-end-width: --value([line-width]);
 }
@@ -530,23 +530,23 @@
 
 @stillwind-arbitrary-property border-top-color;
 
-@stillwind-utility border-t-* {
+@stillwind-utility border-t-* (exclusive) {
   border-top-color: --value(--color-*, current, inherit, transparent, [color]);
 }
 
-@stillwind-utility border-t-* {
+@stillwind-utility border-t-* (exclusive) {
   border-top-color: --compat-color(
     --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
 
-@stillwind-utility border-t-* {
+@stillwind-utility border-t-* (exclusive) {
   border-top-style: var(--tw-border-style);
   border-top-width: calc(--value(integer) * 1px);
 }
 
-@stillwind-utility border-t-* {
+@stillwind-utility border-t-* (exclusive) {
   border-top-style: var(--tw-border-style);
   border-top-width: --value([line-width]);
 }
@@ -561,23 +561,23 @@
 
 @stillwind-arbitrary-property border-right-color;
 
-@stillwind-utility border-r-* {
+@stillwind-utility border-r-* (exclusive) {
   border-right-color: --value(--color-*, current, inherit, transparent, [color]);
 }
 
-@stillwind-utility border-r-* {
+@stillwind-utility border-r-* (exclusive) {
   border-right-color: --compat-color(
     --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
 
-@stillwind-utility border-r-* {
+@stillwind-utility border-r-* (exclusive) {
   border-right-style: var(--tw-border-style);
   border-right-width: calc(--value(integer) * 1px);
 }
 
-@stillwind-utility border-r-* {
+@stillwind-utility border-r-* (exclusive) {
   border-right-style: var(--tw-border-style);
   border-right-width: --value([line-width]);
 }
@@ -592,23 +592,23 @@
 
 @stillwind-arbitrary-property border-bottom-color;
 
-@stillwind-utility border-b-* {
+@stillwind-utility border-b-* (exclusive) {
   border-bottom-color: --value(--color-*, current, inherit, transparent, [color]);
 }
 
-@stillwind-utility border-b-* {
+@stillwind-utility border-b-* (exclusive) {
   border-bottom-color: --compat-color(
     --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
 
-@stillwind-utility border-b-* {
+@stillwind-utility border-b-* (exclusive) {
   border-bottom-style: var(--tw-border-style);
   border-bottom-width: calc(--value(integer) * 1px);
 }
 
-@stillwind-utility border-b-* {
+@stillwind-utility border-b-* (exclusive) {
   border-bottom-style: var(--tw-border-style);
   border-bottom-width: --value([line-width]);
 }
@@ -623,23 +623,23 @@
 
 @stillwind-arbitrary-property border-left-color;
 
-@stillwind-utility border-l-* {
+@stillwind-utility border-l-* (exclusive) {
   border-left-color: --value(--color-*, current, inherit, transparent, [color]);
 }
 
-@stillwind-utility border-l-* {
+@stillwind-utility border-l-* (exclusive) {
   border-left-color: --compat-color(
     --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
 
-@stillwind-utility border-l-* {
+@stillwind-utility border-l-* (exclusive) {
   border-left-style: var(--tw-border-style);
   border-left-width: calc(--value(integer) * 1px);
 }
 
-@stillwind-utility border-l-* {
+@stillwind-utility border-l-* (exclusive) {
   border-left-style: var(--tw-border-style);
   border-left-width: --value([line-width]);
 }
