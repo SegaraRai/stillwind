@@ -265,3 +265,30 @@ fn resolves_compact_spacing_families_with_negative_and_fractional_values() {
         "bottom:-100%;"
     );
 }
+
+#[test]
+fn relationship_variants_test_every_selector_of_an_inner_selector_list() {
+    let source = SourceFile::new(
+        FileId(1),
+        None,
+        None,
+        "@import 'stillwind';
+         @custom-variant data-disabled {
+           &:where([data-disabled=\"true\"]), &:where([data-disabled]:not([data-disabled=\"false\"])) { @slot; }
+         }",
+    )
+    .unwrap();
+    let theme = parse_fixture_theme(&source).unwrap();
+    assert_eq!(
+        resolve_variant(
+            &parse_candidate("group-data-disabled/checkbox:flex")
+                .unwrap()
+                .variants[0],
+            &theme,
+        ),
+        Ok(VariantApplication::SelectorTemplate(
+            r#":is(:where(.group\/checkbox):is(:where([data-disabled="true"]),:where([data-disabled]:not([data-disabled="false"]))) &)"#
+                .to_lean_str()
+        ))
+    );
+}

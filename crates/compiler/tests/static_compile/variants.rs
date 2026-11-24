@@ -429,6 +429,48 @@ export const single = style("[&:where(.a,.b)]:block", "group-hover:flex", "not-[
 }
 
 #[test]
+fn relationship_variants_keep_the_styled_element_in_every_branch_of_a_custom_variant() {
+    let component = SourceFile::new(
+        FileId(1),
+        None,
+        None,
+        r#"import { style } from "stillwind/react";
+export const props = style("group-data-disabled/checkbox:opacity-50");"#,
+    )
+    .unwrap();
+    let theme = css_source(
+        FileId(2),
+        r#"@import "stillwind";
+@custom-variant data-disabled {
+  &:where([data-disabled="true"]), &:where([data-disabled]:not([data-disabled="false"])) { @slot; }
+}"#,
+    )
+    .unwrap();
+
+    let result = Compiler::compile_source(
+        &OxcSourceAnalyzer,
+        &component,
+        &ModuleId::from("test.tsx"),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+        &theme,
+        &CssSourceName::from("stillwind.css"),
+        &CompilerOptions::default(),
+    );
+
+    assert!(result.diagnostics.is_empty(), "{:#?}", result.diagnostics);
+    assert_eq!(result.lint_findings, []);
+    let class_name = &result.classes[0].class_name;
+    assert!(
+        result.css.contains(&format!(
+            r#":is(:where(.group\/checkbox):is(:where([data-disabled="true"]),:where([data-disabled]:not([data-disabled="false"]))) .{class_name})"#
+        )),
+        "{}",
+        result.css
+    );
+}
+
+#[test]
 fn host_settings_can_disable_the_element_scope_rule() {
     let component = SourceFile::new(
         FileId(1),

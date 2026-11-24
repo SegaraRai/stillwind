@@ -194,20 +194,32 @@ fn contains_scope(application: &VariantApplication) -> bool {
 
 /// Folds an inner selector into the definition body at its `:--value()` slot.
 ///
-/// A selector starts with `&`, or wraps a relationship ending in `&` in `:is()`.
-/// The leading `&` is removed; the wrapped subject becomes `*` so the fragment tests the
-/// element at the slot. A selector with a pseudo-element, such as `&::before`, returns
-/// `None` for every body, as in Tailwind. The package relationship variants place the
-/// slot inside `:is()`, `:where()`, or `:has()`, and those functions cannot contain
-/// pseudo-elements.
+/// Each selector of the list starts with `&`, or wraps a relationship ending in `&` in
+/// `:is()`. The leading `&` is removed; the wrapped subject becomes `*` so the fragment
+/// tests the element at the slot. The fragments of a list are joined in `:is()`, so that
+/// every branch tests the element at the slot. A selector with a pseudo-element, such as
+/// `&::before`, returns `None` for every body, as in Tailwind. The package relationship
+/// variants place the slot inside `:is()`, `:where()`, or `:has()`, and those functions
+/// cannot contain pseudo-elements.
 fn apply_nested_selector(body: &str, selector: &str) -> Option<VariantApplication> {
     if !selector_is_element_condition(selector, false) {
         return None;
     }
-    let fragment = if let Some(fragment) = selector.strip_prefix('&') {
-        fragment.to_lean_string()
-    } else {
-        wrapped_subject_condition(selector)?
+    let fragments = split_top_level(selector, |token| matches!(token, Token::Comma))
+        .into_iter()
+        .map(|selector| {
+            let selector = selector.trim();
+            match selector.strip_prefix('&') {
+                Some(fragment) => Some(fragment.to_lean_string()),
+                None => wrapped_subject_condition(selector),
+            }
+        })
+        .collect::<Option<Vec<_>>>()?;
+    // `&:hover, &` matches the element itself, and `:is()` cannot take an empty branch.
+    let fragment = match fragments.as_slice() {
+        [fragment] => fragment.clone(),
+        fragments if fragments.iter().any(LeanString::is_empty) => LeanString::new(),
+        fragments => format_args!(":is({})", fragments.join(",")).to_lean_string(),
     };
     resolve_variant_body(&body.replace_text(":--value()", &fragment))
 }
