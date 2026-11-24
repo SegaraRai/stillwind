@@ -62,6 +62,31 @@ fn a_component_precedes_the_module_that_passes_it_a_style() {
     assert!(button < app, "{css}");
 }
 
+/// In a chain of wrapper components, each component's CSS comes before the CSS
+/// of the module that passes it a style, although the paths sort the other way.
+#[test]
+fn a_wrapper_chain_orders_each_component_before_its_caller() {
+    let fancy = r"import { style } from 'stillwind/react';
+import { Button } from '../z/ui/button';
+export function FancyButton(props) {
+    return <Button {...style('p-8', style.forward(props))} />;
+}
+";
+    let app = r"import { style } from 'stillwind/react';
+import { FancyButton } from '../m/fancy-button';
+export const App = () => <FancyButton {...style('p-4')} />;
+";
+    let mut session = session();
+    session.update_module(analysis("z/ui/button.tsx", BUTTON));
+    session.update_module(ordered("m/fancy-button.tsx", fancy, "z/ui/button.tsx"));
+    session.update_module(ordered("a/app.tsx", app, "m/fancy-button.tsx"));
+    let css = session.css().unwrap().stylesheet.css;
+    let button = css.find("* 10)").expect("button rule");
+    let fancy = css.find("* 8)").expect("wrapper rule");
+    let app = css.find("* 4)").expect("app rule");
+    assert!(button < fancy && fancy < app, "{css}");
+}
+
 /// Ordering modules that form a cycle keep one order and report the cycle.
 #[test]
 fn an_ordering_cycle_is_reported_without_failing() {
