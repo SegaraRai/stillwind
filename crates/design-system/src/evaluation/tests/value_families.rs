@@ -579,6 +579,14 @@ fn named_values_of_builtin_utilities_read_one_theme_namespace() {
     let border = resolve_utility("border-2", &theme).unwrap().declaration;
     assert!(border.contains_css("border-color:var(--color-2);"));
     assert!(!border.contains("border-width"));
+
+    let ring = resolve_utility("ring-2", &theme).unwrap().declaration;
+    assert!(ring.contains_css("--tw-ring-color:var(--color-2);"));
+    assert!(!ring.contains("--tw-ring-shadow"));
+
+    let decoration = resolve_utility("decoration-2", &theme).unwrap().declaration;
+    assert!(decoration.contains_css("text-decoration-thickness:calc(2 * 1px);"));
+    assert!(!decoration.contains("text-decoration-color"));
 }
 
 #[test]

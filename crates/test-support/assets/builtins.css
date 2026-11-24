@@ -3074,11 +3074,15 @@ Tailwind.
   text-decoration-line: underline;
 }
 
-@stillwind-utility decoration-* {
+@stillwind-utility decoration-* (exclusive) {
+  text-decoration-thickness: calc(--value(integer) * 1px);
+}
+
+@stillwind-utility decoration-* (exclusive) {
   text-decoration-color: --value(--color-*, current, inherit, transparent, [color]);
 }
 
-@stillwind-utility decoration-* {
+@stillwind-utility decoration-* (exclusive) {
   text-decoration-color: --compat-color(
     --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
@@ -3113,11 +3117,7 @@ Tailwind.
   text-decoration-thickness: from-font;
 }
 
-@stillwind-utility decoration-* {
-  text-decoration-thickness: calc(--value(integer) * 1px);
-}
-
-@stillwind-utility decoration-* {
+@stillwind-utility decoration-* (exclusive) {
   text-decoration-thickness: --value([length-percentage]);
 }
 
@@ -4630,7 +4630,20 @@ their stops. Without color stop utilities, the value is the complete argument li
   outline-width: 0;
 }
 
-@stillwind-utility outline-* {
+@stillwind-arbitrary-property outline-color;
+
+@stillwind-utility outline-* (exclusive) {
+  outline-color: --compat-color(
+    --value(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@stillwind-utility outline-* (exclusive) {
+  outline-color: --value(--color-*, current, inherit, transparent);
+}
+
+@stillwind-utility outline-* (exclusive) {
   outline-style: var(--tw-outline-style);
   outline-width: calc(--value(integer) * 1px);
 }
@@ -4661,25 +4674,12 @@ their stops. Without color stop utilities, the value is the complete argument li
   outline-offset: calc(--value(integer) * 1px * -1);
 }
 
-@stillwind-arbitrary-property outline-color;
-
-@stillwind-utility outline-* {
-  outline-color: --compat-color(
-    --value(--color-*, current, inherit, transparent, [color]),
-    --alpha(--modifier())
-  );
-}
-
-@stillwind-utility outline-* {
-  outline-color: --value(--color-*, current, inherit, transparent);
-}
-
 /*
 An untyped variable selects the earliest registered branch that accepts it. Keep this
 width branch after the outline color branches so `outline-(--x)` sets the color, as in
 Tailwind.
 */
-@stillwind-utility outline-* {
+@stillwind-utility outline-* (exclusive) {
   outline-style: var(--tw-outline-style);
   outline-width: --value([line-width]);
 }
@@ -4899,14 +4899,6 @@ Tailwind.
   --tw-ring-inset: inset;
 }
 
-@stillwind-utility ring-* {
-  --tw-ring-shadow: var(--tw-ring-inset,) 0 0 0
-    calc(--value(integer) * 1px + var(--tw-ring-offset-width)) var(--tw-ring-color, currentcolor);
-  box-shadow:
-    var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
-    var(--tw-ring-shadow), var(--tw-shadow);
-}
-
 @stillwind-utility shadow-* (exclusive) {
   --tw-shadow-color: --value(inherit);
 }
@@ -4929,30 +4921,38 @@ Tailwind.
 
 @stillwind-arbitrary-property --tw-ring-color;
 
-@stillwind-utility ring-* {
+@stillwind-utility ring-* (exclusive) {
   --tw-ring-color: --value(--color-*, current, inherit, transparent, [color]);
 }
 
-@stillwind-utility ring-* {
+@stillwind-utility ring-* (exclusive) {
   --tw-ring-color: --compat-color(
     --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
   );
 }
 
-@stillwind-utility ring-* {
+@stillwind-utility ring-* (exclusive) {
   --tw-ring-color: --value(--color-*, current, transparent);
 }
 
-@stillwind-utility ring-* {
+@stillwind-utility ring-* (exclusive) {
   --tw-ring-color: --compat-color(--value(--color-*, current, transparent), --alpha(--modifier()));
+}
+
+@stillwind-utility ring-* (exclusive) {
+  --tw-ring-shadow: var(--tw-ring-inset,) 0 0 0
+    calc(--value(integer) * 1px + var(--tw-ring-offset-width)) var(--tw-ring-color, currentcolor);
+  box-shadow:
+    var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
+    var(--tw-ring-shadow), var(--tw-shadow);
 }
 
 /*
 An untyped variable selects the earliest registered branch that accepts it. Keep this
 width branch after the ring color branches so `ring-(--x)` sets the color, as in Tailwind.
 */
-@stillwind-utility ring-* {
+@stillwind-utility ring-* (exclusive) {
   --tw-ring-shadow: var(--tw-ring-inset,) 0 0 0
     calc(--value([length]) + var(--tw-ring-offset-width)) var(--tw-ring-color, currentcolor);
   box-shadow:
@@ -4990,25 +4990,25 @@ width branch after the ring color branches so `ring-(--x)` sets the color, as in
     var(--tw-ring-shadow), var(--tw-shadow);
 }
 
-@stillwind-utility inset-ring-* {
+@stillwind-arbitrary-property --tw-inset-ring-color;
+
+@stillwind-utility inset-ring-* (exclusive) {
+  --tw-inset-ring-color: --value(--color-*, current, inherit, transparent, [color]);
+}
+
+@stillwind-utility inset-ring-* (exclusive) {
+  --tw-inset-ring-color: --compat-color(
+    --value(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@stillwind-utility inset-ring-* (exclusive) {
   --tw-inset-ring-shadow: inset 0 0 0 calc(--value(integer) * 1px)
     var(--tw-inset-ring-color, currentcolor);
   box-shadow:
     var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
     var(--tw-ring-shadow), var(--tw-shadow);
-}
-
-@stillwind-arbitrary-property --tw-inset-ring-color;
-
-@stillwind-utility inset-ring-* {
-  --tw-inset-ring-color: --value(--color-*, current, inherit, transparent, [color]);
-}
-
-@stillwind-utility inset-ring-* {
-  --tw-inset-ring-color: --compat-color(
-    --value(--color-*, current, inherit, transparent, [color]),
-    --alpha(--modifier())
-  );
 }
 
 @stillwind-arbitrary-property --tw-inset-shadow-color;

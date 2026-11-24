@@ -862,7 +862,20 @@
   outline-width: 0;
 }
 
-@stillwind-utility outline-* {
+@stillwind-arbitrary-property outline-color;
+
+@stillwind-utility outline-* (exclusive) {
+  outline-color: --compat-color(
+    --value(--color-*, current, inherit, transparent, [color]),
+    --alpha(--modifier())
+  );
+}
+
+@stillwind-utility outline-* (exclusive) {
+  outline-color: --value(--color-*, current, inherit, transparent);
+}
+
+@stillwind-utility outline-* (exclusive) {
   outline-style: var(--tw-outline-style);
   outline-width: calc(--value(integer) * 1px);
 }
@@ -893,25 +906,12 @@
   outline-offset: calc(--value(integer) * 1px * -1);
 }
 
-@stillwind-arbitrary-property outline-color;
-
-@stillwind-utility outline-* {
-  outline-color: --compat-color(
-    --value(--color-*, current, inherit, transparent, [color]),
-    --alpha(--modifier())
-  );
-}
-
-@stillwind-utility outline-* {
-  outline-color: --value(--color-*, current, inherit, transparent);
-}
-
 /*
 An untyped variable selects the earliest registered branch that accepts it. Keep this
 width branch after the outline color branches so `outline-(--x)` sets the color, as in
 Tailwind.
 */
-@stillwind-utility outline-* {
+@stillwind-utility outline-* (exclusive) {
   outline-style: var(--tw-outline-style);
   outline-width: --value([line-width]);
 }

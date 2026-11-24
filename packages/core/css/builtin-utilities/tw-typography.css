@@ -634,11 +634,15 @@ Tailwind.
   text-decoration-line: underline;
 }
 
-@stillwind-utility decoration-* {
+@stillwind-utility decoration-* (exclusive) {
+  text-decoration-thickness: calc(--value(integer) * 1px);
+}
+
+@stillwind-utility decoration-* (exclusive) {
   text-decoration-color: --value(--color-*, current, inherit, transparent, [color]);
 }
 
-@stillwind-utility decoration-* {
+@stillwind-utility decoration-* (exclusive) {
   text-decoration-color: --compat-color(
     --value(--color-*, current, inherit, transparent, [color]),
     --alpha(--modifier())
@@ -673,11 +677,7 @@ Tailwind.
   text-decoration-thickness: from-font;
 }
 
-@stillwind-utility decoration-* {
-  text-decoration-thickness: calc(--value(integer) * 1px);
-}
-
-@stillwind-utility decoration-* {
+@stillwind-utility decoration-* (exclusive) {
   text-decoration-thickness: --value([length-percentage]);
 }
 
