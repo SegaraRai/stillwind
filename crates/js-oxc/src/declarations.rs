@@ -6,8 +6,8 @@
 //! facts give only its identity. The extractor therefore collects these declarations
 //! first, so every use in the main visit can read them.
 //!
-//! A declaration inside a `style()` or CVA input is skipped. The main visit omits such
-//! an input as a nested macro call, and a declaration collected there would add a
+//! A declaration inside a `style()` or recipe input is skipped. The main visit omits
+//! such an input as a nested macro call, and a declaration collected there would add a
 //! replacement inside the replaced call.
 
 use oxc::ast::ast::{BindingPattern, CallExpression, Expression, Program, VariableDeclarator};
@@ -77,7 +77,7 @@ impl<'a> MacroExtractor<'a> {
 /// Walks a program and seeds declarations that are not inside a macro input.
 struct DeclarationSeeder<'e, 'a> {
     extractor: &'e mut MacroExtractor<'a>,
-    /// Number of enclosing `style()` and CVA calls.
+    /// Number of enclosing `style()` and recipe calls.
     depth: usize,
 }
 
@@ -86,7 +86,7 @@ impl<'a> Visit<'a> for DeclarationSeeder<'_, 'a> {
         let input = self.extractor.style_call_output(call).is_some()
             || self
                 .extractor
-                .is_style_member(call.callee.get_inner_expression(), "cva");
+                .is_style_member(call.callee.get_inner_expression(), "recipe");
         self.depth += usize::from(input);
         walk::walk_call_expression(self, call);
         self.depth -= usize::from(input);

@@ -168,7 +168,7 @@ applyStyle(element, first);`,
   expect(props.class).toBeTruthy();
 });
 
-test("mixed macro bindings keep three runtime formats and CVA helpers independent", async () => {
+test("mixed macro bindings keep three runtime formats and recipe helpers independent", async () => {
   const formats = [
     ["react", "className", "object"],
     ["vanilla", "class", "object"],
@@ -182,7 +182,7 @@ import { style as vue } from "stillwind/vue";
 export { applyStyle };
 const stillwindClassNameObjectMerge = "reserved";
 export function values(active, tone) {
-${formats.map(([name]) => `const ${name}Factory = ${name}.cva("flex", { variants: { enabled: { false: null, true: { "--enabled": tone } } } });`).join("\n")}
+${formats.map(([name]) => `const ${name}Factory = ${name}.recipe("flex", { variants: { enabled: { false: null, true: { "--enabled": tone } } } });`).join("\n")}
 return {
 ${formats
   .map(

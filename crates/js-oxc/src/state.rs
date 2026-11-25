@@ -19,8 +19,8 @@ use oxc::span::Span as OxcSpan;
 
 use stillwind_diagnostics::{CompileError, LintFinding};
 use stillwind_ir::{
-    CssCall, CvaCall, CvaReplacement, ForwardCall, FrameworkSpec, KeyframesDefinition, MediaCall,
-    OutputFormat, RefDefinition, StoredVariantDefinition, StyleCall, ViewTransitionDefinition,
+    CssCall, ForwardCall, FrameworkSpec, KeyframesDefinition, MediaCall, OutputFormat, RecipeCall,
+    RecipeReplacement, RefDefinition, StoredVariantDefinition, StyleCall, ViewTransitionDefinition,
 };
 use stillwind_semantic::{
     AssetKind, AssetMetadata, AssetRecord, CheckedValue, DeclarationKey, ExportedValue, IdentityId,
@@ -83,22 +83,22 @@ pub(crate) struct MacroExtractor<'a> {
     /// References that may order CSS: the referenced symbol, the member name read from
     /// it, and the triggering `style()` or `style.forward()` span, in visit order.
     pub(crate) ordering_roots: Vec<(SymbolId, Option<LeanStr>, Span)>,
-    /// CVA factory calls whose values use the ordinary style-input parser.
-    pub(crate) cva_calls: Vec<CvaCall>,
+    /// Recipe factory calls whose values use the ordinary style-input parser.
+    pub(crate) recipe_calls: Vec<RecipeCall>,
     /// `style.media()` calls in source order.
     pub(crate) media_calls: Vec<MediaCall>,
     /// `style.css()` calls in source order.
     pub(crate) css_calls: Vec<CssCall>,
-    /// Allows boolean literals as empty contributions while parsing CVA values.
-    pub(crate) in_cva: bool,
+    /// Allows boolean literals as empty contributions while parsing recipe values.
+    pub(crate) in_recipe: bool,
     /// Diagnostics raised during extraction, in visit order.
     pub(crate) diagnostics: Vec<CompileError>,
     /// Lint findings raised during extraction, in visit order. Reporting settings never
     /// change the IR or the omitted inputs.
     pub(crate) lint_findings: Vec<LintFinding>,
-    /// Source replacements that turn unsupported CVA entries into empty entries, in
+    /// Source replacements that turn unsupported recipe entries into empty entries, in
     /// visit order.
-    pub(crate) cva_replacements: Vec<CvaReplacement>,
+    pub(crate) recipe_replacements: Vec<RecipeReplacement>,
     /// Whether extraction collects lint directives and findings that do not affect
     /// output. Findings for omitted inputs, fatal diagnostics, and IR extraction stay
     /// enabled.
@@ -173,13 +173,13 @@ impl<'a> MacroExtractor<'a> {
             forward_calls: Vec::new(),
             ordering_aliases: HashMap::new(),
             ordering_roots: Vec::new(),
-            cva_calls: Vec::new(),
+            recipe_calls: Vec::new(),
             media_calls: Vec::new(),
             css_calls: Vec::new(),
-            in_cva: false,
+            in_recipe: false,
             diagnostics: Vec::new(),
             lint_findings: Vec::new(),
-            cva_replacements: Vec::new(),
+            recipe_replacements: Vec::new(),
             lint: true,
             imports: Vec::new(),
             consumed_macro_uses: Vec::new(),

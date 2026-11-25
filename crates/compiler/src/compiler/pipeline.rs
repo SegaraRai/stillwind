@@ -35,7 +35,7 @@ use super::dynamic::dynamic_candidates;
 use super::emission::{
     CLASS_KEY, CallEmitter, CallEmitterInputs, KEYFRAMES_KEY, VIEW_TRANSITION_CLASS_KEY,
 };
-use super::fragment::{render_cva_value, render_style_call};
+use super::fragment::{render_recipe_value, render_style_call};
 use super::media::media_query;
 use super::output::CompileResult;
 use super::style_variants::StyleVariantPlan;
@@ -234,27 +234,27 @@ impl Compiler {
                 })
                 .filter_map(|symbol| push_or_report(&mut diagnostics, symbol, source.full_span())),
         );
-        let mut cva_values = module
-            .cva_calls
+        let mut recipe_values = module
+            .recipe_calls
             .iter()
-            .flat_map(|cva| cva.values.iter())
+            .flat_map(|recipe| recipe.values.iter())
             .collect::<Vec<_>>();
-        cva_values.sort_by_key(|call| call.span.start);
-        let mut cva_values = cva_values.into_iter().peekable();
+        recipe_values.sort_by_key(|call| call.span.start);
+        let mut recipe_values = recipe_values.into_iter().peekable();
         let mut calls = Vec::new();
         for call in &module.style_calls {
-            while cva_values
+            while recipe_values
                 .peek()
                 .is_some_and(|value| value.span.start < call.span.start)
             {
-                if let Some(value) = cva_values.next() {
+                if let Some(value) = recipe_values.next() {
                     calls.push((value, true));
                 }
             }
             calls.push((call, false));
         }
-        calls.extend(cva_values.map(|value| (value, true)));
-        for (call, cva) in calls {
+        calls.extend(recipe_values.map(|value| (value, true)));
+        for (call, recipe) in calls {
             let emitter_inputs = CallEmitterInputs {
                 preview: None,
                 source,
@@ -271,8 +271,8 @@ impl Compiler {
                 runtime_assets: &mut runtime_assets,
                 required_definitions: &mut required_definitions,
             };
-            let Some(emission) = (if cva {
-                CallEmitter::run_cva(emitter_inputs)
+            let Some(emission) = (if recipe {
+                CallEmitter::run_recipe(emitter_inputs)
             } else {
                 CallEmitter::run(emitter_inputs)
             }) else {
@@ -282,8 +282,8 @@ impl Compiler {
             result.classes.extend(emission.classes.iter().cloned());
             symbols.extend(emission.written_name_symbols.iter().cloned());
             runtime.select_output(call.output);
-            let mut replacement = if cva {
-                render_cva_value(&emission, call.output.spec(), &mut runtime)
+            let mut replacement = if recipe {
+                render_recipe_value(&emission, call.output.spec(), &mut runtime)
             } else {
                 render_style_call(&emission, call.output.spec(), &mut runtime)
             };
@@ -296,12 +296,16 @@ impl Compiler {
                 expressions: replacement.mappings,
             });
         }
-        for cva in &module.cva_calls {
-            runtime.select_output(cva.output);
-            let helper = runtime.require(RuntimeHelper::Cva, cva.callee_span);
+        for recipe in &module.recipe_calls {
+            runtime.select_output(recipe.output);
+            let helper = runtime.require(RuntimeHelper::Recipe, recipe.callee_span);
             result.transforms.push(SourceTransform {
-                call_span: if cva.empty { cva.span } else { cva.callee_span },
-                replacement: if cva.empty {
+                call_span: if recipe.empty {
+                    recipe.span
+                } else {
+                    recipe.callee_span
+                },
+                replacement: if recipe.empty {
                     format_args!("{helper}()").to_lean_string()
                 } else {
                     (helper).into()
@@ -310,11 +314,16 @@ impl Compiler {
             });
             result
                 .transforms
-                .extend(cva.replacements.iter().map(|replacement| SourceTransform {
-                    call_span: replacement.span,
-                    replacement: (replacement.replacement.clone()).into(),
-                    expressions: Vec::new(),
-                }));
+                .extend(
+                    recipe
+                        .replacements
+                        .iter()
+                        .map(|replacement| SourceTransform {
+                            call_span: replacement.span,
+                            replacement: (replacement.replacement.clone()).into(),
+                            expressions: Vec::new(),
+                        }),
+                );
         }
         for forward in &module.forward_calls {
             runtime.select_output(forward.output);

@@ -2,7 +2,7 @@
 //!
 //! A `style.forward(props)` call is accepted in two positions: as a direct argument of
 //! `style()`, where it becomes a [`StyleInput::Forward`], and as the second argument of
-//! another call, such as a `style.cva()` factory call, where it becomes a
+//! another call, such as a `style.recipe()` factory call, where it becomes a
 //! [`ForwardCall`] whose callee lowering replaces with a runtime helper. Any other
 //! position is reported as an unconsumed macro use when the visit reaches the call.
 

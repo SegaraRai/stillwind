@@ -304,7 +304,7 @@ fn compiled_strings_report_lone_surrogates_at_their_source() {
         r#"const frames = style.keyframes({from: "\uD800"});"#,
         r#"const transition = style.viewTransition({label: "\uD800"});"#,
         r#"style({"\uD800": "flex"});"#,
-        r#"const variants = style.cva("flex", {variants: {"\uD800": {normal: "grid"}}});"#,
+        r#"const variants = style.recipe("flex", {variants: {"\uD800": {normal: "grid"}}});"#,
     ] {
         let source = SourceFile::new(
             FileId(1),

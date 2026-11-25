@@ -21,10 +21,10 @@ pub struct NativeLintOptions {
     pub invalid_rule_group_input: Option<String>,
     /// Settings for `invalid-style-input`.
     pub invalid_style_input: Option<String>,
-    /// Settings for `invalid-cva-config`.
-    pub invalid_cva_config: Option<String>,
-    /// Settings for `invalid-cva-input`.
-    pub invalid_cva_input: Option<String>,
+    /// Settings for `invalid-recipe-config`.
+    pub invalid_recipe_config: Option<String>,
+    /// Settings for `invalid-recipe-input`.
+    pub invalid_recipe_input: Option<String>,
     /// Settings for `invalid-keyframes-use`.
     pub invalid_keyframes_use: Option<String>,
     /// Settings for `invalid-keyframes-definition`.
@@ -196,12 +196,12 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
                 .invalid_style_input
                 .map(|value| lint_severity(&value))
                 .transpose()?,
-            invalid_cva_config: input
-                .invalid_cva_config
+            invalid_recipe_config: input
+                .invalid_recipe_config
                 .map(|value| lint_severity(&value))
                 .transpose()?,
-            invalid_cva_input: input
-                .invalid_cva_input
+            invalid_recipe_input: input
+                .invalid_recipe_input
                 .map(|value| lint_severity(&value))
                 .transpose()?,
             invalid_keyframes_use: input

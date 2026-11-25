@@ -20,15 +20,15 @@ export const lintRules = {
     defaults: null,
     options: null,
   },
-  "invalid-cva-config": {
+  "invalid-recipe-config": {
     category: "input",
-    nativeName: "invalidCvaConfig",
+    nativeName: "invalidRecipeConfig",
     defaults: null,
     options: null,
   },
-  "invalid-cva-input": {
+  "invalid-recipe-input": {
     category: "input",
-    nativeName: "invalidCvaInput",
+    nativeName: "invalidRecipeInput",
     defaults: null,
     options: null,
   },

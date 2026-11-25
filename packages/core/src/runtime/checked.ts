@@ -1,6 +1,5 @@
 /** Runtime validation selected explicitly by development compilations. */
 
-import { createCva, type CompiledCvaConfig, type CvaValue } from "./cva.ts";
 import { classNameObjectOptions, classObjectOptions, classStringOptions } from "./formats.ts";
 import {
   forwardFragment,
@@ -9,6 +8,7 @@ import {
   toFragment,
   type FragmentRuntimeOptions,
 } from "./fragment.ts";
+import { createRecipe, type CompiledRecipeConfig, type RecipeValue } from "./recipe.ts";
 import { stillwindClsx, stillwindViewTransitionName } from "./shared.ts";
 
 /**
@@ -53,20 +53,20 @@ export function stillwindClsxChecked(...values: readonly unknown[]): string {
 }
 
 /**
- * Creates a CVA selector that validates external classes and selected fragment channels.
+ * Creates a recipe selector that validates external classes and selected fragment channels.
  * The selector throws TypeError for inputs rejected by `stillwindClsxChecked` or `mergeFragmentsChecked`.
  *
  * @param options - Framework conventions and the keys of the runtime that created the fragments.
  * @param base - Compiled styles included in every selection.
  * @param config - Immutable compiled option maps, defaults, and compound conditions.
- * @returns A selector with the same selection and props behavior as `createCva`.
+ * @returns A selector with the same selection and props behavior as `createRecipe`.
  */
-export function createCvaChecked(
+export function createRecipeChecked(
   options: FragmentRuntimeOptions,
-  base?: CvaValue,
-  config?: CompiledCvaConfig,
+  base?: RecipeValue,
+  config?: CompiledRecipeConfig,
 ) {
-  return createCva(options, base, config, stillwindClsxChecked, mergeFragmentsChecked);
+  return createRecipe(options, base, config, stillwindClsxChecked, mergeFragmentsChecked);
 }
 
 /**
@@ -224,9 +224,12 @@ export function stillwindClassObjectForwardArraysChecked(
   return forwardFragmentChecked(classObjectOptions, value, true);
 }
 
-/** Checks external classes and selected fragments before materializing CVA props with `class` and object styles. */
-export function stillwindClassObjectCvaChecked(base?: CvaValue, config?: CompiledCvaConfig) {
-  return createCvaChecked(classObjectOptions, base, config);
+/** Checks external classes and selected fragments before materializing recipe props with `class` and object styles. */
+export function stillwindClassObjectRecipeChecked(
+  base?: RecipeValue,
+  config?: CompiledRecipeConfig,
+) {
+  return createRecipeChecked(classObjectOptions, base, config);
 }
 
 /** Checks fragment ownership and class contributions before materializing `class` and string styles. */
@@ -248,9 +251,12 @@ export function stillwindClassStringForwardChecked(value: unknown): Record<Prope
   return forwardFragmentChecked(classStringOptions, value, false);
 }
 
-/** Checks external classes and selected fragments before materializing CVA props with `class` and string styles. */
-export function stillwindClassStringCvaChecked(base?: CvaValue, config?: CompiledCvaConfig) {
-  return createCvaChecked(classStringOptions, base, config);
+/** Checks external classes and selected fragments before materializing recipe props with `class` and string styles. */
+export function stillwindClassStringRecipeChecked(
+  base?: RecipeValue,
+  config?: CompiledRecipeConfig,
+) {
+  return createRecipeChecked(classStringOptions, base, config);
 }
 
 /** Checks fragment ownership and class contributions before materializing `className` and object styles. */
@@ -274,7 +280,10 @@ export function stillwindClassNameObjectForwardChecked(
   return forwardFragmentChecked(classNameObjectOptions, value, false);
 }
 
-/** Checks external classes and selected fragments before materializing CVA props with `className` and object styles. */
-export function stillwindClassNameObjectCvaChecked(base?: CvaValue, config?: CompiledCvaConfig) {
-  return createCvaChecked(classNameObjectOptions, base, config);
+/** Checks external classes and selected fragments before materializing recipe props with `className` and object styles. */
+export function stillwindClassNameObjectRecipeChecked(
+  base?: RecipeValue,
+  config?: CompiledRecipeConfig,
+) {
+  return createRecipeChecked(classNameObjectOptions, base, config);
 }

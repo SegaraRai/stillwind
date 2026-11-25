@@ -1,6 +1,6 @@
 import { style } from "stillwind/react";
 
-export const recovered = style.cva("block", {
+export const recovered = style.recipe("block", {
   variants: {
     size: { small: "p-4", unsupported: 42 },
   },

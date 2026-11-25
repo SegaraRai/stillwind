@@ -3,7 +3,7 @@ import { defineConfig, mergeConfig } from "vite-plus";
 
 export const browserTests = [
   "tests/css-call.test.ts",
-  "tests/cva.test.ts",
+  "tests/recipe.test.ts",
   "tests/framework-helpers.test.ts",
   "tests/ref-scopes.test.ts",
   "tests/vanilla.test.ts",

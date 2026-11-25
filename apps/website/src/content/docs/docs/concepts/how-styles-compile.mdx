@@ -48,14 +48,14 @@ custom property as an inline style.
 The CSS for both classes is generated at build time. At runtime, the code only
 chooses class names and sets property values.
 
-| You write                              | JavaScript at runtime                       |
-| -------------------------------------- | ------------------------------------------- |
-| Static utilities and variants          | A class name                                |
-| A condition, such as `active && "..."` | A helper that joins class names             |
-| A runtime custom property              | An inline `style` value                     |
-| [`style.cva()`](/docs/macros/cva)      | A factory that selects compiled class names |
-| [`style.media()`](/docs/macros/media)  | A string with the media query               |
-| [`style.css()`](/docs/macros/css)      | A CSS string that you place yourself        |
+| You write                               | JavaScript at runtime                       |
+| --------------------------------------- | ------------------------------------------- |
+| Static utilities and variants           | A class name                                |
+| A condition, such as `active && "..."`  | A helper that joins class names             |
+| A runtime custom property               | An inline `style` value                     |
+| [`style.recipe()`](/docs/macros/recipe) | A factory that selects compiled class names |
+| [`style.media()`](/docs/macros/media)   | A string with the media query               |
+| [`style.css()`](/docs/macros/css)       | A CSS string that you place yourself        |
 
 Development builds import checked versions of the helpers from
 `stillwind/runtime/development`. These versions report invalid values while you

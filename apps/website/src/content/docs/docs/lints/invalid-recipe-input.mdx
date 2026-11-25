@@ -1,20 +1,20 @@
 ---
-title: invalid-cva-input
-description: Reports && or a ternary inside a style.cva() value.
-slug: docs/lints/invalid-cva-input
+title: invalid-recipe-input
+description: Reports && or a ternary inside a style.recipe() value.
+slug: docs/lints/invalid-recipe-input
 ---
 
 This rule reports a runtime condition, such as `&&` or a ternary, inside the base
-or an option value of [`style.cva()`](/docs/macros/cva). The compiler generates
+or an option value of [`style.recipe()`](/docs/macros/recipe). The compiler generates
 every value when it creates the factory, so the condition cannot choose a style.
 
 ## Reported
 
-<DiagnosticExample code="invalid-cva-input">
+<DiagnosticExample code="invalid-recipe-input">
 
 ```tsx
 declare const active: boolean;
-style.cva(active && "bg-blue-500");
+style.recipe(active && "bg-blue-500");
 ```
 
 </DiagnosticExample>
@@ -23,7 +23,7 @@ style.cva(active && "bg-blue-500");
 
 ```tsx
 declare const active: boolean;
-const button = style.cva("", {
+const button = style.recipe("", {
   variants: {
     active: {
       true: "bg-blue-500",
@@ -41,8 +41,8 @@ button({ active });
 - Stored [`style()`](/docs/macros/style) results, refs, animations, and `class`
   fields are not accepted either. Use them in `style()` instead.
 
-See [`style.cva()`](/docs/macros/cva#style-values).
+See [`style.recipe()`](/docs/macros/recipe#style-values).
 
 ## Rule settings
 
-<LintRuleSummary name="invalid-cva-input" />
+<LintRuleSummary name="invalid-recipe-input" />

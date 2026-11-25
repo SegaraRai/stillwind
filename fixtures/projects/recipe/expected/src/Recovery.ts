@@ -1,6 +1,6 @@
-import { stillwindClassNameObjectCva } from "stillwind/runtime";
+import { stillwindClassNameObjectRecipe } from "stillwind/runtime";
 
-export const recovered = stillwindClassNameObjectCva("sw_9mmdu", {
+export const recovered = stillwindClassNameObjectRecipe("sw_9mmdu", {
   variants: {
     size: { small: "sw_6rv3c", unsupported: "" },
   },

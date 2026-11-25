@@ -1,16 +1,17 @@
-import { style, type VariantProps } from "stillwind/react";
+import {  type VariantProps } from "stillwind/react";
+import { stillwindClassNameObjectRecipe } from "stillwind/runtime";
 
-export const button = style.cva(
-  { "": "inline-flex", ":": "rounded" },
+export const button = stillwindClassNameObjectRecipe(
+  "sw_m4jpd",
   {
     variants: {
       size: {
-        small: { "": "p-4 px-2" },
-        large: "p-8 py-2",
+        small: "sw_2jols",
+        large: "sw_0id4f",
       },
       disabled: {
-        false: null,
-        true: "opacity-50",
+        false: "",
+        true: "sw_tgtx6",
       },
     },
     defaultVariants: {
@@ -21,7 +22,7 @@ export const button = style.cva(
       {
         size: ["small", "large"],
         disabled: false,
-        className: { ":": { "hover:": "shadow-md" } },
+        className: "sw_aoat0",
       },
     ],
   },

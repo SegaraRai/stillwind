@@ -8,16 +8,16 @@
  */
 
 export {
-  stillwindClassNameObjectCvaChecked as stillwindClassNameObjectCva,
+  stillwindClassNameObjectRecipeChecked as stillwindClassNameObjectRecipe,
   stillwindClassNameObjectForwardChecked as stillwindClassNameObjectForward,
   stillwindClassNameObjectMergeChecked as stillwindClassNameObjectMerge,
   stillwindClassNameObjectToFragmentChecked as stillwindClassNameObjectToFragment,
-  stillwindClassObjectCvaChecked as stillwindClassObjectCva,
+  stillwindClassObjectRecipeChecked as stillwindClassObjectRecipe,
   stillwindClassObjectForwardChecked as stillwindClassObjectForward,
   stillwindClassObjectForwardArraysChecked as stillwindClassObjectForwardArrays,
   stillwindClassObjectMergeChecked as stillwindClassObjectMerge,
   stillwindClassObjectToFragmentChecked as stillwindClassObjectToFragment,
-  stillwindClassStringCvaChecked as stillwindClassStringCva,
+  stillwindClassStringRecipeChecked as stillwindClassStringRecipe,
   stillwindClassStringForwardChecked as stillwindClassStringForward,
   stillwindClassStringMergeChecked as stillwindClassStringMerge,
   stillwindClassStringToFragmentChecked as stillwindClassStringToFragment,

@@ -87,11 +87,11 @@ style(
   );
 }, 30_000);
 
-test("literal CVA values omit self-completions while selections, defaults, and compounds retain choices", () => {
+test("literal recipe values omit self-completions while selections, defaults, and compounds retain choices", () => {
   checkCompletions(
     `import { style } from "stillwind/react";
 declare const active: boolean;
-const button = style.cva("rounded", {
+const button = style.recipe("rounded", {
   variants: {
     size: { sm: "text-sm", lg: ["text-lg", { "hover:": "font-bold" }] },
     disabled: { false: null, true: "opacity-50" },
@@ -106,7 +106,7 @@ const button = style.cva("rounded", {
 });
 button({ size: "lg", disabled: true, count: 1 });
 type LimitedVariants = { size: { sm: "text-xs" | "text-base" } };
-style.cva<LimitedVariants>(null, { variants: { size: { sm: "text-xs" } } });
+style.recipe<LimitedVariants>(null, { variants: { size: { sm: "text-xs" } } });
 `,
     (completions) => {
       for (const text of [
@@ -141,7 +141,7 @@ test("finite macro choices remain available as string completions", () => {
     `import { style } from "stillwind/react";
 const ref = style.ref();
 style(style.anchorScope("all"), ref.asContainer("size"));
-const button = style.cva("flex", {
+const button = style.recipe("flex", {
   variants: { size: { sm: "text-sm", lg: "text-lg" } },
   defaultVariants: { size: "sm" },
 });

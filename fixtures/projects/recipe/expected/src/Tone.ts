@@ -1,7 +1,7 @@
-import { stillwindCssValue, stillwindClassStringClassKey, stillwindClassStringCustomPropertiesKey, stillwindClassStringCva } from "stillwind/runtime";
+import { stillwindCssValue, stillwindClassStringClassKey, stillwindClassStringCustomPropertiesKey, stillwindClassStringRecipe } from "stillwind/runtime";
 
 export function createTone(tone: string) {
-  return stillwindClassStringCva(
+  return stillwindClassStringRecipe(
     {[stillwindClassStringClassKey]:"sw_k7zjz",[stillwindClassStringCustomPropertiesKey]:{"--tone":stillwindCssValue(tone)}},
     {
       variants: {

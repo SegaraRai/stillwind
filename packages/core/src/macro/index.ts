@@ -14,7 +14,7 @@
  */
 
 export type * from "./css.ts";
-export type * from "./cva.ts";
+export type * from "./recipe.ts";
 export type { StyleForward, StyleForwardProps } from "./forward.ts";
 export type {
   StyleArgument,

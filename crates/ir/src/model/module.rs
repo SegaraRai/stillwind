@@ -24,9 +24,9 @@ pub struct ModuleIr {
     pub imports: ModuleImports,
     /// In source order. A call can emit a base unit plus conditional units, or no CSS.
     pub style_calls: Vec<StyleCall>,
-    /// CVA factories and their independently compiled style values, in source order.
+    /// Recipe factories and their independently compiled style values, in source order.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub cva_calls: Vec<CvaCall>,
+    pub recipe_calls: Vec<RecipeCall>,
     /// `style.media()` calls in source order.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub media_calls: Vec<MediaCall>,
@@ -34,7 +34,7 @@ pub struct ModuleIr {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub css_calls: Vec<CssCall>,
     /// `style.forward()` calls outside `style()` calls, such as the second argument of a
-    /// CVA factory, in source order.
+    /// recipe factory, in source order.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub forward_calls: Vec<ForwardCall>,
     /// Imported values whose declaring modules must precede this module in CSS order,
@@ -53,11 +53,12 @@ pub struct ModuleIr {
 }
 
 impl ModuleIr {
-    /// Iterates ordinary style calls and CVA value expressions with their original spans.
+    /// Iterates ordinary style calls and recipe value expressions with their original
+    /// spans.
     pub fn style_inputs(&self) -> impl Iterator<Item = &StyleCall> {
         self.style_calls
             .iter()
-            .chain(self.cva_calls.iter().flat_map(|call| &call.values))
+            .chain(self.recipe_calls.iter().flat_map(|call| &call.values))
     }
 
     /// Returns an empty module with no extracted declarations or calls.
@@ -70,7 +71,7 @@ impl ModuleIr {
                 module_css: Vec::new(),
             },
             style_calls: Vec::new(),
-            cva_calls: Vec::new(),
+            recipe_calls: Vec::new(),
             media_calls: Vec::new(),
             css_calls: Vec::new(),
             forward_calls: Vec::new(),
@@ -83,15 +84,15 @@ impl ModuleIr {
     }
 }
 
-/// A CVA call whose configuration remains ordinary JavaScript after lowering.
+/// A recipe call whose configuration remains ordinary JavaScript after lowering.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CvaCall {
+pub struct RecipeCall {
     /// Whole factory call in the original source, used to validate nested macro uses.
     pub span: Span,
     /// Prop representation selected by the factory's macro binding.
     pub output: OutputFormat,
-    /// Callee expression replaced by the selected output runtime's CVA helper.
+    /// Callee expression replaced by the selected output runtime's recipe helper.
     pub callee_span: Span,
     /// Base and option expressions compiled independently in source order.
     pub values: Vec<StyleCall>,
@@ -101,13 +102,13 @@ pub struct CvaCall {
     /// Replacements for unsupported configuration entries in original source
     /// coordinates.
     #[serde(default)]
-    pub replacements: Vec<CvaReplacement>,
+    pub replacements: Vec<RecipeReplacement>,
 }
 
-/// One configuration expression or entry replaced during CVA validation.
+/// One configuration expression or entry replaced during recipe validation.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CvaReplacement {
+pub struct RecipeReplacement {
     /// Original expression or entry without its surrounding separator.
     pub span: Span,
     /// Static JavaScript that preserves the enclosing object or array syntax.

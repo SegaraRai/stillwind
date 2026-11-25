@@ -57,8 +57,8 @@ fn options(severity: LintSeverity) -> CompilerOptions {
             invalid_view_transition_use: Some(severity),
             invalid_view_transition_variant: Some(severity),
             invalid_animation_option: Some(severity),
-            invalid_cva_config: Some(severity),
-            invalid_cva_input: Some(severity),
+            invalid_recipe_config: Some(severity),
+            invalid_recipe_input: Some(severity),
             invalid_style_composition: Some(severity),
             invalid_utility: Some(severity),
             unknown_utility: Some(severity),
@@ -99,13 +99,13 @@ fn unsupported_operands_preserve_supported_siblings_at_every_reporting_level() {
             "[1 + style('b')]",
             "{'--value':style('b')}",
             "{class:style('b')}",
-            "{class:style.cva('b')}",
+            "{class:style.recipe('b')}",
             "{'--value':style.ref()}",
             "{[style.media('sm')]:'b'}",
             "style.ref()",
             "style.keyframes({from:'b'})",
             "style.viewTransition({old:'b'})",
-            "style.cva('b')",
+            "style.recipe('b')",
             "style.media('sm')",
             "matches(style.media('sm')) && 'b'",
             "check(() => style('b')) ? 'b' : 'b'",
@@ -223,7 +223,7 @@ fn empty_transitions_keep_keyed_use_semantics_without_definition_css() {
 }
 
 #[test]
-fn cva_removes_invalid_conditions_as_whole_compounds() {
+fn recipe_removes_invalid_conditions_as_whole_compounds() {
     for compound in [
         "{unknown:'on',class:'b'}",
         "{[key]:'on',class:'b'}",
@@ -235,7 +235,7 @@ fn cva_removes_invalid_conditions_as_whole_compounds() {
     ] {
         let (source, result) = compile(
             &format!(
-                "export const button=style.cva('a',{{variants:{{tone:{{on:42,off:'a'}}}},defaultVariants:{{unknown:'on'}},compoundVariants:[{compound},{{tone:'off',class:'a'}}]}});"
+                "export const button=style.recipe('a',{{variants:{{tone:{{on:42,off:'a'}}}},defaultVariants:{{unknown:'on'}},compoundVariants:[{compound},{{tone:'off',class:'a'}}]}});"
             ),
             CSS,
             &CompilerOptions::default(),

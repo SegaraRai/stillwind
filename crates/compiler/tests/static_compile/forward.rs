@@ -1,4 +1,4 @@
-//! `style.forward()` lowering in `style()` calls and CVA factory calls.
+//! `style.forward()` lowering in `style()` calls and recipe factory calls.
 
 use stillwind_compiler::{CompileResult, CompilerOptions, render_transforms};
 use stillwind_diagnostics::LintDiagnostic;
@@ -53,11 +53,11 @@ fn forward_merges_props_with_the_format_helper() {
 }
 
 #[test]
-fn cva_factory_takes_forward_as_its_second_argument() {
+fn recipe_factory_takes_forward_as_its_second_argument() {
     let (source, result) = compile(
         r"
         import { style } from 'stillwind/react';
-        const button = style.cva('rounded', { variants: { size: { small: 'p-2' } } });
+        const button = style.recipe('rounded', { variants: { size: { small: 'p-2' } } });
         export const props = (p) => button({ size: 'small' }, style.forward(p));
     ",
     );

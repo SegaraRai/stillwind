@@ -1,9 +1,10 @@
-//! Static CVA configuration validation and extraction of independently compiled values.
+//! Static recipe configuration validation and extraction of independently compiled
+//! values.
 //!
-//! [`MacroExtractor::collect_cva`] keeps configuration syntax in the source and records
-//! only the callee and style expressions that need replacement. Selection values remain
-//! ordinary JavaScript literals. CVA values reuse the style-input parser after syntax
-//! validation.
+//! [`MacroExtractor::collect_recipe`] keeps configuration syntax in the source and
+//! records only the callee and style expressions that need replacement. Selection values
+//! remain ordinary JavaScript literals. Recipe values reuse the style-input parser after
+//! syntax validation.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -16,7 +17,7 @@ use oxc::span::GetSpan;
 use oxc::syntax::number::ToJsString;
 
 use stillwind_diagnostics::{LintDiagnostic, LintFinding};
-use stillwind_ir::{CvaCall, CvaReplacement, OutputFormat, StyleCall};
+use stillwind_ir::{OutputFormat, RecipeCall, RecipeReplacement, StyleCall};
 use stillwind_source::Spanned;
 
 use crate::{local_span::LocalSpan, state::MacroExtractor};
@@ -26,7 +27,7 @@ impl<'a> MacroExtractor<'a> {
     /// producer. Unsupported values contribute nothing. Invalid configuration entries
     /// are replaced with empty entries, and invalid conditions omit their whole
     /// compound.
-    pub(crate) fn collect_cva(&mut self, call: &CallExpression<'a>, output: OutputFormat) {
+    pub(crate) fn collect_recipe(&mut self, call: &CallExpression<'a>, output: OutputFormat) {
         self.consumed_use_spans
             .insert(LocalSpan::from(call.callee.span()));
         self.consumed_use_spans
@@ -38,12 +39,12 @@ impl<'a> MacroExtractor<'a> {
             .iter()
             .any(|parent| parent.span.start <= span.start && parent.span.end >= span.end)
             || self
-                .cva_calls
+                .recipe_calls
                 .iter()
                 .any(|parent| parent.span.start <= span.start && parent.span.end >= span.end)
         {
             self.lint_findings.push(LintFinding::new(
-                LintDiagnostic::InvalidCvaConfig {
+                LintDiagnostic::InvalidRecipeConfig {
                     reason: "nested factories are unsupported".into(),
                 },
                 span,
@@ -59,13 +60,13 @@ impl<'a> MacroExtractor<'a> {
                 .any(|argument| argument.as_expression().is_none())
         {
             self.lint_findings.push(LintFinding::new(
-                LintDiagnostic::InvalidCvaConfig {
+                LintDiagnostic::InvalidRecipeConfig {
                     reason: "expected an optional base and a static configuration object".into(),
                 },
                 span,
             ));
             self.omit_input(call.span);
-            self.cva_calls.push(CvaCall {
+            self.recipe_calls.push(RecipeCall {
                 span,
                 output,
                 callee_span: self.source_span(call.callee.span()),
@@ -75,14 +76,14 @@ impl<'a> MacroExtractor<'a> {
             });
             return;
         }
-        let replacement_start = self.cva_replacements.len();
+        let replacement_start = self.recipe_replacements.len();
         let mut values = Vec::new();
         if let Some(base) = call
             .arguments
             .first()
             .and_then(|argument| argument.as_expression())
         {
-            self.cva_value(base, output, &mut values);
+            self.recipe_value(base, output, &mut values);
         }
         if let Some(config) = call
             .arguments
@@ -90,25 +91,25 @@ impl<'a> MacroExtractor<'a> {
             .and_then(|argument| argument.as_expression())
             && !is_undefined(config)
         {
-            self.cva_config(config, output, &mut values);
+            self.recipe_config(config, output, &mut values);
         }
-        self.cva_calls.push(CvaCall {
+        self.recipe_calls.push(RecipeCall {
             span,
             output,
             callee_span: self.source_span(call.callee.span()),
             values,
             empty: false,
-            replacements: self.cva_replacements.split_off(replacement_start),
+            replacements: self.recipe_replacements.split_off(replacement_start),
         });
     }
 
-    fn cva_config(
+    fn recipe_config(
         &mut self,
         expression: &Expression<'a>,
         output: OutputFormat,
         values: &mut Vec<StyleCall>,
     ) {
-        let Some(properties) = self.cva_properties(expression) else {
+        let Some(properties) = self.recipe_properties(expression) else {
             return;
         };
         let mut axes = BTreeMap::new();
@@ -117,30 +118,30 @@ impl<'a> MacroExtractor<'a> {
                 name.as_str(),
                 "variants" | "defaultVariants" | "compoundVariants"
             ) {
-                self.cva_error(&property.value, "unknown configuration property");
-                self.cva_omit_property(property);
+                self.recipe_error(&property.value, "unknown configuration property");
+                self.recipe_omit_property(property);
                 continue;
             }
             if name == "variants" && !is_undefined(&property.value) {
-                let Some(variants) = self.cva_properties(&property.value) else {
+                let Some(variants) = self.recipe_properties(&property.value) else {
                     continue;
                 };
                 for (axis, choices) in variants {
                     if matches!(axis.as_str(), "class" | "className") {
-                        self.cva_error(
+                        self.recipe_error(
                             &choices.value,
                             "class and className are reserved axis names",
                         );
-                        self.cva_omit_property(choices);
+                        self.recipe_omit_property(choices);
                         continue;
                     }
-                    let Some(options) = self.cva_properties(&choices.value) else {
+                    let Some(options) = self.recipe_properties(&choices.value) else {
                         continue;
                     };
                     let mut keys = BTreeSet::new();
                     for (key, option) in options {
                         keys.insert(key);
-                        self.cva_value(&option.value, output, values);
+                        self.recipe_value(&option.value, output, values);
                     }
                     axes.insert(axis, keys);
                 }
@@ -152,16 +153,16 @@ impl<'a> MacroExtractor<'a> {
             }
             match name.as_str() {
                 "defaultVariants" => {
-                    if let Some(defaults) = self.cva_properties(&property.value) {
+                    if let Some(defaults) = self.recipe_properties(&property.value) {
                         for (axis, default) in defaults {
-                            if !self.cva_choice(&axis, &default.value, &axes, false) {
-                                self.cva_omit_property(default);
+                            if !self.recipe_choice(&axis, &default.value, &axes, false) {
+                                self.recipe_omit_property(default);
                             }
                         }
                     }
                 }
                 "compoundVariants" => {
-                    self.cva_compounds(&property.value, &axes, output, values);
+                    self.recipe_compounds(&property.value, &axes, output, values);
                 }
                 _ => {}
             }
@@ -169,7 +170,7 @@ impl<'a> MacroExtractor<'a> {
         values.sort_by_key(|value| value.span.start);
     }
 
-    fn cva_compounds(
+    fn recipe_compounds(
         &mut self,
         expression: &Expression<'a>,
         axes: &BTreeMap<LeanStr, BTreeSet<LeanStr>>,
@@ -177,20 +178,20 @@ impl<'a> MacroExtractor<'a> {
         values: &mut Vec<StyleCall>,
     ) {
         let Expression::ArrayExpression(compounds) = expression.get_inner_expression() else {
-            self.cva_error(expression, "compoundVariants requires a literal array");
-            self.cva_replace(expression, "[]");
+            self.recipe_error(expression, "compoundVariants requires a literal array");
+            self.recipe_replace(expression, "[]");
             return;
         };
         for compound in &compounds.elements {
             let Some(compound) = compound.as_expression() else {
                 self.lint_findings.push(LintFinding::new(
-                    LintDiagnostic::InvalidCvaConfig {
+                    LintDiagnostic::InvalidRecipeConfig {
                         reason: "compoundVariants cannot contain spreads or empty slots".into(),
                     },
                     self.source_span(compound.span()),
                 ));
                 self.omit_input(compound.span());
-                self.cva_replacements.push(CvaReplacement {
+                self.recipe_replacements.push(RecipeReplacement {
                     span: self.source_span(compound.span()),
                     replacement: if matches!(compound, ArrayExpressionElement::Elision(_)) {
                         "...[],"
@@ -203,43 +204,46 @@ impl<'a> MacroExtractor<'a> {
             };
             let finding_start = self.lint_findings.len();
             let value_start = values.len();
-            let edit_start = self.cva_replacements.len();
+            let edit_start = self.recipe_replacements.len();
             let mut valid = true;
-            if let Some(conditions) = self.cva_properties(compound) {
+            if let Some(conditions) = self.recipe_properties(compound) {
                 for (axis, condition) in conditions {
                     if matches!(axis.as_str(), "class" | "className") {
-                        self.cva_value(&condition.value, output, values);
+                        self.recipe_value(&condition.value, output, values);
                     } else {
-                        valid &= self.cva_choice(&axis, &condition.value, axes, true);
+                        valid &= self.recipe_choice(&axis, &condition.value, axes, true);
                     }
                 }
             } else {
                 valid = false;
             }
             valid &= !self.lint_findings[finding_start..].iter().any(|finding| {
-                matches!(finding.diagnostic, LintDiagnostic::InvalidCvaConfig { .. })
+                matches!(
+                    finding.diagnostic,
+                    LintDiagnostic::InvalidRecipeConfig { .. }
+                )
             });
             if !valid {
                 values.truncate(value_start);
-                self.cva_replacements.truncate(edit_start);
-                self.cva_replace(compound, "...[]");
+                self.recipe_replacements.truncate(edit_start);
+                self.recipe_replace(compound, "...[]");
             }
         }
     }
 
-    fn cva_properties<'e>(
+    fn recipe_properties<'e>(
         &mut self,
         expression: &'e Expression<'a>,
     ) -> Option<Vec<(LeanStr, &'e ObjectProperty<'a>)>> {
         let Expression::ObjectExpression(object) = expression.get_inner_expression() else {
-            self.cva_error(expression, "expected a literal object");
-            self.cva_replace(expression, "{}");
+            self.recipe_error(expression, "expected a literal object");
+            self.recipe_replace(expression, "{}");
             return None;
         };
-        Some(self.cva_object_properties(object))
+        Some(self.recipe_object_properties(object))
     }
 
-    fn cva_object_properties<'e>(
+    fn recipe_object_properties<'e>(
         &mut self,
         object: &'e ObjectExpression<'a>,
     ) -> Vec<(LeanStr, &'e ObjectProperty<'a>)> {
@@ -248,13 +252,13 @@ impl<'a> MacroExtractor<'a> {
         for entry in &object.properties {
             let ObjectPropertyKind::ObjectProperty(property) = entry else {
                 self.lint_findings.push(LintFinding::new(
-                    LintDiagnostic::InvalidCvaConfig {
+                    LintDiagnostic::InvalidRecipeConfig {
                         reason: "objects cannot contain spreads".into(),
                     },
                     self.source_span(entry.span()),
                 ));
                 self.omit_input(entry.span());
-                self.cva_replacements.push(CvaReplacement {
+                self.recipe_replacements.push(RecipeReplacement {
                     span: self.source_span(entry.span()),
                     replacement: "...{}".into(),
                 });
@@ -269,8 +273,8 @@ impl<'a> MacroExtractor<'a> {
                 self.static_property_name(&property.key)
             };
             let Some(name) = name else {
-                self.cva_error(&property.value, "keys must be static");
-                self.cva_omit_property(property);
+                self.recipe_error(&property.value, "keys must be static");
+                self.recipe_omit_property(property);
                 continue;
             };
             if property.method
@@ -279,8 +283,8 @@ impl<'a> MacroExtractor<'a> {
                 || name.value == "__proto__"
                 || !keys.insert(name.value.clone())
             {
-                self.cva_error(&property.value, "expected unique plain static properties");
-                self.cva_omit_property(property);
+                self.recipe_error(&property.value, "expected unique plain static properties");
+                self.recipe_omit_property(property);
                 continue;
             }
             properties.push((name.value, property.as_ref()));
@@ -288,7 +292,7 @@ impl<'a> MacroExtractor<'a> {
         properties
     }
 
-    fn cva_choice(
+    fn recipe_choice(
         &mut self,
         axis: &str,
         expression: &Expression<'a>,
@@ -296,16 +300,16 @@ impl<'a> MacroExtractor<'a> {
         multiple: bool,
     ) -> bool {
         let Some(options) = variants.get(axis) else {
-            self.cva_error(expression, "condition names an unknown variant axis");
+            self.recipe_error(expression, "condition names an unknown variant axis");
             return false;
         };
         if multiple && let Expression::ArrayExpression(array) = expression.get_inner_expression() {
             let mut valid = true;
             for element in &array.elements {
                 if let Some(value) = element.as_expression() {
-                    valid &= self.cva_choice(axis, value, variants, false);
+                    valid &= self.recipe_choice(axis, value, variants, false);
                 } else {
-                    self.cva_error(
+                    self.recipe_error(
                         expression,
                         "conditions cannot contain spreads or empty slots",
                     );
@@ -323,27 +327,27 @@ impl<'a> MacroExtractor<'a> {
             Expression::NullLiteral(_) => None,
             value if is_undefined(value) => None,
             _ => {
-                self.cva_error(expression, "conditions must be literal option values");
+                self.recipe_error(expression, "conditions must be literal option values");
                 return false;
             }
         };
         if key.as_ref().is_some_and(|key| !options.contains(key)) {
-            self.cva_error(expression, "condition names an unknown variant option");
+            self.recipe_error(expression, "condition names an unknown variant option");
             return false;
         }
         true
     }
 
-    fn cva_value(
+    fn recipe_value(
         &mut self,
         expression: &Expression<'a>,
         output: OutputFormat,
         values: &mut Vec<StyleCall>,
     ) {
-        if !self.valid_cva_value(expression) {
+        if !self.valid_recipe_value(expression) {
             self.omit_input(expression.span());
             self.lint_findings.push(LintFinding::new(
-                LintDiagnostic::InvalidCvaInput,
+                LintDiagnostic::InvalidRecipeInput,
                 self.source_span(expression.span()),
             ));
             values.push(StyleCall {
@@ -355,9 +359,9 @@ impl<'a> MacroExtractor<'a> {
             return;
         }
         let mut inputs = Vec::new();
-        self.in_cva = true;
+        self.in_recipe = true;
         self.collect_style_expression(expression, &mut inputs);
-        self.in_cva = false;
+        self.in_recipe = false;
         values.push(StyleCall {
             span: self.source_span(expression.span()),
             key: self.style_key(self.source_span(expression.span())),
@@ -366,7 +370,7 @@ impl<'a> MacroExtractor<'a> {
         });
     }
 
-    fn valid_cva_value(&mut self, expression: &Expression<'a>) -> bool {
+    fn valid_recipe_value(&mut self, expression: &Expression<'a>) -> bool {
         match expression.get_inner_expression() {
             Expression::StringLiteral(_)
             | Expression::BooleanLiteral(_)
@@ -376,7 +380,7 @@ impl<'a> MacroExtractor<'a> {
             Expression::ArrayExpression(array) => array.elements.iter().all(|element| {
                 element
                     .as_expression()
-                    .is_some_and(|value| self.valid_cva_value(value))
+                    .is_some_and(|value| self.valid_recipe_value(value))
             }),
             Expression::ObjectExpression(object) => object.properties.iter().all(|entry| {
                 let ObjectPropertyKind::ObjectProperty(property) = entry else {
@@ -390,31 +394,31 @@ impl<'a> MacroExtractor<'a> {
                 };
                 name.value.starts_with("--")
                     || ((name.value.is_empty() || name.value.ends_with(':'))
-                        && self.valid_cva_value(&property.value))
+                        && self.valid_recipe_value(&property.value))
             }),
             _ => false,
         }
     }
 
-    fn cva_replace(&mut self, expression: &Expression<'a>, replacement: &str) {
+    fn recipe_replace(&mut self, expression: &Expression<'a>, replacement: &str) {
         self.omit_input(expression.span());
-        self.cva_replacements.push(CvaReplacement {
+        self.recipe_replacements.push(RecipeReplacement {
             span: self.source_span(expression.span()),
             replacement: replacement.into(),
         });
     }
 
-    fn cva_omit_property(&mut self, property: &ObjectProperty<'a>) {
+    fn recipe_omit_property(&mut self, property: &ObjectProperty<'a>) {
         self.omit_input(property.span);
-        self.cva_replacements.push(CvaReplacement {
+        self.recipe_replacements.push(RecipeReplacement {
             span: self.source_span(property.span),
             replacement: "...{}".into(),
         });
     }
 
-    fn cva_error(&mut self, expression: &Expression<'a>, reason: &str) {
+    fn recipe_error(&mut self, expression: &Expression<'a>, reason: &str) {
         self.lint_findings.push(LintFinding::new(
-            LintDiagnostic::InvalidCvaConfig {
+            LintDiagnostic::InvalidRecipeConfig {
                 reason: reason.into(),
             },
             self.source_span(expression.span()),

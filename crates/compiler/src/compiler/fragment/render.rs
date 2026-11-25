@@ -63,10 +63,10 @@ pub(in super::super) fn render_style_call(
     code![helper, "(", Code::join(arguments, ","), ")"]
 }
 
-/// Renders one CVA value as class text or private fragments for runtime selection.
+/// Renders one recipe value as class text or private fragments for runtime selection.
 /// Inputs must contain only classes and custom properties and satisfy the macro purity
 /// contract.
-pub(in super::super) fn render_cva_value(
+pub(in super::super) fn render_recipe_value(
     emission: &StyleEmission,
     output: &OutputSpec,
     runtime: &mut RuntimeBindings<'_>,

@@ -16,11 +16,11 @@ afterEach(() => {
 });
 
 for (const framework of ["react", "svelte"] as const) {
-  test(`CVA applies selected CSS and ordered inline properties for ${framework}`, async () => {
+  test(`Recipe applies selected CSS and ordered inline properties for ${framework}`, async () => {
     const output = compileSource({
       source: `import {style} from 'stillwind/${framework}';
 let tone = 'blue';
-export const choose = style.cva(['block tinted', {'--tone':tone, '--space':4}], {
+export const choose = style.recipe(['block tinted', {'--tone':tone, '--space':4}], {
   variants: {
     kind: { plain:null, fixed:['bold', {'--tone':'red'}] },
   },
@@ -28,8 +28,8 @@ export const choose = style.cva(['block tinted', {'--tone':tone, '--space':4}], 
   compoundVariants: [{kind:'fixed', class:{'--tone':'green'}}],
 });
 tone = 'purple';`,
-      moduleId: `cva-${framework}.js`,
-      uri: `untitled:cva-${framework}.js`,
+      moduleId: `recipe-${framework}.js`,
+      uri: `untitled:recipe-${framework}.js`,
       language: "js",
       moduleKind: "unambiguous",
       css: {

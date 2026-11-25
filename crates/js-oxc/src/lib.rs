@@ -23,7 +23,6 @@
 //!   the Unicode strings that extraction reads.
 //! - [`bindings`] recognizes imported macro symbols.
 //! - [`contract`] validates macro argument expressions before folding.
-//! - [`cva`] validates factory configurations and extracts their values.
 //! - [`declarations`] collects ref and stored-variant declarations before the main
 //!   visit.
 //! - [`demand`] finds the imports that unresolved values need.
@@ -41,6 +40,7 @@
 //!   converter code.
 //! - [`projected_scan`] restores editable source coordinates for converted framework
 //!   input.
+//! - [`recipe`] validates factory configurations and extracts their values.
 //! - [`refs`] extracts ref declarations and their uses.
 //! - [`resolution`] distinguishes unsupported values from missing facts.
 //! - [`state`] holds the state of one extraction.
@@ -68,7 +68,6 @@ mod analyzer;
 mod ast;
 mod bindings;
 mod contract;
-mod cva;
 mod declarations;
 mod demand;
 mod entry;
@@ -82,6 +81,7 @@ mod media;
 mod normalization;
 mod ordering;
 mod projected_scan;
+mod recipe;
 mod refs;
 mod resolution;
 mod state;

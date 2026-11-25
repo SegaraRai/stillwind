@@ -177,7 +177,7 @@ fn calls_inside_other_macro_calls_omit_the_input_that_contains_them() {
     let (source, result) = compile(
         r"
         import { style } from 'stillwind/react';
-        export const choose = style.cva({ '': 'p-4', '--query': style.media('sm') });
+        export const choose = style.recipe({ '': 'p-4', '--query': style.media('sm') });
         ",
         &CompilerOptions::default(),
     );

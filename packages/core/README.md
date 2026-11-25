@@ -160,7 +160,7 @@ Use `stillwind/config` for project settings and lint presets. `stillwind/css`
 provides helpers for explicit stylesheet placement, and `stillwind/module-css`
 exposes the compiled CSS of a producer module.
 
-- [Macro reference](https://stillwind.dev/docs/macros): refs, conditions, CVA, keyframes, and composition.
+- [Macro reference](https://stillwind.dev/docs/macros): refs, conditions, recipes, keyframes, and composition.
 - [Configuration](https://stillwind.dev/docs/configuration): scopes, lint rules, sorting, and namespaces.
 - [CSS ordering](https://stillwind.dev/docs/concepts/css-ordering): precedence when styles are composed.
 - [CSS delivery](https://github.com/SegaraRai/stillwind/blob/main/docs/css-emission.md): SSR, explicit CSS values, and Shadow DOM.

@@ -62,17 +62,18 @@ pub enum LintDiagnostic {
         "style() accepts literal utility strings, arrays, `condition && \"…\"` branches, and variant wrappers"
     )]
     InvalidStyleInput,
-    /// A CVA configuration cannot be enumerated statically or contains invalid choices.
-    #[error("invalid style.cva() configuration: {reason}")]
-    InvalidCvaConfig {
+    /// A recipe configuration cannot be enumerated statically or contains invalid
+    /// choices.
+    #[error("invalid style.recipe() configuration: {reason}")]
+    InvalidRecipeConfig {
         /// Concrete static syntax or selection requirement that failed.
         reason: LeanStr,
     },
-    /// A CVA value is outside the supported utility and custom-property forms.
+    /// A recipe value is outside the supported utility and custom-property forms.
     #[error(
-        "style.cva() values require static utilities, arrays, CSS variants, or custom properties; utility inputs cannot use `&&` or ternary expressions"
+        "style.recipe() values require static utilities, arrays, CSS variants, or custom properties; utility inputs cannot use `&&` or ternary expressions"
     )]
-    InvalidCvaInput,
+    InvalidRecipeInput,
     /// A style object contains a spread whose properties cannot be resolved.
     #[error("style() object spreads require a literal object")]
     StyleObjectSpread,
@@ -882,8 +883,8 @@ impl LintDiagnostic {
             | Self::InvalidStyleKey
             | Self::InvalidUtilityTemplate
             | Self::StyleArgumentSpread => LintKind::InvalidStyleInput,
-            Self::InvalidCvaConfig { .. } => LintKind::InvalidCvaConfig,
-            Self::InvalidCvaInput => LintKind::InvalidCvaInput,
+            Self::InvalidRecipeConfig { .. } => LintKind::InvalidRecipeConfig,
+            Self::InvalidRecipeInput => LintKind::InvalidRecipeInput,
             Self::InvalidKeyframesOptions | Self::InvalidKeyframesReceiver => {
                 LintKind::InvalidKeyframesUse
             }

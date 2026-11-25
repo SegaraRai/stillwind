@@ -2,7 +2,7 @@ import { runInNewContext } from "node:vm";
 
 import { expect, test } from "vite-plus/test";
 
-import { stillwindClassNameObjectCva } from "../../../core/src/runtime/formats.ts";
+import { stillwindClassNameObjectRecipe } from "../../../core/src/runtime/formats.ts";
 import { sourceUri, cssInput, oneShotInput } from "./support.ts";
 
 /**
@@ -520,13 +520,13 @@ export function registerCompilationContract(bindingSpecifier: string): void {
     }
   });
 
-  test("CVA recovery preserves selection and omits complete invalid compounds", async () => {
+  test("Recipe recovery preserves selection and omits complete invalid compounds", async () => {
     const { compileSource } = await import(bindingSpecifier);
     const css =
       "@utility a {color:red;} @utility b {color:blue;} @utility c {color:green;} @utility d {color:yellow;} @stillwind-slot utilities;";
-    const evaluate = (code: string): ReturnType<typeof stillwindClassNameObjectCva> =>
+    const evaluate = (code: string): ReturnType<typeof stillwindClassNameObjectRecipe> =>
       runInNewContext(`${code.replace(/^import[^;]+;/gm, "")}\nchoose;`, {
-        stillwindClassNameObjectCva,
+        stillwindClassNameObjectRecipe,
       });
     const selectedColors = (
       code: string,
@@ -538,13 +538,13 @@ export function registerCompilationContract(bindingSpecifier: string): void {
       );
       const props = evaluate(code)(selection);
       if (typeof props.className !== "string") {
-        expect.fail("Expected classes from supported CVA values");
+        expect.fail("Expected classes from supported recipe values");
       }
       return props.className.split(" ").map((name) => colors.get(name));
     };
     const source = `import {style} from 'stillwind/react';
       const fail=()=>{throw new Error('omitted input was evaluated');};
-      const choose=style.cva('a', {
+      const choose=style.recipe('a', {
         [fail()]: style('c'), ...fail(),
         variants: {tone: {on: style('c'), off: 'b'}},
         defaultVariants: {tone: 'off', missing: fail()},
@@ -557,8 +557,8 @@ export function registerCompilationContract(bindingSpecifier: string): void {
       });`;
     let baselineCss: string | undefined;
     for (const severity of ["deny", "warn", "off"]) {
-      const output = compileSource(oneShotInput(source, "cva-recovery.ts", css), {
-        lint: { invalidCvaInput: severity, invalidCvaConfig: severity },
+      const output = compileSource(oneShotInput(source, "recipe-recovery.ts", css), {
+        lint: { invalidRecipeInput: severity, invalidRecipeConfig: severity },
       });
       expect(output.diagnostics).toStrictEqual([]);
       baselineCss ??= output.css;
@@ -583,13 +583,13 @@ export function registerCompilationContract(bindingSpecifier: string): void {
       } else {
         expect(
           new Set(output.reports.map((report: { code: string }) => report.code)),
-        ).toStrictEqual(new Set(["invalid-cva-config", "invalid-cva-input"]));
+        ).toStrictEqual(new Set(["invalid-recipe-config", "invalid-recipe-input"]));
       }
     }
     const suppressed = compileSource(
       oneShotInput(
-        `// swlint-disable invalid-cva-config, invalid-cva-input\n${source}`,
-        "cva-recovery.ts",
+        `// swlint-disable invalid-recipe-config, invalid-recipe-input\n${source}`,
+        "recipe-recovery.ts",
         css,
       ),
     );

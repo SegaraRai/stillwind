@@ -64,14 +64,14 @@ write a one-off codemod for your repository that converts them in one pass.
 
 ## Replace class helpers
 
-[`style()`](/docs/macros/style) and [`style.cva()`](/docs/macros/cva) replace
+[`style()`](/docs/macros/style) and [`style.recipe()`](/docs/macros/recipe) replace
 the libraries that Tailwind projects use to build class strings:
 
-| Library                                                                                           | Stillwind                                 |
-| ------------------------------------------------------------------------------------------------- | ----------------------------------------- |
-| [`clsx`](https://github.com/lukeed/clsx), [`classnames`](https://github.com/JedWatson/classnames) | `style()` with conditions                 |
-| [`tailwind-merge`](https://github.com/dcastil/tailwind-merge)                                     | Compose a base with new utilities         |
-| `cva` from [Class Variance Authority](https://cva.style/)                                         | `style.cva()` with the same configuration |
+| Library                                                                                           | Stillwind                                    |
+| ------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| [`clsx`](https://github.com/lukeed/clsx), [`classnames`](https://github.com/JedWatson/classnames) | `style()` with conditions                    |
+| [`tailwind-merge`](https://github.com/dcastil/tailwind-merge)                                     | Compose a base with new utilities            |
+| `cva` from [Class Variance Authority](https://cva.style/)                                         | `style.recipe()` with the same configuration |
 
 ### clsx and classnames
 
@@ -103,13 +103,13 @@ and [CSS ordering](/docs/concepts/css-ordering).
 
 ### cva
 
-Replace `cva(` with `style.cva(`, and import `VariantProps` from your framework's
+Replace `cva(` with `style.recipe(`, and import `VariantProps` from your framework's
 entrypoint:
 
 ```tsx
 import { style, type VariantProps } from "stillwind/react";
 
-const button = style.cva("rounded-md px-4 py-2", {
+const button = style.recipe("rounded-md px-4 py-2", {
   variants: {
     tone: {
       neutral: "bg-gray-100",
@@ -129,7 +129,7 @@ export function Button({ tone }: VariantProps<typeof button>) {
 `variants`, `defaultVariants`, and `compoundVariants` work as in
 class-variance-authority. Write each option value as a plain utility string,
 without `&&` or a ternary. The props that the factory returns cannot be passed
-to `style()` as a base. The [`style.cva()` reference](/docs/macros/cva) lists
+to `style()` as a base. The [`style.recipe()` reference](/docs/macros/recipe) lists
 the other differences.
 
 For new components, consider state variants and `data-*` attributes instead of

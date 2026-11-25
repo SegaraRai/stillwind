@@ -17,12 +17,12 @@ definitions, called a registry. `@stillwind-registry` selects the registries
 that the definitions inside the block change. Write it at the top level of the
 stylesheet, or inside another `@stillwind-registry` block.
 
-| Registry          | Resolves the utilities of                                                                                                                   |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `default`         | [`style()`](/docs/macros/style), [`style.cva()`](/docs/macros/cva), [`style.css()`](/docs/macros/css), and [`@apply`](/docs/at-rules/apply) |
-| `keyframe`        | The frames of [`style.keyframes()`](/docs/macros/keyframes)                                                                                 |
-| `animation`       | The options of a keyframes use, such as `enter("both")`                                                                                     |
-| `view-transition` | The `group`, `old`, `new`, and `imagePair` fields of [`style.viewTransition()`](/docs/macros/view-transition)                               |
+| Registry          | Resolves the utilities of                                                                                                                         |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `default`         | [`style()`](/docs/macros/style), [`style.recipe()`](/docs/macros/recipe), [`style.css()`](/docs/macros/css), and [`@apply`](/docs/at-rules/apply) |
+| `keyframe`        | The frames of [`style.keyframes()`](/docs/macros/keyframes)                                                                                       |
+| `animation`       | The options of a keyframes use, such as `enter("both")`                                                                                           |
+| `view-transition` | The `group`, `old`, `new`, and `imagePair` fields of [`style.viewTransition()`](/docs/macros/view-transition)                                     |
 
 A definition outside every block changes `default`, `keyframe`, and
 `view-transition`. `animation` starts empty and changes only through blocks that

@@ -12,7 +12,7 @@ type Equal<A, B> =
 
 declare const active: boolean;
 
-const button = react.cva(
+const button = react.recipe(
   {
     "": "rounded",
     ":": {
@@ -96,9 +96,9 @@ const external: VariantProps<typeof button> = {
 };
 void external;
 
-// @ts-expect-error CVA results cannot be composed through style().
+// @ts-expect-error recipe results cannot be composed through style().
 react(button());
-react.cva(null, {
+react.recipe(null, {
   variants: {
     size: {
       small: "p-2",
@@ -109,7 +109,7 @@ react.cva(null, {
     size: "large",
   },
 });
-react.cva(null, {
+react.recipe(null, {
   variants: {
     size: {
       small: "p-2",
@@ -123,7 +123,7 @@ react.cva(null, {
     },
   ],
 });
-react.cva(null, {
+react.recipe(null, {
   variants: {
     size: {
       small: "p-2",
@@ -137,7 +137,7 @@ react.cva(null, {
     },
   ],
 });
-react.cva(null, {
+react.recipe(null, {
   // @ts-expect-error Class names cannot be selection axes.
   variants: {
     className: {
@@ -145,24 +145,24 @@ react.cva(null, {
     },
   },
 });
-react.cva({
-  // @ts-expect-error CVA inputs require recognized rule keys.
+react.recipe({
+  // @ts-expect-error recipe inputs require recognized rule keys.
   unknown: "ready",
 });
-react.cva({
+react.recipe({
   "hover:": {
     // @ts-expect-error Custom properties cannot occur under CSS variants.
     "--tone": "red",
   },
 });
-react.cva({
+react.recipe({
   "": {
     // @ts-expect-error Empty rule groups also exclude custom properties.
     "--tone": "red",
   },
 });
 
-react.cva([
+react.recipe([
   true,
   false,
   null,
@@ -172,11 +172,11 @@ react.cva([
     "--tone": active ? "red" : "pink",
   },
 ]);
-react.cva();
+react.recipe();
 
-const classOnly: { class?: string; style?: Record<string, string> } = preact.cva("p-2")();
-const solidProps: typeof classOnly = solid.cva("p-2")();
-const vueProps: typeof classOnly = vue.cva("p-2")();
-const stringStyle: { class?: string; style?: string } = svelte.cva({ "--tone": "red" })();
-const astroProps: typeof stringStyle = astro.cva("p-2")();
+const classOnly: { class?: string; style?: Record<string, string> } = preact.recipe("p-2")();
+const solidProps: typeof classOnly = solid.recipe("p-2")();
+const vueProps: typeof classOnly = vue.recipe("p-2")();
+const stringStyle: { class?: string; style?: string } = svelte.recipe({ "--tone": "red" })();
+const astroProps: typeof stringStyle = astro.recipe("p-2")();
 void [classOnly, solidProps, vueProps, stringStyle, astroProps];

@@ -22,7 +22,7 @@ Markdown version of each page.
 | Migrate existing styles                                | `node_modules/stillwind/skills/migrate-to-stillwind/SKILL.md`       |
 | Recommended practices and mistakes that produce no CSS | `docs/guides/recommended-practices.md`                              |
 | Utilities, variants, conditions, runtime values        | `docs/guides/style.md`, `docs/macros/style.md`                      |
-| Shared styles, states, and component options           | `docs/guides/reusable-styles.md`, `docs/macros/cva.md`              |
+| Shared styles, states, and component options           | `docs/guides/reusable-styles.md`, `docs/macros/recipe.md`           |
 | Breakpoints and media queries in JavaScript            | `docs/guides/responsive-styles.md`, `docs/macros/media.md`          |
 | Styles that depend on a parent, sibling, or anchor     | `docs/guides/element-relationships.md`, `docs/macros/ref/index.md`  |
 | Animations                                             | `docs/guides/animations.md`, `docs/macros/keyframes.md`             |

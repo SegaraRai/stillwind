@@ -80,15 +80,18 @@ test("development readers can be bundled without materialization", async () => {
   expect(code).not.toMatch(/mergeFragments|toFragment|Symbol/);
 });
 
-test("packaged CVA factories select validation through the runtime entrypoint", async () => {
+test("packaged recipe factories select validation through the runtime entrypoint", async () => {
   for (const [format, classProperty] of formats) {
     for (const entry of ["stillwind/runtime", "stillwind/runtime/development"]) {
       const development = entry.endsWith("/development");
-      const code = await bundle(`export { stillwind${format}Cva as cva } from "${entry}";`, true);
+      const code = await bundle(
+        `export { stillwind${format}Recipe as recipe } from "${entry}";`,
+        true,
+      );
       const runtime = await import(
         `data:text/javascript;base64,${Buffer.from(code).toString("base64")}`
       );
-      const choose = runtime.cva("base", {
+      const choose = runtime.recipe("base", {
         variants: {
           kind: {
             active: "selected",

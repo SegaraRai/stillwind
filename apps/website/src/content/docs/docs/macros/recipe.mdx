@@ -1,15 +1,15 @@
 ---
-title: style.cva()
+title: style.recipe()
 description: Create a factory that selects compiled styles by option, with the configuration of class-variance-authority.
-slug: docs/macros/cva
+slug: docs/macros/recipe
 ---
 
-`style.cva(base?, config?)` creates a factory with the configuration format of
+`style.recipe(base?, config?)` creates a factory with the configuration format of
 `cva` from [Class Variance Authority](https://cva.style/). The compiler
 generates the CSS for every option at build time. Calling the factory selects
 the compiled classes for the chosen options and returns props for an element.
 
-`style.cva()` exists mainly to migrate existing CVA components. For new
+`style.recipe()` exists mainly to migrate existing CVA components. For new
 components, see [Reusable styles](/docs/guides/reusable-styles).
 
 ## Example
@@ -19,7 +19,7 @@ components, see [Reusable styles](/docs/guides/reusable-styles).
 ```tsx
 import { style } from "stillwind/react";
 
-export const button = style.cva("inline-flex rounded-md", {
+export const button = style.recipe("inline-flex rounded-md", {
   variants: {
     size: {
       small: "px-2 py-1",
@@ -67,8 +67,8 @@ variant keys, `true`, `false`, `null`, `undefined`, and custom properties.
 They do not accept `&&`, ternaries, stored [`style()`](/docs/macros/style)
 results, refs, animations, or `class` fields. To choose a style at runtime,
 pass a different option to the factory.
-[invalid-cva-input](/docs/lints/invalid-cva-input) reports these values, and
-[invalid-cva-config](/docs/lints/invalid-cva-config) reports a malformed
+[invalid-recipe-input](/docs/lints/invalid-recipe-input) reports these values, and
+[invalid-recipe-config](/docs/lints/invalid-recipe-config) reports a malformed
 configuration.
 
 A custom property value can be an expression. The factory evaluates it once,
@@ -106,7 +106,7 @@ The props that the factory returns cannot be passed to `style()` as a base.
 ## Generated code
 
 The compiler creates the factory with a helper from `stillwind/runtime`, such as
-`stillwindClassNameObjectCva` for React, together with the compiled class names.
+`stillwindClassNameObjectRecipe` for React, together with the compiled class names.
 Factory calls stay ordinary JavaScript.
 The development build checks the selected values and the classes from other
 stylesheets.

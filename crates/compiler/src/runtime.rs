@@ -25,7 +25,7 @@ use crate::{IdentifierMode, SourceTransform, plan_macro_import_removals};
 /// One compiler helper exported by the runtime.
 ///
 /// The development runtime exports every helper under the same name, and its versions of
-/// [`Self::Clsx`], [`Self::Cva`], [`Self::Merge`], [`Self::ToFragment`], and
+/// [`Self::Clsx`], [`Self::Recipe`], [`Self::Merge`], [`Self::ToFragment`], and
 /// [`Self::ViewTransitionName`] validate their inputs.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub(crate) enum RuntimeHelper {
@@ -37,8 +37,8 @@ pub(crate) enum RuntimeHelper {
     CssValue,
     /// The fragment key for generated custom properties of one output format.
     CustomPropertiesKey,
-    /// Selects compiled CVA values and materializes props of one output format.
-    Cva,
+    /// Selects compiled recipe values and materializes props of one output format.
+    Recipe,
     /// Reads forwarded class and style props as a fragment of one output format.
     Forward,
     /// Reads forwarded class and style props as a fragment of one output format whose
@@ -67,7 +67,7 @@ impl RuntimeHelper {
             Self::Clsx | Self::CssValue | Self::RefClassChecked | Self::ViewTransitionName => None,
             Self::ClassKey
             | Self::CustomPropertiesKey
-            | Self::Cva
+            | Self::Recipe
             | Self::Forward
             | Self::ForwardArrays
             | Self::Merge
@@ -87,7 +87,7 @@ impl RuntimeHelper {
             Self::Clsx => "stillwindClsx",
             Self::CssValue => "stillwindCssValue",
             Self::CustomPropertiesKey => "CustomPropertiesKey",
-            Self::Cva => "Cva",
+            Self::Recipe => "Recipe",
             Self::Forward => "Forward",
             Self::ForwardArrays => "ForwardArrays",
             Self::Merge => "Merge",

@@ -111,7 +111,7 @@ impl<'a> MacroExtractor<'a> {
             }
             Expression::ObjectExpression(object) => self.object_class_expression(object),
             Expression::NullLiteral(_) => None,
-            Expression::BooleanLiteral(value) if !value.value || self.in_cva => None,
+            Expression::BooleanLiteral(value) if !value.value || self.in_recipe => None,
             Expression::Identifier(value) if value.name == "undefined" => None,
             Expression::Identifier(_) => {
                 let failure = self

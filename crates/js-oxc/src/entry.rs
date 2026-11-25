@@ -187,7 +187,7 @@ pub(crate) fn parse_with_coordinates(
     let module = ModuleIr {
         imports,
         style_calls: extractor.style_calls,
-        cva_calls: extractor.cva_calls,
+        recipe_calls: extractor.recipe_calls,
         media_calls: extractor.media_calls,
         css_calls: extractor.css_calls,
         ref_definitions: extractor.ref_definitions,

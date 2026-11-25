@@ -175,13 +175,12 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
     /// nested inside an already-collected one produces
     /// [`LintDiagnostic::NestedStyleCall`] and is omitted. Unsupported spread arguments
     /// are also omitted with lint findings.
-    /// Every other call is checked for
-    /// a macro use the lowering cannot consume.
+    /// Every other call is checked for a macro use the lowering cannot consume.
     fn visit_call_expression(&mut self, call: &CallExpression<'a>) {
-        if self.is_style_member(call.callee.get_inner_expression(), "cva")
+        if self.is_style_member(call.callee.get_inner_expression(), "recipe")
             && let Some(output) = self.style_output(&call.callee)
         {
-            self.collect_cva(call, output);
+            self.collect_recipe(call, output);
             walk::walk_call_expression(self, call);
             return;
         }
@@ -215,7 +214,7 @@ impl<'a> Visit<'a> for MacroExtractor<'a> {
             .iter()
             .any(|parent| parent.span.start <= span.start && parent.span.end >= span.end)
             || self
-                .cva_calls
+                .recipe_calls
                 .iter()
                 .any(|parent| parent.span.start <= span.start && parent.span.end >= span.end)
         {

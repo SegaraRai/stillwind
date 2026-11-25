@@ -84,8 +84,8 @@ import { Button } from "./components/ui/button";
 Here `src/components/ui/button.tsx` comes before `src/App.tsx`, although the
 paths sort the other way. The same applies to a file that passes an imported
 value directly to `style()`, and to a file that passes a `style.forward()`
-value to an imported `style.cva()` factory. Stillwind follows re-exports to the
-file that declares the component when it has already read the re-exporting
+value to an imported `style.recipe()` factory. Stillwind follows re-exports to
+the file that declares the component when it has already read the re-exporting
 file. Components in Vue, Svelte, and Astro files are recognized in the same
 way.
 

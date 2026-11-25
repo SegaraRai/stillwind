@@ -5,7 +5,6 @@
  * created it. Export names start with the format name because all formats share one entrypoint.
  */
 
-import { createCva, type CompiledCvaConfig, type CvaValue } from "./cva.ts";
 import {
   forwardFragment,
   mergeFragments,
@@ -13,6 +12,7 @@ import {
   toFragment,
   type FragmentRuntimeOptions,
 } from "./fragment.ts";
+import { createRecipe, type CompiledRecipeConfig, type RecipeValue } from "./recipe.ts";
 
 export const stillwindClassObjectClassKey = /* @__PURE__ */ Symbol("stillwind.class-object.class");
 
@@ -60,9 +60,9 @@ export function stillwindClassObjectForwardArrays(value: unknown): Record<Proper
   return forwardFragment(classObjectOptions, value, true);
 }
 
-/** Selects compiled CVA values and returns fresh props with `class` and object styles. */
-export function stillwindClassObjectCva(base?: CvaValue, config?: CompiledCvaConfig) {
-  return createCva(classObjectOptions, base, config);
+/** Selects compiled recipe values and returns fresh props with `class` and object styles. */
+export function stillwindClassObjectRecipe(base?: RecipeValue, config?: CompiledRecipeConfig) {
+  return createRecipe(classObjectOptions, base, config);
 }
 
 export const stillwindClassStringClassKey = /* @__PURE__ */ Symbol("stillwind.class-string.class");
@@ -106,9 +106,9 @@ export function stillwindClassStringForward(value: unknown): Record<PropertyKey,
   return forwardFragment(classStringOptions, value, false);
 }
 
-/** Selects compiled CVA values and returns fresh props with `class` and string styles. */
-export function stillwindClassStringCva(base?: CvaValue, config?: CompiledCvaConfig) {
-  return createCva(classStringOptions, base, config);
+/** Selects compiled recipe values and returns fresh props with `class` and string styles. */
+export function stillwindClassStringRecipe(base?: RecipeValue, config?: CompiledRecipeConfig) {
+  return createRecipe(classStringOptions, base, config);
 }
 
 export const stillwindClassNameObjectClassKey = /* @__PURE__ */ Symbol(
@@ -160,7 +160,7 @@ export function stillwindClassNameObjectForward(value: unknown): Record<Property
   return forwardFragment(classNameObjectOptions, value, false);
 }
 
-/** Selects compiled CVA values and returns fresh props with `className` and object styles. */
-export function stillwindClassNameObjectCva(base?: CvaValue, config?: CompiledCvaConfig) {
-  return createCva(classNameObjectOptions, base, config);
+/** Selects compiled recipe values and returns fresh props with `className` and object styles. */
+export function stillwindClassNameObjectRecipe(base?: RecipeValue, config?: CompiledRecipeConfig) {
+  return createRecipe(classNameObjectOptions, base, config);
 }

@@ -1,20 +1,20 @@
 ---
-title: invalid-cva-config
-description: Reports an unknown or malformed field in a style.cva() configuration.
-slug: docs/lints/invalid-cva-config
+title: invalid-recipe-config
+description: Reports an unknown or malformed field in a style.recipe() configuration.
+slug: docs/lints/invalid-recipe-config
 ---
 
-This rule reports a `style.cva()` configuration that the compiler cannot read,
+This rule reports a `style.recipe()` configuration that the compiler cannot read,
 such as an unknown field, a default for an option that does not exist, or a
 configuration that is not written in the call. The factory ignores the invalid
 part.
 
 ## Reported
 
-<DiagnosticExample code="invalid-cva-config">
+<DiagnosticExample code="invalid-recipe-config">
 
 ```tsx
-style.cva("p-4", {
+style.recipe("p-4", {
   variant: {
     size: {
       small: "p-2",
@@ -28,7 +28,7 @@ style.cva("p-4", {
 ## Fixed
 
 ```tsx
-style.cva("p-4", {
+style.recipe("p-4", {
   variants: {
     size: {
       small: "p-2",
@@ -44,8 +44,8 @@ style.cva("p-4", {
 - In `defaultVariants` and `compoundVariants`, use only options and values that
   `variants` declares.
 
-See [`style.cva()`](/docs/macros/cva#configuration).
+See [`style.recipe()`](/docs/macros/recipe#configuration).
 
 ## Rule settings
 
-<LintRuleSummary name="invalid-cva-config" />
+<LintRuleSummary name="invalid-recipe-config" />

@@ -300,8 +300,8 @@ define_lint_rules! {
     Input {
         InvalidRuleGroupInput => "invalid-rule-group-input",
         InvalidStyleInput => "invalid-style-input",
-        InvalidCvaConfig => "invalid-cva-config",
-        InvalidCvaInput => "invalid-cva-input",
+        InvalidRecipeConfig => "invalid-recipe-config",
+        InvalidRecipeInput => "invalid-recipe-input",
         InvalidKeyframesUse => "invalid-keyframes-use",
         InvalidKeyframesDefinition => "invalid-keyframes-definition",
         InvalidKeyframesVariant => "invalid-keyframes-variant",

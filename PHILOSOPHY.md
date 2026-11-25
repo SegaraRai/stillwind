@@ -70,7 +70,7 @@ The principles themselves will also be updated as the implementation evolves.
 
 - マクロの意味論と建付け
   - マクロには「値を作るマクロ」と「副作用だけのマクロ」がある
-    - 値を作るマクロ: `style()`、`style.ref()`・`style.keyframes()`・`style.viewTransition()` の宣言、`style.cva()`
+    - 値を作るマクロ: `style()`、`style.ref()`・`style.keyframes()`・`style.viewTransition()` の宣言、`style.recipe()`
       - インプレースでランタイムコードに一対一で変換され、ランタイム値を持つ
       - 副作用として、CSS の生成に貢献したり、CSS ルールの順序に影響を与えたりする（base スタイルなど）
       - たとえば `style(...)` は最終的に `{ className: "..." }` に評価されるなにか（たとえば `stillwindClassNameObjectMerge(stillwindClassNameObjectToFragment({ [stillwindClassNameObjectClassKey]: "sw_a" }))`）になる。変換処理としては（副作用を除いて）それ以上でもそれ以下でもない。これは TS 型定義とも整合する話

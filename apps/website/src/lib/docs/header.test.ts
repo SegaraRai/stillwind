@@ -50,7 +50,7 @@ it("recognizes links to a fragment of the current page", () => {
   expect(isFragmentLink("https://stillwind.dev/docs/guides/style#values", page)).toBe(true);
   expect(isFragmentLink("https://stillwind.dev/docs/guides/style#states", page)).toBe(true);
   expect(isFragmentLink("https://stillwind.dev/docs/guides/style", page)).toBe(false);
-  expect(isFragmentLink("https://stillwind.dev/docs/guides/cva#values", page)).toBe(false);
+  expect(isFragmentLink("https://stillwind.dev/docs/guides/recipe#values", page)).toBe(false);
   expect(isFragmentLink("https://stillwind.dev/docs/guides/style?tab=vp#values", page)).toBe(false);
   expect(isFragmentLink("https://example.com/docs/guides/style#values", page)).toBe(false);
 });

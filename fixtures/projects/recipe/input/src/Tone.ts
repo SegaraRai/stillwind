@@ -1,7 +1,7 @@
 import { style } from "stillwind/svelte";
 
 export function createTone(tone: string) {
-  return style.cva(
+  return style.recipe(
     [
       "text-[var(--tone)]",
       {

@@ -60,13 +60,13 @@ impl ModuleIr {
                 map_input(input, &mut map)?;
             }
         }
-        for cva in &mut result.cva_calls {
-            cva.span = map(cva.span)?;
-            cva.callee_span = map(cva.callee_span)?;
-            for replacement in &mut cva.replacements {
+        for recipe in &mut result.recipe_calls {
+            recipe.span = map(recipe.span)?;
+            recipe.callee_span = map(recipe.callee_span)?;
+            for replacement in &mut recipe.replacements {
                 replacement.span = map(replacement.span)?;
             }
-            for value in &mut cva.values {
+            for value in &mut recipe.values {
                 value.span = map(value.span)?;
                 for input in &mut value.inputs {
                     map_input(input, &mut map)?;

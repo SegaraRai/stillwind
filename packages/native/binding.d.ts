@@ -1530,10 +1530,10 @@ export interface NativeLintOptions {
   invalidRuleGroupInput?: string
   /** Settings for `invalid-style-input`. */
   invalidStyleInput?: string
-  /** Settings for `invalid-cva-config`. */
-  invalidCvaConfig?: string
-  /** Settings for `invalid-cva-input`. */
-  invalidCvaInput?: string
+  /** Settings for `invalid-recipe-config`. */
+  invalidRecipeConfig?: string
+  /** Settings for `invalid-recipe-input`. */
+  invalidRecipeInput?: string
   /** Settings for `invalid-keyframes-use`. */
   invalidKeyframesUse?: string
   /** Settings for `invalid-keyframes-definition`. */

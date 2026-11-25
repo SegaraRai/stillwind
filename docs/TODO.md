@@ -192,7 +192,7 @@ designed or built yet:
 - Editors: hover over a use should show the expanded sequence, string arguments
   should complete variants as keys do, and go to definition should reach the
   declaration.
-- CVA: CVA values reject computed keys, so they reject stored variants. Accepting a
+- Recipes: recipe values reject computed keys, so they reject stored variants. Accepting a
   stored variant without a ref there is possible but has low priority, because few
   use cases need it.
 - Related locations: a finding for an imported declaration points at the use. It
@@ -483,7 +483,7 @@ to imported components:
   example margins, widths, and placement) for flows that `style.forward()`
   makes visible. Report at the caller's `style()` and point to the receiver's
   utility. Do not judge flows that cannot be tracked, such as receivers without
-  `style.forward()`, dynamic components, or context. Narrow `style.cva()`
+  `style.forward()`, dynamic components, or context. Narrow `style.recipe()`
   variants with literal props and `defaultVariants`, and otherwise check all
   variants. Add a `partial` value only if it is cheap to implement: it reports
   an override that loses under a receiver's variant condition that the caller
@@ -501,3 +501,19 @@ to imported components:
 
 Sources: [CSS ordering](../packages/core/docs/concepts/css-ordering.md),
 [component conversion](../packages/projection/src/frameworks/index.ts).
+
+## Recipe slots
+
+`style.recipe()` returns props for one element. Components with several styled
+parts, such as a root, an icon, and a label, need one recipe for each part.
+Decide how a `slots` configuration can select the classes of every part from
+one set of variants:
+
+- The return value. Calling the factory may return one props function for each
+  slot, or props objects for all slots at once.
+- Slot-specific entries in `variants` and `compoundVariants`, such as a `slot`
+  key or values keyed by slot name, and how they map to compiled values.
+- Which slot receives the `style.forward()` value that the factory takes as its
+  second argument, and whether each slot can receive its own forward.
+- The CSS order of slots in one recipe, and the lints that compare slots, such
+  as `conflicting-utilities` and `interfering-imported-style-base`.

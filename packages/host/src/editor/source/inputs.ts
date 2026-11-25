@@ -171,8 +171,8 @@ export class SourceIndex {
           }
           return;
         }
-        if (this.#bindings.producer(node.expression, "cva")) {
-          this.#cva(source, node);
+        if (this.#bindings.producer(node.expression, "recipe")) {
+          this.#recipe(source, node);
           return;
         }
         if (this.asset(source, node.expression)?.identity.kind === "keyframes") {
@@ -554,17 +554,17 @@ export class SourceIndex {
   }
 
   /**
-   * Records the variant keys of a `style.cva()` call. The compiler captures the utility
+   * Records the variant keys of a `style.recipe()` call. The compiler captures the utility
    * literals of the call, so this method adds only keys.
    *
    * @param source - Prepared source whose checker AST contains `call`.
-   * @param call - Call whose callee is the `cva` method of a Stillwind style import.
+   * @param call - Call whose callee is the `recipe` method of a Stillwind style import.
    * Keys are read from the base input, from each option of `variants`, and from the
    * `class` and `className` inputs of `compoundVariants`. Other syntax adds nothing.
    */
-  #cva(source: PreparedSource, call: ts.CallExpression): void {
+  #recipe(source: PreparedSource, call: ts.CallExpression): void {
     const [base, config] = call.arguments;
-    this.#cvaInput(source, base, "");
+    this.#recipeInput(source, base, "");
     if (!config || !ts.isObjectLiteralExpression(config)) {
       return;
     }
@@ -579,7 +579,7 @@ export class SourceIndex {
           if (ts.isPropertyAssignment(axis) && ts.isObjectLiteralExpression(axis.initializer)) {
             for (const option of axis.initializer.properties) {
               if (ts.isPropertyAssignment(option)) {
-                this.#cvaInput(source, option.initializer, "");
+                this.#recipeInput(source, option.initializer, "");
               }
             }
           }
@@ -595,7 +595,7 @@ export class SourceIndex {
               !ts.isComputedPropertyName(entry.name) &&
               ["class", "className"].includes(propertyName(entry))
             ) {
-              this.#cvaInput(source, entry.initializer, "");
+              this.#recipeInput(source, entry.initializer, "");
             }
           }
         }
@@ -604,14 +604,14 @@ export class SourceIndex {
   }
 
   /**
-   * Records the variant keys in one CVA utility input, including keys in nested arrays and
+   * Records the variant keys in one recipe utility input, including keys in nested arrays and
    * variant groups.
    *
    * @param source - Prepared source whose checker AST contains `node`.
-   * @param node - CVA input, or undefined for an omitted argument.
+   * @param node - recipe input, or undefined for an omitted argument.
    * @param prefix - Decoded variants of the enclosing keys, each ending in `:`.
    */
-  #cvaInput(source: PreparedSource, node: ts.Node | undefined, prefix: string): void {
+  #recipeInput(source: PreparedSource, node: ts.Node | undefined, prefix: string): void {
     while (
       node &&
       (ts.isParenthesizedExpression(node) ||
@@ -625,7 +625,7 @@ export class SourceIndex {
     }
     if (ts.isArrayLiteralExpression(node)) {
       for (const element of node.elements) {
-        this.#cvaInput(source, element, prefix);
+        this.#recipeInput(source, element, prefix);
       }
       return;
     }
@@ -637,7 +637,7 @@ export class SourceIndex {
         this.#key(source, property, prefix, "utility");
         const name = propertyName(property);
         if (name === "" || name.endsWith(":")) {
-          this.#cvaInput(source, property.initializer, name === ":" ? prefix : prefix + name);
+          this.#recipeInput(source, property.initializer, name === ":" ? prefix : prefix + name);
         }
       }
     }

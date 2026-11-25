@@ -11,13 +11,13 @@ has its own exports, whose names start with the representation's prefix:
 | `stillwindClassNameObject` | `className` | object     | `react`                             |
 
 Each prefix is followed by `ClassKey`, `StyleKey`, `CustomPropertiesKey`, `Merge`,
-`ToFragment`, `StyleValue`, or `Cva`, such as `stillwindClassObjectMerge`.
+`ToFragment`, `StyleValue`, or `Recipe`, such as `stillwindClassObjectMerge`.
 `stillwindClsx`, `stillwindCssValue`, `stillwindEscapedIdentifier`, and
 `stillwindViewTransitionName` do not depend on the representation.
 
 Authored macro imports use `stillwind/react`, `stillwind/vanilla`, and the other
 framework entrypoints. Source projection and normalization remain framework policies.
-Each style call and CVA factory retains the output format of its imported macro
+Each style call and recipe factory retains the output format of its imported macro
 binding. One module can use several output representations. Each import realm imports a
 helper once. Representations share the helpers that do not depend on them. Local names
 come from one allocator, which appends a numeric suffix when a name is already bound.
@@ -31,14 +31,14 @@ JavaScript modules have no required import side effects; CSS files retain their 
 
 `stillwind/runtime/development` exports every name of `stillwind/runtime` with the same
 symbol keys, so generated calls are the same in both modes. Its `Merge`, `ToFragment`,
-`Cva`, `stillwindClsx`, and `stillwindViewTransitionName` exports validate their inputs.
+`Recipe`, `stillwindClsx`, and `stillwindViewTransitionName` exports validate their inputs.
 They check fragment ownership, class contributions, and materialized props before merging
 or converting them. Dynamic ref attachments and projections that read `.c` call
 `stillwindRefClassChecked(ref)` to validate `.c`; release compilations read `ref.c` directly.
 Only the development module exports `stillwindRefClassChecked`. The generated code evaluates
 the ref expression once in either mode.
 
-A development `Cva` factory checks external class inputs and selected fragments each time
+A development `Recipe` factory checks external class inputs and selected fragments each time
 the factory is called.
 Checked class concatenation accepts strings, numbers, bigints, nested arrays, and objects
 whose truthy values enable their keys. Booleans, null, and undefined add no class text.
@@ -51,15 +51,15 @@ checks. Fragment merging keeps contribution order, later authored props and styl
 earlier values, and generated custom properties are applied last. Each output runtime owns its keys;
 fragments must be materialized by the runtime that created them.
 
-## CVA factories
+## Recipe factories
 
-`style.cva(base?, config?)` compiles utility values and creates a selector using
-the `Cva` export of the output representation, such as `stillwindClassNameObjectCva`. The configuration keeps its JavaScript
+`style.recipe(base?, config?)` compiles utility values and creates a selector using
+the `Recipe` export of the output representation, such as `stillwindClassNameObjectRecipe`. The configuration keeps its JavaScript
 structure. Each base, option, and compound style value becomes compiled class text
 or private fragments. Calls to the returned factory remain ordinary JavaScript.
 
 ```tsx
-const button = style.cva("inline-flex rounded-md", {
+const button = style.recipe("inline-flex rounded-md", {
   variants: {
     size: {
       small: "px-2 py-1",
@@ -114,7 +114,7 @@ values may contain expressions, including `&&` and ternaries. Dynamic values are
 captured when the factory is created and obey the ordinary macro purity
 contract. Factory calls select captured values without re-evaluating their expressions.
 Each call returns fresh framework class and optional style props without fragment
-symbols. CVA results cannot be passed to `style()` for composition.
+symbols. Recipe results cannot be passed to `style()` for composition.
 
 All options contribute CSS at compilation. The factory performs no utility merging
 at runtime. Generated rules follow Stillwind's CSS ordering; competing utilities

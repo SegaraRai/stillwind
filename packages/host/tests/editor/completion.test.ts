@@ -129,7 +129,7 @@ test("variant keys and style.when arguments complete and preview only variants",
 const stored = style.when("focus:", "");
 const value = style({ "hover:": "block", "wide:": { "focus:": "flex" }, "ho": "block", "--gap": "1px" });
 const sheet = style.css({ "hover:": "block" }, { selector: ":host" });
-const factory = style.cva({ "hover:": "block" }, { variants: { size: { sm: { "wide:": "flex" } } } });`;
+const factory = style.recipe({ "hover:": "block" }, { variants: { size: { sm: { "wide:": "flex" } } } });`;
   const current = project(
     source,
     {},
@@ -158,7 +158,7 @@ const factory = style.cva({ "hover:": "block" }, { variants: { size: { sm: { "wi
     expect(nested!.css).toContain("@media (width >= 40rem");
     expect(nested!.css).toContain("&:focus");
     expect((await hover('"hover:"', source.indexOf("style.css")))!.css).toContain("&:hover");
-    expect((await hover('"wide:"', source.indexOf("cva")))!.css).toContain("@media");
+    expect((await hover('"wide:"', source.indexOf("recipe")))!.css).toContain("@media");
     expect((await hover('"focus:"'))!.css).toContain("&:focus");
     // A custom-property key is not a variant key, so hover describes the enclosing call.
     const property = (await hover('"--gap"'))!;

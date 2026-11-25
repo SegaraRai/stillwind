@@ -3,7 +3,7 @@ import { style as svelte } from "stillwind/svelte";
 import { style as vanilla } from "stillwind/vanilla";
 
 export function frameworkProps(active: boolean, tone: string) {
-  const choose = react.cva("font-medium", {
+  const choose = react.recipe("font-medium", {
     variants: { active: { true: { "--tone": tone }, false: null } },
   });
   return {

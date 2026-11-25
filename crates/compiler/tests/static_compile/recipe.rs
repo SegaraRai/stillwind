@@ -1,4 +1,4 @@
-//! CVA extraction, style lowering, and runtime imports through the public compiler API.
+//! Recipe extraction, style lowering, and runtime imports through the public compiler API.
 
 use stillwind_compiler::{CompileResult, CompilerOptions, render_transforms};
 use stillwind_diagnostics::{LintDiagnostic, RuleGroupInputErrorKind};
@@ -26,11 +26,11 @@ fn compile(text: &str) -> (SourceFile, CompileResult) {
 }
 
 #[test]
-fn cva_compiles_values_and_preserves_selection_configuration() {
+fn recipe_compiles_values_and_preserves_selection_configuration() {
     let (source, result) = compile(
         r"
         import { style as sw } from 'stillwind/react';
-        export const choose = sw.cva({ '': 'rounded' }, {
+        export const choose = sw.recipe({ '': 'rounded' }, {
             variants: {
                 size: { small: { ':': 'p-4 px-2' }, large: 'p-8 py-2' },
                 enabled: { false: null, true: 'block' },
@@ -44,7 +44,10 @@ fn cva_compiles_values_and_preserves_selection_configuration() {
     );
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
     let output = render_transforms(&source, &result.transforms).unwrap().code;
-    assert!(output.contains("stillwindClassNameObjectCva"), "{output}");
+    assert!(
+        output.contains("stillwindClassNameObjectRecipe"),
+        "{output}"
+    );
     assert!(output.contains("from \"stillwind/runtime\""), "{output}");
     assert!(
         output.contains("defaultVariants: { size: 'small', enabled: false, count: 0 }"),
@@ -64,11 +67,11 @@ fn cva_compiles_values_and_preserves_selection_configuration() {
 }
 
 #[test]
-fn cva_keeps_literal_and_dynamic_custom_properties_in_fragments() {
+fn recipe_keeps_literal_and_dynamic_custom_properties_in_fragments() {
     let (source, result) = compile(
         r"
         import { style } from 'stillwind/svelte';
-        export const choose = style.cva(['block', { '--tone': tone, '--contrast': enabled ? 'black' : 'white' }], {
+        export const choose = style.recipe(['block', { '--tone': tone, '--contrast': enabled ? 'black' : 'white' }], {
             variants: {
                 kind: {
                     plain: true,
@@ -106,7 +109,7 @@ fn cva_keeps_literal_and_dynamic_custom_properties_in_fragments() {
 }
 
 #[test]
-fn cva_rejects_javascript_conditionals_in_utility_definitions() {
+fn recipe_rejects_javascript_conditionals_in_utility_definitions() {
     for value in [
         "enabled && 'p-2'",
         "enabled ? 'p-2' : 'p-3'",
@@ -117,17 +120,17 @@ fn cva_rejects_javascript_conditionals_in_utility_definitions() {
     ] {
         for body in [
             format!(
-                "style.cva({value}, {{ variants: {{ size: {{ small: {{'hover:': 'block'}} }} }} }})"
+                "style.recipe({value}, {{ variants: {{ size: {{ small: {{'hover:': 'block'}} }} }} }})"
             ),
             format!(
-                "style.cva({{'hover:': 'block'}}, {{ variants: {{ size: {{ small: {value} }} }} }})"
+                "style.recipe({{'hover:': 'block'}}, {{ variants: {{ size: {{ small: {value} }} }} }})"
             ),
             format!(
-                "style.cva({{'hover:': 'block'}}, {{ variants: {{ size: {{ small: 'text-sm' }} }}, \
+                "style.recipe({{'hover:': 'block'}}, {{ variants: {{ size: {{ small: 'text-sm' }} }}, \
                  compoundVariants: [{{ size: 'small', class: {value} }}] }})"
             ),
             format!(
-                "style.cva({{'hover:': 'block'}}, {{ variants: {{ size: {{ small: 'text-sm' }} }}, \
+                "style.recipe({{'hover:': 'block'}}, {{ variants: {{ size: {{ small: 'text-sm' }} }}, \
                  compoundVariants: [{{ size: 'small', className: {value} }}] }})"
             ),
         ] {
@@ -139,7 +142,7 @@ fn cva_rejects_javascript_conditionals_in_utility_definitions() {
                 result
                     .lint_findings
                     .iter()
-                    .any(|finding| finding.diagnostic == LintDiagnostic::InvalidCvaInput),
+                    .any(|finding| finding.diagnostic == LintDiagnostic::InvalidRecipeInput),
                 "{body}: {result:#?}"
             );
             assert!(
@@ -159,19 +162,19 @@ fn cva_rejects_javascript_conditionals_in_utility_definitions() {
 }
 
 #[test]
-fn cva_omits_unsupported_values_and_preserves_valid_configuration() {
+fn recipe_omits_unsupported_values_and_preserves_valid_configuration() {
     for body in [
-        "style.cva(null, config)",
-        "style.cva(null, { variants: { size: { small: 'p-2' } }, defaultVariants: { size: 'large' } })",
-        "style.cva(null, { variants: { className: { a: 'p-2' } } })",
-        "style.cva(null, { compoundVariants: [{ missing: 'a', class: 'block' }] })",
-        "style.cva(null, { ...config })",
-        "style.cva({ 'unknown': 'ready' })",
-        "style.cva({ class: classes })",
-        "style.cva(style('block'))",
-        "style.cva(`p-${size}`)",
-        "style.cva([...styles])",
-        "style?.cva('block')",
+        "style.recipe(null, config)",
+        "style.recipe(null, { variants: { size: { small: 'p-2' } }, defaultVariants: { size: 'large' } })",
+        "style.recipe(null, { variants: { className: { a: 'p-2' } } })",
+        "style.recipe(null, { compoundVariants: [{ missing: 'a', class: 'block' }] })",
+        "style.recipe(null, { ...config })",
+        "style.recipe({ 'unknown': 'ready' })",
+        "style.recipe({ class: classes })",
+        "style.recipe(style('block'))",
+        "style.recipe(`p-${size}`)",
+        "style.recipe([...styles])",
+        "style?.recipe('block')",
     ] {
         let (source, result) = compile(&format!(
             "import {{ style }} from 'stillwind/react'; const choose = {body};"
@@ -179,7 +182,7 @@ fn cva_omits_unsupported_values_and_preserves_valid_configuration() {
         assert!(
             result.lint_findings.iter().any(|diagnostic| matches!(
                 diagnostic.diagnostic,
-                LintDiagnostic::InvalidCvaConfig { .. } | LintDiagnostic::InvalidCvaInput
+                LintDiagnostic::InvalidRecipeConfig { .. } | LintDiagnostic::InvalidRecipeInput
             )),
             "{body}: {:?}",
             result.diagnostics
@@ -187,10 +190,10 @@ fn cva_omits_unsupported_values_and_preserves_valid_configuration() {
         assert!(result.diagnostics.is_empty(), "{body}: {result:#?}");
         let output = render_transforms(&source, &result.transforms).unwrap().code;
         assert!(
-            output.contains("stillwindClassNameObjectCva"),
+            output.contains("stillwindClassNameObjectRecipe"),
             "{body}: {output}"
         );
-        assert!(!output.contains("style.cva"), "{body}: {output}");
+        assert!(!output.contains("style.recipe"), "{body}: {output}");
         if body.contains("small:") {
             assert!(
                 result.module_css.contains("padding:"),
@@ -204,11 +207,11 @@ fn cva_omits_unsupported_values_and_preserves_valid_configuration() {
 }
 
 #[test]
-fn cva_omits_invalid_rule_groups_and_keeps_other_entries() {
+fn recipe_omits_invalid_rule_groups_and_keeps_other_entries() {
     for key in ["hover:", "", ":"] {
         let (_, result) = compile(&format!(
             "import {{ style }} from 'stillwind/react'; \
-             const choose = style.cva({{'{key}': ['p-2', {{'--tone': tone}}], \
+             const choose = style.recipe({{'{key}': ['p-2', {{'--tone': tone}}], \
              'focus:': 'block', '--kept': 'blue'}});"
         ));
         assert!(result.diagnostics.is_empty(), "{result:#?}");
@@ -233,19 +236,25 @@ fn cva_omits_invalid_rule_groups_and_keeps_other_entries() {
 }
 
 #[test]
-fn cva_empty_calls_and_shadowed_members_remain_valid_javascript() {
+fn recipe_empty_calls_and_shadowed_members_remain_valid_javascript() {
     let (source, result) = compile(
         r"
         import { style } from 'stillwind/react';
-        export const empty = style.cva();
-        export const undefinedConfig = style.cva('block', undefined);
-        export function ordinary(style: { cva: (value: string) => string }) {
-            return style.cva('external');
+        export const empty = style.recipe();
+        export const undefinedConfig = style.recipe('block', undefined);
+        export function ordinary(style: { recipe: (value: string) => string }) {
+            return style.recipe('external');
         }
     ",
     );
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
     let output = render_transforms(&source, &result.transforms).unwrap().code;
-    assert!(output.contains("stillwindClassNameObjectCva()"), "{output}");
-    assert!(output.contains("return style.cva('external')"), "{output}");
+    assert!(
+        output.contains("stillwindClassNameObjectRecipe()"),
+        "{output}"
+    );
+    assert!(
+        output.contains("return style.recipe('external')"),
+        "{output}"
+    );
 }

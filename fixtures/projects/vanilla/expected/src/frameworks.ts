@@ -1,9 +1,9 @@
-import { stillwindCssValue, stillwindClassObjectClassKey, stillwindClassObjectCustomPropertiesKey, stillwindClassObjectMerge, stillwindClassStringClassKey, stillwindClassStringCustomPropertiesKey, stillwindClassStringMerge, stillwindClassNameObjectClassKey, stillwindClassNameObjectCustomPropertiesKey, stillwindClassNameObjectCva, stillwindClassNameObjectMerge } from "stillwind/runtime";
+import { stillwindCssValue, stillwindClassObjectClassKey, stillwindClassObjectCustomPropertiesKey, stillwindClassObjectMerge, stillwindClassStringClassKey, stillwindClassStringCustomPropertiesKey, stillwindClassStringMerge, stillwindClassNameObjectClassKey, stillwindClassNameObjectCustomPropertiesKey, stillwindClassNameObjectRecipe, stillwindClassNameObjectMerge } from "stillwind/runtime";
 
 
 
 export function frameworkProps(active: boolean, tone: string) {
-  const choose = stillwindClassNameObjectCva("sw_1ki7e", {
+  const choose = stillwindClassNameObjectRecipe("sw_1ki7e", {
     variants: { active: { true: {[stillwindClassNameObjectCustomPropertiesKey]:{"--tone":stillwindCssValue(tone)}}, false: "" } },
   });
   return {

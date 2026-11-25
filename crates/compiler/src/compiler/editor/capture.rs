@@ -579,14 +579,14 @@ impl ModuleEditor {
                 for input in &call.inputs {
                     collect_bases(input, &mut dependencies);
                 }
-                let cva = self
+                let recipe = self
                     .module
                     .ir
-                    .cva_calls
+                    .recipe_calls
                     .iter()
                     .any(|factory| factory.values.iter().any(|value| value.span == call.span));
-                let run = if cva {
-                    CallEmitter::run_cva
+                let run = if recipe {
+                    CallEmitter::run_recipe
                 } else {
                     CallEmitter::run
                 };

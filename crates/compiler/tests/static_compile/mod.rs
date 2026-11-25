@@ -10,7 +10,6 @@
 //! - [`conditional_flow`] checks the structure-preserving lowering of conditional class
 //!   expressions.
 //! - [`css_call`] checks `style.css()` lowering.
-//! - [`cva`] checks CVA extraction, style lowering, and runtime imports.
 //! - [`definitions`] checks animation and view-transition compilation.
 //! - [`folding`] checks fragment layouts, macro contracts, and source attribution.
 //! - [`forward`] checks `style.forward()` lowering.
@@ -18,6 +17,7 @@
 //! - [`numeric`] runs property tests over numeric candidates.
 //! - [`parity`] compares output with the checked-in Tailwind v4 fixtures.
 //! - [`react`] checks the React adapter.
+//! - [`recipe`] checks recipe extraction, style lowering, and runtime imports.
 //! - [`ref_variants`] checks ref variants in selectors and templates.
 //! - [`refs`] checks ref projections and selector scopes.
 //! - [`runtime_if`] checks experimental computed-value conditions.
@@ -45,7 +45,6 @@ mod acceptance;
 mod alternatives;
 mod conditional_flow;
 mod css_call;
-mod cva;
 mod definitions;
 mod folding;
 mod forward;
@@ -53,6 +52,7 @@ mod media;
 mod numeric;
 mod parity;
 mod react;
+mod recipe;
 mod ref_variants;
 mod refs;
 mod runtime_if;

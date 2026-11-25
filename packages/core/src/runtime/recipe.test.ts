@@ -5,24 +5,24 @@ import * as formats from "./formats.ts";
 
 const outputs = [
   {
-    cva: formats.stillwindClassNameObjectCva,
-    cvaChecked: checked.stillwindClassNameObjectCvaChecked,
+    recipe: formats.stillwindClassNameObjectRecipe,
+    recipeChecked: checked.stillwindClassNameObjectRecipeChecked,
     classKey: formats.stillwindClassNameObjectClassKey,
     customPropertiesKey: formats.stillwindClassNameObjectCustomPropertiesKey,
     classProperty: "className",
     stringStyle: false,
   },
   {
-    cva: formats.stillwindClassObjectCva,
-    cvaChecked: checked.stillwindClassObjectCvaChecked,
+    recipe: formats.stillwindClassObjectRecipe,
+    recipeChecked: checked.stillwindClassObjectRecipeChecked,
     classKey: formats.stillwindClassObjectClassKey,
     customPropertiesKey: formats.stillwindClassObjectCustomPropertiesKey,
     classProperty: "class",
     stringStyle: false,
   },
   {
-    cva: formats.stillwindClassStringCva,
-    cvaChecked: checked.stillwindClassStringCvaChecked,
+    recipe: formats.stillwindClassStringRecipe,
+    recipeChecked: checked.stillwindClassStringRecipeChecked,
     classKey: formats.stillwindClassStringClassKey,
     customPropertiesKey: formats.stillwindClassStringCustomPropertiesKey,
     classProperty: "class",
@@ -30,8 +30,8 @@ const outputs = [
   },
 ] as const;
 
-test("CVA selects defaults, boolean and numeric options, and every matching compound", () => {
-  const choose = formats.stillwindClassNameObjectCva("base", {
+test("Recipe selects defaults, boolean and numeric options, and every matching compound", () => {
+  const choose = formats.stillwindClassNameObjectRecipe("base", {
     variants: {
       size: {
         small: "small",
@@ -89,7 +89,7 @@ test("CVA selects defaults, boolean and numeric options, and every matching comp
   });
 });
 
-test("CVA ignores inherited options and supports base-only and empty factories", () => {
+test("Recipe ignores inherited options and supports base-only and empty factories", () => {
   const options = Object.assign(
     Object.create({
       inherited: "wrong",
@@ -98,26 +98,26 @@ test("CVA ignores inherited options and supports base-only and empty factories",
       own: "right",
     },
   );
-  const choose = formats.stillwindClassNameObjectCva(undefined, {
+  const choose = formats.stillwindClassNameObjectRecipe(undefined, {
     variants: {
       kind: options,
     },
   });
   expect(choose({ kind: "inherited" })).toEqual({});
   expect(choose({ kind: "own" })).toEqual({ className: "right" });
-  expect(formats.stillwindClassNameObjectCva()()).toEqual({});
-  expect(formats.stillwindClassNameObjectCva("base")({ className: "extra" })).toEqual({
+  expect(formats.stillwindClassNameObjectRecipe()()).toEqual({});
+  expect(formats.stillwindClassNameObjectRecipe("base")({ className: "extra" })).toEqual({
     className: "base extra",
   });
   expect(
-    formats.stillwindClassNameObjectCva("base", { compoundVariants: [{ class: "unused" }] })(),
+    formats.stillwindClassNameObjectRecipe("base", { compoundVariants: [{ class: "unused" }] })(),
   ).toEqual({
     className: "base",
   });
 });
 
-test("checked CVA factories share production channels and validate selected inputs", () => {
-  for (const { cva, cvaChecked, classKey, customPropertiesKey } of outputs) {
+test("checked recipe factories share production channels and validate selected inputs", () => {
+  for (const { recipe, recipeChecked, classKey, customPropertiesKey } of outputs) {
     const base = {
       [classKey]: "base",
       [customPropertiesKey]: {
@@ -151,7 +151,7 @@ test("checked CVA factories share production channels and validate selected inpu
         },
       ],
     };
-    const choose = cvaChecked(base, config);
+    const choose = recipeChecked(base, config);
     const props = {
       kind: undefined,
       class: ["extra", false],
@@ -159,7 +159,7 @@ test("checked CVA factories share production channels and validate selected inpu
         active: true,
       },
     };
-    expect(choose(props)).toEqual(cva(base, config)(props));
+    expect(choose(props)).toEqual(recipe(base, config)(props));
     expect(() => choose({ kind: "foreign" })).toThrow(/different runtime/);
     expect(() => choose({ kind: "malformed" })).toThrow(/non-string class/);
     for (const invalidProps of [
@@ -173,7 +173,7 @@ test("checked CVA factories share production channels and validate selected inpu
       expect(() => choose(invalidProps)).toThrow(/unsupported class value/);
     }
     expect(() =>
-      cvaChecked(undefined, {
+      recipeChecked(undefined, {
         variants: {},
         compoundVariants: [
           {
@@ -185,8 +185,8 @@ test("checked CVA factories share production channels and validate selected inpu
   }
 });
 
-test("CVA merges custom properties without mutating saved fragments or leaking channels", () => {
-  for (const { cva, classKey, customPropertiesKey, classProperty, stringStyle } of outputs) {
+test("Recipe merges custom properties without mutating saved fragments or leaking channels", () => {
+  for (const { recipe, classKey, customPropertiesKey, classProperty, stringStyle } of outputs) {
     const baseStyle = { "--tone": "blue", "--size": "4" };
     const optionStyle = { "--tone": "red" };
     const base = {
@@ -197,7 +197,7 @@ test("CVA merges custom properties without mutating saved fragments or leaking c
       [classKey]: "option",
       [customPropertiesKey]: optionStyle,
     };
-    const choose = cva(base, {
+    const choose = recipe(base, {
       variants: {
         kind: {
           plain: null,

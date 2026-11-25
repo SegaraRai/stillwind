@@ -94,9 +94,9 @@ impl<'a> CallEmitter<'a> {
         Self::run_with_properties(inputs, false)
     }
 
-    /// Lowers a CVA value while retaining all custom properties in runtime fragments.
-    /// The caller must validate that the inputs are within the CVA subset.
-    pub(in crate::compiler) fn run_cva(inputs: CallEmitterInputs<'a>) -> Option<StyleEmission> {
+    /// Lowers a recipe value while retaining all custom properties in runtime fragments.
+    /// The caller must validate that the inputs are within the recipe subset.
+    pub(in crate::compiler) fn run_recipe(inputs: CallEmitterInputs<'a>) -> Option<StyleEmission> {
         Self::run_with_properties(inputs, true)
     }
 

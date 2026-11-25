@@ -167,7 +167,7 @@ the literal redundant. Editors offer each fix as a quick fix, and
 
 An invalid CSS variant discards its complete conditioned subtree. Removing only the
 condition would apply its rules to elements that the author did not select. An empty
-style or CVA value contributes no styles. An empty keyframes or view-transition
+style or recipe value contributes no styles. An empty keyframes or view-transition
 definition retains its binding and declaration identity. It emits no definition CSS
 and requires no definition slot; valid uses, including `transition.for(key)`, retain
 their normal meaning.
@@ -176,7 +176,7 @@ An invalid argument of `asAnchor()`, `asContainer()`, `positionAnchor()`, a keyf
 use, or `transition.for()` lowers as if the argument were omitted. An anchor scope entry
 that is not a ref contributes no identity.
 
-Invalid CVA values contribute nothing. Unsupported configuration properties and defaults
+Invalid recipe values contribute nothing. Unsupported configuration properties and defaults
 are omitted independently. Invalid compound conditions discard the complete compound.
 An unsupported factory signature becomes an empty factory.
 
@@ -217,7 +217,7 @@ value has one of three forms:
 
 - A runtime value: completed `style(...inputs)` props, the declarations from
   `style.ref()`, `style.keyframes()`, and `style.viewTransition()`, the factory from
-  `style.cva()`, and the strings from `style.media()` and `style.css()`. These values
+  `style.recipe()`, and the strings from `style.media()` and `style.css()`. These values
   can be stored, exported, passed, returned, and selected conditionally like other
   JavaScript values.
 - A compile-time value: the stored variant from `style.when()`. The compiler replaces
@@ -232,9 +232,9 @@ Place the declarations from `style.ref()`, `style.keyframes()`,
 `style.viewTransition()`, and `style.when()` in binding initializers, and compose
 completed props through variables.
 
-A call of `style()`, `style.cva()`, `style.ref()`, `style.keyframes()`,
+A call of `style()`, `style.recipe()`, `style.ref()`, `style.keyframes()`,
 `style.viewTransition()`, `style.when()`, `style.media()`, or `style.css()` inside a
-`style()` or CVA input is unsupported input. The enclosing lowering would keep the
+`style()` or recipe input is unsupported input. The enclosing lowering would keep the
 call in JavaScript without its own lowering. It therefore omits the smallest input that
 contains the call: the input itself, the whole conditional for a call in its test, or
 the object property for a call in its key or in a `class` or custom-property value. A
@@ -379,8 +379,8 @@ a CSS variant is stored in a conditional inline custom property; the variant's
 rule emits `view-transition-name: var(...)`.
 
 The object keys `""` and `":"` group the same rule inputs without adding variants.
-Nested groups retain their enclosing variants. These keys also work in CVA values,
-which retain the CVA input restrictions. Custom properties and external
+Nested groups retain their enclosing variants. These keys also work in recipe values,
+which retain the recipe input restrictions. Custom properties and external
 classes can be supplied beside the rule groups in a `style()` object.
 
 An incompatible input in a rule group produces `invalid-rule-group-input`, which
@@ -432,7 +432,7 @@ focused.
 
 A use belongs in a computed key of a `style()` object, a complete variant segment
 followed by `:` in a utility template, or the argument of another `style.when()`. It
-cannot be a `.in()` operand, and CVA values reject it as they reject other computed
+cannot be a `.in()` operand, and recipe values reject it as they reject other computed
 keys. At each use, the value must resolve to exactly one declaration, because the
 compiler expands the sequence at compile time. A conditional choice such as
 `[c ? a : b]` is not a stored variant.
@@ -681,15 +681,15 @@ Class lists from separate calls replace each other through the cascade. Supply
 an explicit name from one source. Different identities can share a name. The
 compiler does not validate document-wide pairing or name uniqueness at capture time.
 
-## CVA
+## Recipes
 
-`style.cva(base?, config?)` generates CSS for every option at compile time and
+`style.recipe(base?, config?)` generates CSS for every option at compile time and
 creates a factory that returns selected props at runtime. Write its static
 configuration object directly in the call. Utility inputs cannot contain JavaScript
 `&&` or ternary expressions, including inside arrays and CSS variants. Pass runtime
 conditions as variant selections. Completed-style composition and declaration uses
-are not accepted as CVA inputs. See
-[runtime](runtime.md#cva-factories) for selection, defaults, compounds, and examples.
+are not accepted as recipe inputs. See
+[runtime](runtime.md#recipe-factories) for selection, defaults, compounds, and examples.
 
 ## Media queries
 
@@ -735,7 +735,7 @@ because an empty media query list matches every environment. Unresolved variants
 arguments, report `invalid-media-query`, which defaults to `deny`. Severity settings and
 suppression do not change the string.
 
-A call inside a `style()` or CVA input is omitted with that input, as
+A call inside a `style()` or recipe input is omitted with that input, as
 [Macro values and consumption sites](#macro-values-and-consumption-sites)
 describes. Store the result in a binding outside the call.
 
@@ -833,7 +833,7 @@ of the tree that adopts it like any other unlayered stylesheet. A later
 redefine `default` after importing Stillwind, or add templates with other names.
 
 A template must contain a utilities slot and cannot contain definitions such as `@theme`
-or `@utility`; either problem is a compilation error. A call inside a `style()` or CVA
+or `@utility`; either problem is a compilation error. A call inside a `style()` or recipe
 input is omitted with that input, as
 [Macro values and consumption sites](#macro-values-and-consumption-sites)
 describes.

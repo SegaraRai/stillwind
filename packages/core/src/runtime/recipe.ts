@@ -2,11 +2,11 @@ import { mergeFragments, type FragmentRuntimeOptions } from "./fragment.ts";
 import { stillwindClsx } from "./shared.ts";
 
 /** Compiler-produced class text, fragment channels, or nested fragment arrays. */
-export type CvaValue = string | boolean | null | undefined | object;
+export type RecipeValue = string | boolean | null | undefined | object;
 
 /** Compiled configuration whose structure is immutable after factory creation. */
-export interface CompiledCvaConfig {
-  readonly variants?: Readonly<Record<string, Readonly<Record<string, CvaValue>>>>;
+export interface CompiledRecipeConfig {
+  readonly variants?: Readonly<Record<string, Readonly<Record<string, RecipeValue>>>>;
   readonly defaultVariants?: Readonly<Record<string, string | number | boolean | null | undefined>>;
   readonly compoundVariants?: readonly Readonly<Record<string, unknown>>[];
 }
@@ -30,20 +30,20 @@ function optionKey(value: unknown): unknown {
  * @param merge - Materializes selected fragments. Development calls supply validation.
  * @returns A selector that materializes class and optional style props without private symbols.
  */
-export function createCva(
+export function createRecipe(
   options: FragmentRuntimeOptions,
-  base: CvaValue,
-  config: CompiledCvaConfig = {},
+  base: RecipeValue,
+  config: CompiledRecipeConfig = {},
   classes: typeof stillwindClsx = stillwindClsx,
   merge: typeof mergeFragments = mergeFragments,
 ): (props?: Readonly<Record<string, unknown>>, forwarded?: unknown) => Record<string, unknown> {
   const axes = Object.keys(config.variants ?? {});
   const compounds = (config.compoundVariants ?? []).map((compound) => ({
     conditions: Object.entries(compound).filter(([key]) => key !== "class" && key !== "className"),
-    class: compound.class as CvaValue,
-    className: compound.className as CvaValue,
+    class: compound.class as RecipeValue,
+    className: compound.className as RecipeValue,
   }));
-  const fragment = (value: CvaValue): unknown =>
+  const fragment = (value: RecipeValue): unknown =>
     typeof value === "string" ? { [options[2]]: value } : value;
 
   return (props = {}, forwarded) => {

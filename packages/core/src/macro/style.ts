@@ -1,19 +1,19 @@
 /** Framework macros and the placeholders that the compiler replaces. */
 
 import type { StyleCssInput, StyleCssOptions } from "./css.ts";
-import type {
-  CvaClassProps,
-  CvaConfig,
-  CvaInput,
-  CvaResult,
-  CvaSelection,
-  CvaVariants,
-} from "./cva.ts";
 import type { StyleForward, StyleForwardProps } from "./forward.ts";
 import type { CheckedStyleInputs, StyleArgument } from "./input.ts";
 import type { StyleKeyframes, StyleKeyframesDefinition } from "./keyframes.ts";
 import type { StyleOutput, StyleResult } from "./output.ts";
 import type { StyleRefProjection } from "./projection.ts";
+import type {
+  RecipeClassProps,
+  RecipeConfig,
+  RecipeInput,
+  RecipeResult,
+  RecipeSelection,
+  RecipeVariants,
+} from "./recipe.ts";
 import type { AnchorScope, StyleRef, StyleVariantKey } from "./refs.ts";
 import type { StyleViewTransition, StyleViewTransitionDefinition } from "./view-transition.ts";
 import type { StyleStoredVariant } from "./when.ts";
@@ -58,7 +58,7 @@ export type StyleMacro<Props = object> = StyleMacroWithoutForward<Props> & {
    * calls, so the caller's styles override the component's own styles.
    *
    * Write the call directly as an argument of `style()` or as the second argument of a
-   * `style.cva()` factory. The forwarded classes come after the call's classes, and the
+   * `style.recipe()` factory. The forwarded classes come after the call's classes, and the
    * forwarded style applies after the call's style and custom properties, whatever the
    * argument position. Several forwarded values apply their styles in argument order, and
    * CSS order, not argument order, decides which of their classes wins. In the CSS, the
@@ -68,7 +68,7 @@ export type StyleMacro<Props = object> = StyleMacroWithoutForward<Props> & {
    * object. Null and undefined forward nothing. When the whole props object is passed, do
    * not spread the same props onto the element after the result, because they would
    * replace its class and style.
-   * @returns A value that only `style()` and `style.cva()` factories accept.
+   * @returns A value that only `style()` and `style.recipe()` factories accept.
    */
   forward(props: StyleForwardProps | null | undefined): StyleForward;
 };
@@ -302,7 +302,7 @@ export type StyleMacroWithoutForward<Props = object> = {
   css(...inputs: [...StyleCssInput[], StyleCssOptions]): string;
 
   /**
-   * Compiles a CVA definition and returns a function that selects element props.
+   * Compiles a recipe definition and returns a function that selects element props.
    * Write the configuration and utility inputs directly in the call. Utility inputs
    * cannot contain `&&` or ternary expressions. Pass runtime conditions as variant
    * selections. Custom properties remain inline and value expressions obey this
@@ -315,10 +315,13 @@ export type StyleMacroWithoutForward<Props = object> = {
    * second argument is a `style.forward()` value, which applies after the selected
    * styles.
    */
-  cva<Variants extends CvaVariants = Record<never, never>>(
-    base?: CvaInput,
-    config?: CvaConfig<Variants>,
-  ): (props?: CvaSelection<Variants> & CvaClassProps, forwarded?: StyleForward) => CvaResult<Props>;
+  recipe<Variants extends RecipeVariants = Record<never, never>>(
+    base?: RecipeInput,
+    config?: RecipeConfig<Variants>,
+  ): (
+    props?: RecipeSelection<Variants> & RecipeClassProps,
+    forwarded?: StyleForward,
+  ) => RecipeResult<Props>;
 };
 
 function uncompiledMacroError(name: string): Error {
@@ -360,8 +363,8 @@ export function createStyleMacro<Props>(): StyleMacro<Props> {
       when(): never {
         throw uncompiledMacroError("style.when");
       },
-      cva(): never {
-        throw uncompiledMacroError("style.cva");
+      recipe(): never {
+        throw uncompiledMacroError("style.recipe");
       },
       media(): never {
         throw uncompiledMacroError("style.media");

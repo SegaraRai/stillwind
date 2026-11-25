@@ -184,7 +184,7 @@ impl MacroExtractor<'_> {
     /// first request.
     ///
     /// `span` must be in the analysis buffer: the binding name for a named declaration,
-    /// or the call for a `style()` call or CVA value. The ordinal counts the earlier
+    /// or the call for a `style()` call or recipe value. The ordinal counts the earlier
     /// declarations with the same kind, path, and binding name in the order of their
     /// first request. Callers request declarations of one kind in source order, so the
     /// order is deterministic. For style keys, seeding requests the calls assigned to a
@@ -213,7 +213,7 @@ impl MacroExtractor<'_> {
         key
     }
 
-    /// Returns the key of the `style()` call or CVA value at `span`.
+    /// Returns the key of the `style()` call or recipe value at `span`.
     ///
     /// `span` must be in the analysis buffer.
     pub(crate) fn style_key(&self, span: Span) -> DeclarationKey {

@@ -393,12 +393,12 @@ A definition only adds to a utility. `@stillwind-undef-utility` removes definiti
 Each place where utility strings resolve has its own registry of utility, variant, and
 arbitrary-property definitions:
 
-| Registry          | Inputs                                                  | Initial definitions       |
-| ----------------- | ------------------------------------------------------- | ------------------------- |
-| `default`         | `style()`, `style.cva()`, `style.css()`, and `@apply`   | Statements outside blocks |
-| `keyframe`        | The frames of `style.keyframes()`                       | Statements outside blocks |
-| `view-transition` | `group`, `old`, `new`, and `imagePair`                  | Statements outside blocks |
-| `animation`       | The options of a keyframes use, such as `enter("both")` | None                      |
+| Registry          | Inputs                                                   | Initial definitions       |
+| ----------------- | -------------------------------------------------------- | ------------------------- |
+| `default`         | `style()`, `style.recipe()`, `style.css()`, and `@apply` | Statements outside blocks |
+| `keyframe`        | The frames of `style.keyframes()`                        | Statements outside blocks |
+| `view-transition` | `group`, `old`, `new`, and `imagePair`                   | Statements outside blocks |
+| `animation`       | The options of a keyframes use, such as `enter("both")`  | None                      |
 
 Statements outside every `@stillwind-registry` block change `default`, `keyframe`, and
 `view-transition`. A `@stillwind-registry` block switches the registries that the

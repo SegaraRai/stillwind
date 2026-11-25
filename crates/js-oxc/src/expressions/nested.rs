@@ -17,7 +17,7 @@ use crate::state::MacroExtractor;
 
 /// Macro members whose calls have their own lowering, with their display spellings.
 const MACRO_MEMBERS: [(&str, &str); 8] = [
-    ("cva", "style.cva()"),
+    ("recipe", "style.recipe()"),
     ("forward", "style.forward()"),
     ("ref", "style.ref()"),
     ("keyframes", "style.keyframes()"),

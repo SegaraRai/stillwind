@@ -63,10 +63,10 @@ pub struct LintOverrides {
     pub invalid_rule_group_input: Option<LintSeverity>,
     /// Reporting level for `invalid-style-input`.
     pub invalid_style_input: Option<LintSeverity>,
-    /// Reporting level for `invalid-cva-config`.
-    pub invalid_cva_config: Option<LintSeverity>,
-    /// Reporting level for `invalid-cva-input`.
-    pub invalid_cva_input: Option<LintSeverity>,
+    /// Reporting level for `invalid-recipe-config`.
+    pub invalid_recipe_config: Option<LintSeverity>,
+    /// Reporting level for `invalid-recipe-input`.
+    pub invalid_recipe_input: Option<LintSeverity>,
     /// Reporting level for `invalid-keyframes-use`.
     pub invalid_keyframes_use: Option<LintSeverity>,
     /// Reporting level for `invalid-keyframes-definition`.
@@ -478,8 +478,8 @@ impl LintOverrides {
                 self.invalid_rule_group_input,
             ),
             (LintKind::InvalidStyleInput, self.invalid_style_input),
-            (LintKind::InvalidCvaConfig, self.invalid_cva_config),
-            (LintKind::InvalidCvaInput, self.invalid_cva_input),
+            (LintKind::InvalidRecipeConfig, self.invalid_recipe_config),
+            (LintKind::InvalidRecipeInput, self.invalid_recipe_input),
             (LintKind::InvalidKeyframesUse, self.invalid_keyframes_use),
             (
                 LintKind::InvalidKeyframesDefinition,

@@ -108,7 +108,7 @@ set a custom property instead. See
 
 ## Migrate CVA components
 
-`style.cva()` accepts the configuration of `cva` from class-variance-authority.
+`style.recipe()` accepts the configuration of `cva` from class-variance-authority.
 Use it to migrate existing CVA components. See
 [Replace class helpers](/docs/guides/migrating-from-tailwind#replace-class-helpers)
-and the [`style.cva()` reference](/docs/macros/cva).
+and the [`style.recipe()` reference](/docs/macros/recipe).

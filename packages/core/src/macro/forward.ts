@@ -24,7 +24,7 @@ declare const styleForwardBrand: unique symbol;
 
 /**
  * Props that a caller forwarded. Pass the value directly to `style()` or as the second
- * argument of a `style.cva()` factory. It cannot be stored for later use.
+ * argument of a `style.recipe()` factory. It cannot be stored for later use.
  */
 export interface StyleForward {
   readonly [styleForwardBrand]: true;

@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "recipe",
+  "title": "Recipe selection and inline custom properties",
+  "description": "Recipe variants, defaults, compound conditions, CSS variants, and custom properties across framework runtimes.",
+  "tags": ["recipe", "conditional", "property"],
+  "theme": "stillwind.css",
+  "sources": ["src/Button.tsx", "src/Tone.ts", "src/Recovery.ts"]
+}
