@@ -262,6 +262,12 @@ export const lintRules = {
     defaults: null,
     options: null,
   },
+  "utility-class-selector": {
+    category: "hazard",
+    nativeName: "utilityClassSelector",
+    defaults: null,
+    options: null,
+  },
   "unmatched-host-selector": {
     category: "hazard",
     nativeName: "unmatchedHostSelector",

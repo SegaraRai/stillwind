@@ -2,7 +2,8 @@
 //!
 //! Modules:
 //!
-//! - [`classes`] lists the class names that a selector matches.
+//! - [`classes`] lists the class names that a selector matches and its other tests of
+//!   the `class` attribute.
 //! - [`element`] handles conditions on the selected element.
 //! - [`host`] handles conditions on a shadow host.
 //! - [`list`] validates selector lists and splits them into branches.
@@ -18,7 +19,7 @@ mod pseudo_elements;
 mod subject;
 mod target;
 
-pub use classes::selector_class_names;
+pub use classes::{ClassMatcher, ClassTest, selector_class_names, selector_class_tests};
 pub use element::{
     append_element_condition, selector_is_element_condition, selector_is_subject_condition,
 };

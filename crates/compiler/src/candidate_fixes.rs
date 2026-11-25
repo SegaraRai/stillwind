@@ -1,5 +1,6 @@
-//! Source lints of one written utility that offer an edit: variants without an effect
-//! and `var()` values without a type hint.
+//! Source lints of one written utility that offer an edit: variants without an effect,
+//! `var()` values without a type hint, and variant selectors that test the `class`
+//! attribute for utility names.
 //!
 //! [`detect`] receives the written text and the variant prefix of enclosing wrappers.
 //! It reports only parts of the written text, because an edit can change only that
@@ -9,14 +10,15 @@ use std::ops::Range;
 
 use lean_string::{LeanStr, ToLeanStr};
 
+use stillwind_css::{ClassMatcher, selector_class_tests};
 use stillwind_design_system::{ThemeIndex, VariantRedundancy, redundant_variants, resolve_utility};
 use stillwind_diagnostics::{
     FixAction, LintDiagnostic, LintFinding, LintKind, LintSettings, SourceEdit, SourceRange,
 };
 use stillwind_source::Span;
-use stillwind_syntax::parse_candidate;
+use stillwind_syntax::{Candidate, parse_candidate};
 
-use crate::compiler::with_type_hint;
+use crate::compiler::{utility_class_test, with_type_hint};
 
 /// Maps the written text to the original source.
 pub(crate) struct WrittenSource<'a> {
@@ -29,13 +31,16 @@ pub(crate) struct WrittenSource<'a> {
     pub(crate) range: &'a dyn Fn(Span) -> Option<SourceRange>,
 }
 
-/// Returns the enabled `redundant-variant` and `prefer-typed-variables` findings for
-/// `written`, the utility text that the author wrote under the variant prefix `prefix`.
+/// Returns the enabled `redundant-variant`, `prefer-typed-variables`, and
+/// `utility-class-selector` findings for `written`, the utility text that the author
+/// wrote under the variant prefix `prefix`.
 ///
 /// A redundant variant is reported at its text and removed with its `:`. An untyped
 /// variable is reported at its value, and the fix inserts the type hint of the
-/// definition that receives it. A finding whose part cannot be mapped to the source
-/// covers the whole written text and offers no fix.
+/// definition that receives it. A variant that tests the `class` attribute for a utility
+/// name is reported at its text; see [`class_test_fix`] for the variants that have a fix.
+/// A finding whose part cannot be mapped to the source covers the whole written text and
+/// offers no fix.
 pub(crate) fn detect(
     written: &str,
     prefix: &str,
@@ -47,7 +52,9 @@ pub(crate) fn detect(
     let redundant = settings.enabled_for_detection(LintKind::RedundantVariant);
     let untyped = settings.enabled_for_detection(LintKind::PreferTypedVariables)
         && (written.contains("(--") || written.contains("var("));
-    if !redundant && !untyped {
+    let class_tests = settings.enabled_for_detection(LintKind::UtilityClassSelector)
+        && (written.contains("class") || written.contains('.'));
+    if !redundant && !untyped && !class_tests {
         return findings;
     }
     let raw = format_args!("{prefix}{written}").to_lean_str();
@@ -74,6 +81,9 @@ pub(crate) fn detect(
             ));
         }
     }
+    if class_tests {
+        findings.extend(class_test_findings(&candidate, prefix.len(), theme, source));
+    }
     if untyped
         && let Ok(Ok(resolved)) = resolve_utility(&raw, theme)
         && let Some(variable) = resolved.diagnostic_data.untyped_variable
@@ -97,6 +107,79 @@ pub(crate) fn detect(
         ));
     }
     findings
+}
+
+/// Returns a `utility-class-selector` finding for each variant of `candidate` that is
+/// written after the first `prefix` bytes and tests the `class` attribute for a utility
+/// name.
+fn class_test_findings(
+    candidate: &Candidate,
+    prefix: usize,
+    theme: &ThemeIndex,
+    source: &WrittenSource<'_>,
+) -> Vec<LintFinding> {
+    let mut findings = Vec::new();
+    let utility = candidate
+        .raw
+        .get(
+            candidate
+                .variants
+                .iter()
+                .map(|variant| variant.raw.len() + 1)
+                .sum::<usize>()..,
+        )
+        .unwrap_or_default();
+    let mut offset = 0;
+    for variant in &candidate.variants {
+        let range = offset..offset + variant.raw.len();
+        offset = range.end + 1;
+        let Some(range) = written_range(&range, prefix) else {
+            continue;
+        };
+        let Some(test) = utility_class_test(variant, theme) else {
+            continue;
+        };
+        let diagnostic = LintDiagnostic::UtilityClassSelector { test };
+        findings.push(match class_test_fix(&variant.raw, utility) {
+            Some(replacement) => finding(
+                diagnostic,
+                range.clone(),
+                "Apply the default with zero specificity",
+                range,
+                replacement,
+                source,
+            ),
+            None => LintFinding::new(diagnostic, (source.part)(range).unwrap_or(source.span)),
+        });
+    }
+    findings
+}
+
+/// Returns the replacement for an arbitrary variant `[<base>:not([class*=<root>-])]` or
+/// `[<base>:not([class^=<root>-])]` whose `<base>` contains `&`, when `utility`, the
+/// utility text after the variants, starts with `<root>-`. The variant applies the
+/// utility unless the element has a utility of the same root, such as
+/// `[&_svg:not([class*='size-'])]:size-4`.
+///
+/// The replacement `[:where(<base>)]` gives the rule zero specificity instead, so a class
+/// on the element that sets the same property wins. Returns `None` for other variants.
+fn class_test_fix(variant: &str, utility: &str) -> Option<LeanStr> {
+    let inner = variant.strip_prefix('[')?.strip_suffix(']')?;
+    let (base, test) = inner.strip_suffix(')')?.rsplit_once(":not(")?;
+    if !base.contains('&') {
+        return None;
+    }
+    let [class_test] = selector_class_tests(test).try_into().ok()?;
+    let root = class_test.value.as_str();
+    let utility = utility.trim_start_matches(['!', '-']);
+    (class_test.range == (0..test.len())
+        && matches!(
+            class_test.matcher,
+            ClassMatcher::Substring | ClassMatcher::Prefix
+        )
+        && root.ends_with('-')
+        && utility.starts_with(root))
+    .then(|| format_args!("[:where({base})]").to_lean_str())
 }
 
 /// Returns `range` of the candidate text relative to the written text after `prefix`

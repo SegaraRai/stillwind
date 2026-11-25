@@ -1,8 +1,9 @@
 //! Checks findings about the variants and values of one candidate, their ranges, and
-//! the fixes of `redundant-variant` and `prefer-typed-variables`.
+//! the fixes of `redundant-variant`, `prefer-typed-variables`, and
+//! `utility-class-selector`.
 
 use stillwind_compiler::{CompileResult, Compiler};
-use stillwind_diagnostics::LintDiagnostic;
+use stillwind_diagnostics::{CanonicalUtilitiesOverride, LintDiagnostic};
 use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
 use stillwind_js_oxc::OxcSourceAnalyzer;
 use stillwind_source::{CssSourceName, FileId, ModuleId, SourceFile, SourceUri};
@@ -384,6 +385,64 @@ fn variables_of_known_types_and_opacity_modifiers_report_invalid_values() {
         "{}",
         result.css
     );
+}
+
+/// A variant that tests the `class` attribute for a utility name is reported at the
+/// variant. The default-unless-set form gets zero specificity instead, so a class that
+/// sets the same property on the element wins. The rule reports on its own when the
+/// other candidate rules are off.
+#[test]
+fn utility_class_tests_are_reported_at_the_variant() {
+    let options = CompilerOptions {
+        lint: LintOverrides {
+            prefer_canonical_utilities: Some(CanonicalUtilitiesOverride {
+                severity: Some(LintSeverity::Off),
+                ..Default::default()
+            }),
+            redundant_variant: Some(LintSeverity::Off),
+            prefer_typed_variables: Some(LintSeverity::Off),
+            ..LintOverrides::default()
+        },
+        ..CompilerOptions::default()
+    };
+    for (utilities, covered, test, fixed) in [
+        (
+            "[&_svg:not([class*='size-'])]:size-4",
+            "[&_svg:not([class*='size-'])]",
+            "[class*='size-']",
+            Some("[:where(&_svg)]:size-4"),
+        ),
+        (
+            "data-[x]:[&>svg:not([class^=text-])]:text-red-500",
+            "[&>svg:not([class^=text-])]",
+            "[class^=text-]",
+            Some("data-[x]:[:where(&>svg)]:text-red-500"),
+        ),
+        (
+            "[&_svg:not([class*='size-'])]:w-4",
+            "[&_svg:not([class*='size-'])]",
+            "[class*='size-']",
+            None,
+        ),
+        ("[&.border-b]:pb-4", "[&.border-b]", ".border-b", None),
+    ] {
+        let found = findings(utilities, &options, LintKind::UtilityClassSelector);
+        assert_eq!(found.len(), 1, "{utilities}: {found:?}");
+        assert!(found[0].0.contains(&format!("`{test}`")), "{}", found[0].0);
+        assert_eq!(found[0].1, covered, "{utilities}");
+        assert_eq!(found[0].2.as_deref(), fixed, "{utilities}");
+    }
+    for utilities in [
+        "[&_code[class*='language-']]:font-mono",
+        "[&.toast]:p-2",
+        "[&:not([data-size])]:size-4",
+    ] {
+        assert_eq!(
+            findings(utilities, &options, LintKind::UtilityClassSelector),
+            [],
+            "{utilities}"
+        );
+    }
 }
 
 /// Lint settings select reports only; every rule leaves the CSS unchanged.

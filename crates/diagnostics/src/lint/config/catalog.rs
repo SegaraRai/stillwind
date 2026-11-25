@@ -343,6 +343,7 @@ define_lint_rules! {
         MissingRefAttachment => "missing-ref-attachment",
         DocumentScopedSelector => "document-scoped-selector",
         RepeatedNestingSelector => "repeated-nesting-selector",
+        UtilityClassSelector => "utility-class-selector",
         UnmatchedHostSelector => "unmatched-host-selector",
         MissingViewTransitionName => "missing-view-transition-name",
         DuplicateViewTransitionName => "duplicate-view-transition-name",

@@ -1,5 +1,5 @@
-//! Source lint detection for canonical utility spelling, redundant variants, and
-//! untyped variables.
+//! Source lint detection for canonical utility spelling, redundant variants, untyped
+//! variables, and variant selectors that test the `class` attribute for utility names.
 //!
 //! Findings keep snapshots of the original source.
 //! [`Reporter`](stillwind_diagnostics::Reporter) applies severity and suppression.
@@ -37,6 +37,7 @@ pub(crate) fn detect(
         LintKind::NoRestrictedUtilities,
         LintKind::RedundantVariant,
         LintKind::PreferTypedVariables,
+        LintKind::UtilityClassSelector,
     ]
     .into_iter()
     .any(|kind| settings.enabled_for_detection(kind))

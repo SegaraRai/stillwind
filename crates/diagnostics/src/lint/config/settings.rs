@@ -210,7 +210,7 @@ mod tests {
                 assert_eq!(config.severity(), severity);
             }
         }
-        assert_eq!(names.len(), 74);
+        assert_eq!(names.len(), 75);
         for name in [
             "custom",
             "",
@@ -253,6 +253,7 @@ mod tests {
                 "invalid-css-input": "deny",
                 "document-scoped-selector": "deny",
                 "repeated-nesting-selector": "warn",
+                "utility-class-selector": "warn",
                 "unmatched-host-selector": "warn",
                 "missing-view-transition-name": "warn",
                 "duplicate-view-transition-name": "warn",

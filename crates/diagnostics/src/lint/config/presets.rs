@@ -42,6 +42,7 @@ const RECOMMENDED: &[(LintKind, LintSeverity)] = &[
     (LintKind::ConflictingProviderProperties, LintSeverity::Warn),
     (LintKind::DocumentScopedSelector, LintSeverity::Deny),
     (LintKind::RepeatedNestingSelector, LintSeverity::Warn),
+    (LintKind::UtilityClassSelector, LintSeverity::Warn),
     (LintKind::UnmatchedHostSelector, LintSeverity::Warn),
     (LintKind::MissingViewTransitionName, LintSeverity::Warn),
     (LintKind::DuplicateViewTransitionName, LintSeverity::Warn),

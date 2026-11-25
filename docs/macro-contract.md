@@ -520,6 +520,16 @@ describe a relationship between elements. Comma-separated alternatives count
 separately, including alternatives inside `:is()` and `:where()`. The CSS is still
 emitted. Use `style.ref()` to relate elements. This rule defaults to `warn`.
 
+A variant selector that tests the `class` attribute for a utility name produces
+`UtilityClassSelector` (`utility-class-selector`) findings. Examples are
+`[&_svg:not([class*='size-'])]:` and `[&.border-b]:`. A test names a utility when its
+value resolves as a utility, or, for `*=`, `^=`, and `|=`, when the value followed by an
+arbitrary value resolves, as `size-` does. Generated class names contain no utility
+names, so the test does not see the utilities of styled elements. When the variant is
+`[<base>:not([class*=<root>-])]` or uses `^=`, `<base>` contains `&`, and the utility
+starts with `<root>-`, the fix replaces the variant with `[:where(<base>)]`. The rule
+checks `style()` inputs only and defaults to `warn`.
+
 A view transition uses a class for identity and a name for its pairing key.
 A call without a name supplier produces `MissingViewTransitionName`
 (`missing-view-transition-name`); a call with two or more produces

@@ -10,11 +10,12 @@
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_css::{
-    append_element_condition, fold_host_conditions, instantiate_variant_selector,
-    selector_cannot_match_host, selector_is_subject_condition, selector_list_branches,
+    ClassMatcher, ClassTest, append_element_condition, fold_host_conditions,
+    instantiate_variant_selector, selector_cannot_match_host, selector_class_tests,
+    selector_is_subject_condition, selector_list_branches,
 };
 use stillwind_design_system::{
-    ThemeIndex, VariantApplication, VariantDeclaration, resolve_variant,
+    ThemeIndex, VariantApplication, VariantDeclaration, resolve_utility, resolve_variant,
 };
 use stillwind_diagnostics::LintDiagnostic;
 use stillwind_syntax::Variant;
@@ -221,6 +222,43 @@ pub(super) fn document_scoped_selector(
         selector: selector.to_lean_str(),
         branch,
     })
+}
+
+/// Returns the first test of the `class` attribute that names a utility in the selectors
+/// that `variant` produces, as the selector spells it, or `None` when no test does.
+///
+/// A test names a utility when its value is a utility, such as `.border-b`, or, for a
+/// test of the start or of any part of the attribute, when a value appended to it gives
+/// a utility, such as `size-` in `[class*='size-']`. Generated class names contain
+/// neither, so the test does not see the utilities of an element that `style()` styles.
+pub(crate) fn utility_class_test(variant: &Variant, theme: &ThemeIndex) -> Option<LeanStr> {
+    let application = resolve_variant(variant, theme).ok()?;
+    variant_paths(std::slice::from_ref(&application))
+        .iter()
+        .find_map(|path| {
+            let selector = path_selector(path);
+            selector_class_tests(&selector)
+                .into_iter()
+                .find(|test| names_utility(test, theme))
+                .map(|test| selector[test.range].to_lean_str())
+        })
+}
+
+/// Returns whether the value of `test` is a utility or, for a test of the start or of
+/// any part of the attribute, the start of a utility with an arbitrary value.
+fn names_utility(test: &ClassTest, theme: &ThemeIndex) -> bool {
+    let value = test.value.as_str();
+    if value.is_empty() || value.contains(|c: char| c.is_whitespace() || c == ':') {
+        return false;
+    }
+    let resolves = |raw: &str| matches!(resolve_utility(raw, theme), Ok(Ok(_)));
+    resolves(value)
+        || (matches!(
+            test.matcher,
+            ClassMatcher::Prefix | ClassMatcher::Substring | ClassMatcher::DashPrefix
+        ) && ["[1px]", "[red]", "(--value)"]
+            .iter()
+            .any(|arbitrary| resolves(&format_args!("{value}{arbitrary}").to_lean_string())))
 }
 
 /// Returns the selector that one variant path produces from `&`.

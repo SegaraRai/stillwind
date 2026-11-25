@@ -221,6 +221,12 @@ with its modifier classes, such as `btn btn-outline` in daisyUI. The
 [Plugins](/docs/lints/conflicting-utilities#plugins) section of the rule page
 lists a setting for each tested plugin that stops these reports.
 
+Selectors that read utility names from the `class` attribute, such as
+`[&_svg:not([class*='size-'])]:size-4` in shadcn/ui components, do not work, because
+Stillwind writes generated class names. The
+[utility-class-selector](/docs/lints/utility-class-selector) lint rule reports them,
+and `stillwind check --fix` rewrites the common default-size form.
+
 ### Compare computed styles
 
 A successful build and clean CLI checks do not prove that the pages look the

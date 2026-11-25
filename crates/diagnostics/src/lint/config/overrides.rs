@@ -107,6 +107,8 @@ pub struct LintOverrides {
     pub document_scoped_selector: Option<LintSeverity>,
     /// Reporting level for `repeated-nesting-selector`.
     pub repeated_nesting_selector: Option<LintSeverity>,
+    /// Reporting level for `utility-class-selector`.
+    pub utility_class_selector: Option<LintSeverity>,
     /// Reporting level for `unmatched-host-selector`.
     pub unmatched_host_selector: Option<LintSeverity>,
     /// Reporting level for `missing-view-transition-name`.
@@ -366,6 +368,7 @@ impl LintOverrides {
                 LintKind::RepeatedNestingSelector,
                 self.repeated_nesting_selector,
             ),
+            (LintKind::UtilityClassSelector, self.utility_class_selector),
             (
                 LintKind::UnmatchedHostSelector,
                 self.unmatched_host_selector,

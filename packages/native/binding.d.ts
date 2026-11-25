@@ -1608,6 +1608,8 @@ export interface NativeLintOptions {
   documentScopedSelector?: string
   /** Settings for `repeated-nesting-selector`. */
   repeatedNestingSelector?: string
+  /** Settings for `utility-class-selector`. */
+  utilityClassSelector?: string
   /** Settings for `unmatched-host-selector`. */
   unmatchedHostSelector?: string
   /** Settings for `missing-view-transition-name`. */

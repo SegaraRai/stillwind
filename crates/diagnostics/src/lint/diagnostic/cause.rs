@@ -511,6 +511,16 @@ pub enum LintDiagnostic {
         /// Resolved selector that contains the repeated `&`.
         selector: LeanStr,
     },
+    /// A variant selector tests the `class` attribute for a utility name. Generated
+    /// class names do not contain utility names, so the test does not see the
+    /// utilities of an element that `style()` styles.
+    #[error(
+        "`{test}` tests the class attribute for a utility name, but Stillwind writes generated class names, so it does not see the utilities of an element"
+    )]
+    UtilityClassSelector {
+        /// The class selector or attribute selector as the resolved selector spells it.
+        test: LeanStr,
+    },
     /// A variant stack tests a shadow host in a way that no browser can match, because
     /// a selector inside a shadow tree cannot read the elements around its host.
     #[error(
@@ -951,6 +961,7 @@ impl LintDiagnostic {
             Self::TailwindRelationshipUtility { .. } => LintKind::PreferTypedRelationships,
             Self::DocumentScopedSelector { .. } => LintKind::DocumentScopedSelector,
             Self::RepeatedNestingSelector { .. } => LintKind::RepeatedNestingSelector,
+            Self::UtilityClassSelector { .. } => LintKind::UtilityClassSelector,
             Self::UnmatchedHostSelector { .. } => LintKind::UnmatchedHostSelector,
             Self::MissingViewTransitionName => LintKind::MissingViewTransitionName,
             Self::DuplicateViewTransitionName { .. } => LintKind::DuplicateViewTransitionName,
