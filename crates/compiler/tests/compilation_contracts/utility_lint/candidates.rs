@@ -389,7 +389,8 @@ fn variables_of_known_types_and_opacity_modifiers_report_invalid_values() {
 
 /// A variant that tests the `class` attribute for a utility name is reported at the
 /// variant. The default-unless-set form gets zero specificity instead, so a class that
-/// sets the same property on the element wins. The rule reports on its own when the
+/// sets the same property on the element wins. Without `&`, the fix also replaces a `*:`
+/// or `**:` variant before it, whose class would otherwise keep its specificity. The rule reports on its own when the
 /// other candidate rules are off.
 #[test]
 fn utility_class_tests_are_reported_at_the_variant() {
@@ -425,6 +426,30 @@ fn utility_class_tests_are_reported_at_the_variant() {
             None,
         ),
         ("[&.border-b]:pb-4", "[&.border-b]", ".border-b", None),
+        (
+            "*:[svg:not([class*=size-])]:size-8",
+            "[svg:not([class*=size-])]",
+            "[class*=size-]",
+            Some("[:where(&>svg)]:size-8"),
+        ),
+        (
+            "**:[svg:not([class*=size-])]:size-8",
+            "[svg:not([class*=size-])]",
+            "[class*=size-]",
+            Some("[:where(&_svg)]:size-8"),
+        ),
+        (
+            "[svg:not([class*=size-])]:size-7",
+            "[svg:not([class*=size-])]",
+            "[class*=size-]",
+            Some("[:where(&:is(svg))]:size-7"),
+        ),
+        (
+            "*:[div_svg:not([class*=size-])]:size-8",
+            "[div_svg:not([class*=size-])]",
+            "[class*=size-]",
+            None,
+        ),
     ] {
         let found = findings(utilities, &options, LintKind::UtilityClassSelector);
         assert_eq!(found.len(), 1, "{utilities}: {found:?}");

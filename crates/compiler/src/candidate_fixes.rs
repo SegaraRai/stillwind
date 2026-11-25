@@ -130,22 +130,34 @@ fn class_test_findings(
         )
         .unwrap_or_default();
     let mut offset = 0;
+    let mut previous: Option<(&str, Option<Range<usize>>)> = None;
     for variant in &candidate.variants {
         let range = offset..offset + variant.raw.len();
         offset = range.end + 1;
-        let Some(range) = written_range(&range, prefix) else {
+        let written = written_range(&range, prefix);
+        let before = previous.replace((variant.raw.as_str(), written.clone()));
+        let Some(range) = written else {
             continue;
         };
         let Some(test) = utility_class_test(variant, theme) else {
             continue;
         };
         let diagnostic = LintDiagnostic::UtilityClassSelector { test };
-        findings.push(match class_test_fix(&variant.raw, utility) {
-            Some(replacement) => finding(
+        let fix = class_test_fix(&variant.raw, before.as_ref().map(|(raw, _)| *raw), utility)
+            .and_then(|(replaces_previous, replacement)| {
+                let start = if replaces_previous {
+                    before.as_ref()?.1.as_ref()?.start
+                } else {
+                    range.start
+                };
+                Some((start..range.end, replacement))
+            });
+        findings.push(match fix {
+            Some((edit, replacement)) => finding(
                 diagnostic,
-                range.clone(),
-                "Apply the default with zero specificity",
                 range,
+                "Apply the default with zero specificity",
+                edit,
                 replacement,
                 source,
             ),
@@ -156,30 +168,66 @@ fn class_test_findings(
 }
 
 /// Returns the replacement for an arbitrary variant `[<base>:not([class*=<root>-])]` or
-/// `[<base>:not([class^=<root>-])]` whose `<base>` contains `&`, when `utility`, the
-/// utility text after the variants, starts with `<root>-`. The variant applies the
-/// utility unless the element has a utility of the same root, such as
-/// `[&_svg:not([class*='size-'])]:size-4`.
+/// `[<base>:not([class^=<root>-])]` when `utility`, the utility text after the variants,
+/// starts with `<root>-`. The variant applies the utility unless the element has a
+/// utility of the same root, such as `[&_svg:not([class*='size-'])]:size-4`.
 ///
-/// The replacement `[:where(<base>)]` gives the rule zero specificity instead, so a class
-/// on the element that sets the same property wins. Returns `None` for other variants.
-fn class_test_fix(variant: &str, utility: &str) -> Option<LeanStr> {
+/// The replacement gives the rule zero specificity, so a class on the element that sets
+/// the same property wins:
+///
+/// - A `<base>` with `&` becomes `[:where(<base>)]`.
+/// - A `<base>` without `&` is a compound selector that the element itself must match.
+///   After `previous`, the variant before it, of `*` or `**`, the replacement also
+///   replaces that variant, because its own class would keep a specificity of one
+///   class: `*:[svg:not(…)]` becomes `[:where(&>svg)]`, and `**:` gives `&_svg`.
+///   Otherwise the variant becomes `[:where(&:is(<base>))]`.
+///
+/// Returns whether the replacement also replaces `previous`, and the replacement text,
+/// or `None` for other variants and for a `<base>` without `&` that has a combinator or
+/// a selector list.
+fn class_test_fix(variant: &str, previous: Option<&str>, utility: &str) -> Option<(bool, LeanStr)> {
     let inner = variant.strip_prefix('[')?.strip_suffix(']')?;
     let (base, test) = inner.strip_suffix(')')?.rsplit_once(":not(")?;
-    if !base.contains('&') {
-        return None;
-    }
     let [class_test] = selector_class_tests(test).try_into().ok()?;
     let root = class_test.value.as_str();
     let utility = utility.trim_start_matches(['!', '-']);
-    (class_test.range == (0..test.len())
+    if !(class_test.range == (0..test.len())
         && matches!(
             class_test.matcher,
             ClassMatcher::Substring | ClassMatcher::Prefix
         )
         && root.ends_with('-')
         && utility.starts_with(root))
-    .then(|| format_args!("[:where({base})]").to_lean_str())
+    {
+        return None;
+    }
+    if base.contains('&') {
+        return Some((false, format_args!("[:where({base})]").to_lean_str()));
+    }
+    if !is_compound(base) {
+        return None;
+    }
+    Some(match previous {
+        Some("*") => (true, format_args!("[:where(&>{base})]").to_lean_str()),
+        Some("**") => (true, format_args!("[:where(&_{base})]").to_lean_str()),
+        _ => (false, format_args!("[:where(&:is({base}))]").to_lean_str()),
+    })
+}
+
+/// Returns whether the arbitrary variant text `selector` is one compound selector: not
+/// empty, and without a combinator, a selector list, or a `_` that stands for a space
+/// outside brackets and parentheses.
+fn is_compound(selector: &str) -> bool {
+    let mut depth = 0usize;
+    for c in selector.chars() {
+        match c {
+            '[' | '(' => depth += 1,
+            ']' | ')' => depth = depth.saturating_sub(1),
+            '_' | ' ' | ',' | '>' | '+' | '~' if depth == 0 => return false,
+            _ => {}
+        }
+    }
+    !selector.is_empty()
 }
 
 /// Returns `range` of the candidate text relative to the written text after `prefix`

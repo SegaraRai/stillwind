@@ -526,9 +526,12 @@ A variant selector that tests the `class` attribute for a utility name produces
 value resolves as a utility, or, for `*=`, `^=`, and `|=`, when the value followed by an
 arbitrary value resolves, as `size-` does. Generated class names contain no utility
 names, so the test does not see the utilities of styled elements. When the variant is
-`[<base>:not([class*=<root>-])]` or uses `^=`, `<base>` contains `&`, and the utility
-starts with `<root>-`, the fix replaces the variant with `[:where(<base>)]`. The rule
-checks `style()` inputs only and defaults to `warn`.
+`[<base>:not([class*=<root>-])]` or uses `^=`, and the utility starts with `<root>-`,
+the fix gives the rule zero specificity. A `<base>` with `&` becomes
+`[:where(<base>)]`. A `<base>` without `&` must be one compound selector: after a
+written `*:` or `**:`, the fix replaces both variants with `[:where(&><base>)]` or
+`[:where(&_<base>)]`, and otherwise it writes `[:where(&:is(<base>))]`. The rule checks
+`style()` inputs only and defaults to `warn`.
 
 A view transition uses a class for identity and a name for its pairing key.
 A call without a name supplier produces `MissingViewTransitionName`

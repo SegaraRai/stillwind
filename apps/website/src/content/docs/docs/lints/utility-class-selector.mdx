@@ -52,6 +52,10 @@ property, such as the class of `style("size-6")`, then wins over the default.
 - For a variant such as `[&_svg:not([class*='size-'])]:size-4`, whose utility has the
   root that the test names, use `[:where(&_svg)]:size-4`. The automatic fix makes
   this change.
+- Without `&`, include the `*:` or `**:` variant before it in `:where()`, because the
+  class of `*:` keeps the specificity of one class. The automatic fix changes
+  `*:[svg:not([class*=size-])]:size-8` to `[:where(&>svg)]:size-8`, `**:` to `&_svg`,
+  and `[svg:not([class*=size-])]:size-7` without `*:` to `[:where(&:is(svg))]:size-7`.
 - For other tests, such as `[.border-b]:pb-6`, pass the state in another way. For
   example, add a prop, or set the property on the element where the caller adds the
   utility.
