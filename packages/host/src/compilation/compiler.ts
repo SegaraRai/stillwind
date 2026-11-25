@@ -180,7 +180,9 @@ async function compileGraph(
         return summary && summary.orderingImports.length > 0
           ? {
               ...source,
-              orderingModules: await graph.orderingModules(source, summary),
+              orderingModules: await tracePhase("ordering", 1, () =>
+                graph.orderingModules(source, summary),
+              ),
             }
           : source;
       }),

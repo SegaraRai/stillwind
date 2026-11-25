@@ -62,7 +62,7 @@ test("a rejected generator name is reported through the host warnings", async ()
   expect(warnings[0]!).toMatch(/a{64}/);
 });
 
-test("an import orders the module with styles that it reaches through modules without styles", async () => {
+test("an import orders the module with styles that it reaches through modules without styles, and watches them", async () => {
   const root = path.resolve("ordering");
   const files: Record<string, string> = {
     "app.tsx": `import { style } from "stillwind/react";
@@ -89,6 +89,7 @@ export const Card = () => <div {...style("p-1")} />;
       moduleId: string;
     }[];
   }[] = [];
+  const watched = new Set<string>();
   const session = {
     scanSource,
     compile: (sources: typeof compiled) => {
@@ -127,10 +128,12 @@ export const Card = () => <div {...style("p-1")} />;
       },
       read: async (id) => files[file(id)]!,
       describe: (id) => fileModuleDescriptor(root, id),
-      watch: () => {},
+      watch: (id) => watched.add(file(id)),
       warn: (message) => expect.fail(message),
     },
   );
   const app = compiled.find((source) => source.moduleId.endsWith("app.tsx"));
   expect(app?.orderingModules?.map((ordering) => ordering.moduleId)).toEqual(["button.tsx"]);
+  // A change to the import of a module on the path changes the ordering of the importer.
+  expect([...watched].sort()).toEqual(["button.tsx", "ui.ts", "wrapper.tsx"]);
 });

@@ -500,12 +500,14 @@ values from each other:
   reports every cycle. Report a cycle only when the modules on it set the same
   property, which needs the property supplies of each module in the project
   session.
-- Import traversal cost. The host scans each local module that an import reaches
-  when the module has no `style()` call, and follows its imports. Measure the
-  first build and HMR of a large application, and share the resolved targets
-  between importers if the cost is visible. Watch mode rebuilds the importer when
-  such a module changes, through `watch`; check that the bundlers keep this
-  dependency.
+- Import traversal cost. The host repeats the traversal for every graph that
+  includes an importer. Share the resolved targets between graphs of one build
+  if the `ordering` phase grows in larger applications.
+- Import traversal in watch mode. The host passes every module that the
+  ordering traversal reads to `watch`, and a Vite development server then
+  compiles the importer again when such a module changes. Check webpack, Rspack,
+  and Turbopack development servers with an application in which a module
+  without `style()` calls changes its import.
 
 Sources: [CSS ordering](../packages/core/docs/concepts/css-ordering.md),
 [component conversion](../packages/projection/src/frameworks/index.ts).

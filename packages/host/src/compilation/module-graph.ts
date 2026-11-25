@@ -647,7 +647,8 @@ export class ModuleGraph {
    * `export *` re-exports. When that module does not import a Stillwind macro module, its own
    * value imports are followed instead, so a module that reaches a component through a module
    * without styles still comes after the component. Imports that do not resolve, or resolve to
-   * an external or unsupported module, produce no entry.
+   * an external or unsupported module, produce no entry. Every module that the traversal reads
+   * is passed to the host's `watch`, so a change to it compiles the importer again.
    *
    * @param source - Importer whose ordering imports are resolved.
    * @param summary - Scan result of that importer.
@@ -713,6 +714,9 @@ export class ModuleGraph {
       return;
     }
     visited.add(key);
+    // The ordering of the importer depends on the text of every module that the traversal
+    // reads, also when its summary is already retained.
+    this.host.watch(resolved.id);
     const summary = await this.#orderingSummary(resolved.id, resolved.moduleId);
     if (!summary) {
       targets.add(resolved.moduleId);
@@ -747,8 +751,7 @@ export class ModuleGraph {
 
   /**
    * Returns the summary of a module that an ordering import reaches, scanning it when no
-   * summary is retained. The module is watched, so a change to its imports rebuilds the
-   * importer.
+   * summary is retained.
    *
    * @param id - Full resolver identity of the module.
    * @param moduleId - Compiler identity of the module.
@@ -764,7 +767,6 @@ export class ModuleGraph {
     if (projected) {
       return projected;
     }
-    this.host.watch(id);
     try {
       const input = await this.#load(id);
       const prepared = "kind" in input ? input : await prepareSource(input);
