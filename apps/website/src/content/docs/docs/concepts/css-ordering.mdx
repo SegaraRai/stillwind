@@ -90,12 +90,13 @@ component renders, as with `asChild`.
 Stillwind follows the imports that are read as values. It ignores type-only
 imports, imports that the file does not use, and imports from packages. It
 follows re-exports, such as an `index.ts` file that re-exports components, to
-the file that declares the value. When the declaring file has no `style()`
-call, Stillwind follows that file's imports instead. A file that imports
-`Wrapper`, which renders `Button`, therefore comes after the file of `Button`.
-Imports in Vue, Svelte, and Astro files work in the same way. Components that
-a framework imports automatically, without an `import` declaration, do not
-order files.
+the file that declares the value. A namespace import, such as
+`import * as ui from "./ui"`, orders the file after every file that `./ui`
+re-exports. When the declaring file has no `style()` call, Stillwind follows
+that file's imports instead. A file that imports `Wrapper`, which renders
+`Button`, therefore comes after the file of `Button`. Imports in Vue, Svelte,
+and Astro files work in the same way. Components that a framework imports
+automatically, without an `import` declaration, do not order files.
 
 This order only places CSS. The component still has to apply the props, for
 example with [`style.forward()`](/docs/macros/style#forward-props-to-a-components-element).

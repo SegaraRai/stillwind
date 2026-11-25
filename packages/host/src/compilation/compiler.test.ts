@@ -137,3 +137,126 @@ export const Card = () => <div {...style("p-1")} />;
   // A change to the import of a module on the path changes the ordering of the importer.
   expect([...watched].sort()).toEqual(["button.tsx", "ui.ts", "wrapper.tsx"]);
 });
+
+/**
+ * Compiles `app.tsx` from in-memory files and returns the ordering modules of each compiled
+ * source with the number of host resolutions of each request.
+ *
+ * @param files - Module texts keyed by path relative to the virtual root.
+ * @returns Ordering module identities keyed by compiler identity, and resolution counts keyed by
+ * `importer -> specifier`.
+ */
+async function compileOrdering(files: Record<string, string>) {
+  const root = path.resolve("ordering");
+  const file = (id: string) => path.relative(root, id).replaceAll("\\", "/");
+  const ordering = new Map<string, string[]>();
+  const resolutions = new Map<string, number>();
+  const session = {
+    scanSource,
+    compile: (
+      sources: {
+        moduleId: string;
+        orderingModules?: {
+          moduleId: string;
+        }[];
+      }[],
+    ) => {
+      for (const source of sources) {
+        ordering.set(
+          source.moduleId,
+          (source.orderingModules ?? []).map((entry) => entry.moduleId),
+        );
+      }
+      return {
+        modules: [
+          {
+            moduleId: sources[0]!.moduleId,
+            code: "",
+            diagnostics: [],
+            lintFindings: [],
+            composition: [],
+            rejectedNames: [],
+          },
+        ],
+      };
+    },
+  } as unknown as NativeProjectSession;
+  await compileModule(
+    session,
+    () => ({}) as TypeScriptFactsService,
+    files["app.tsx"]!,
+    path.join(root, "app.tsx"),
+    {
+      resolve: async (specifier, importer) => {
+        const request = `${file(importer)} -> ${specifier}`;
+        resolutions.set(request, (resolutions.get(request) ?? 0) + 1);
+        if (!specifier.startsWith("./")) {
+          return null;
+        }
+        const base = path.join(path.dirname(importer), specifier);
+        const name = [".tsx", ".ts"]
+          .map((extension) => base + extension)
+          .find((id) => file(id) in files);
+        return name ? { id: name } : null;
+      },
+      read: async (id) => files[file(id)]!,
+      describe: (id) => fileModuleDescriptor(root, id),
+      watch: () => {},
+      warn: (message) => expect.fail(message),
+    },
+  );
+  return {
+    ordering,
+    resolutions,
+  };
+}
+
+const button = `import { style } from "stillwind/react";
+export const Button = (props: object) => <button {...style("p-2", style.forward(props))} />;
+`;
+const card = `import { style } from "stillwind/react";
+export const Card = () => <div {...style("p-1")} />;
+`;
+
+test("a named import through export * orders only the module that exports the name", async () => {
+  const { ordering } = await compileOrdering({
+    "app.tsx": `import { style } from "stillwind/react";
+import { Button } from "./ui";
+import * as all from "./all";
+export const App = () => <Button {...style("p-4")} />;
+export const Both = all;
+`,
+    "ui.ts": `export * from "./button";
+export * from "./card";
+`,
+    "all.ts": `export * from "./button";
+export * from "./card";
+`,
+    "button.tsx": button,
+    "card.tsx": card,
+  });
+  expect(ordering.get("app.tsx")?.sort()).toEqual(["button.tsx", "button.tsx", "card.tsx"]);
+});
+
+test("a module that several imports reach is traversed once per graph", async () => {
+  const { ordering, resolutions } = await compileOrdering({
+    "app.tsx": `import { style } from "stillwind/react";
+import { First } from "./first";
+import { Second } from "./second";
+export const App = () => <><First {...style("p-4")} /><Second /></>;
+`,
+    "first.tsx": `import { Button } from "./ui";
+export const First = (props: object) => <Button {...props} />;
+`,
+    "second.tsx": `import { Button } from "./ui";
+export const Second = (props: object) => <Button {...props} />;
+`,
+    "ui.ts": `export * from "./button";
+export * from "./card";
+`,
+    "button.tsx": button,
+    "card.tsx": card,
+  });
+  expect(ordering.get("app.tsx")).toEqual(["button.tsx", "button.tsx"]);
+  expect(resolutions.get("ui.ts -> ./button")).toBe(1);
+});

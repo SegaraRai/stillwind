@@ -31,7 +31,7 @@ use crate::contract::validate;
 use crate::demand::collect as collect_demand;
 use crate::imports::collect as collect_imports;
 use crate::keys::DeclarationScopes;
-use crate::ordering::{ordering_imports, ordering_uses};
+use crate::ordering::{local_exports, ordering_imports, ordering_uses};
 use crate::state::MacroExtractor;
 
 /// The result of parsing one module.
@@ -168,6 +168,7 @@ pub(crate) fn parse_with_coordinates(
         (extractor.coordinates)(span).map(|_| span)
     });
     summary.ordering_imports = ordering_imports(&ordering_uses, &summary.imports);
+    summary.local_exports = local_exports(&result.program);
     collect_demand(
         &result.program,
         semantic.scoping(),

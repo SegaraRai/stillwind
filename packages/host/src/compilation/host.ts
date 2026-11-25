@@ -70,6 +70,26 @@ export interface CompilerHost {
     external?: boolean | string;
   } | null>;
   /**
+   * Resolves an import that only decides CSS order between modules. Ordering follows imports that
+   * semantic traversal does not need, such as a component that a module renders, so a host whose
+   * `resolve` leaves script imports to the checker can answer them here.
+   *
+   * @param specifier - Authored module request text.
+   * @param importer - Full resolver identity of the importing source.
+   * @returns A promise for a resolved identity and optional external status, or null when
+   * unresolved. Omission uses `resolve`. Mark package modules external, because ordering does not
+   * follow them.
+   */
+  resolveOrdering?(
+    specifier: string,
+    importer: string,
+  ): Promise<{
+    /** Full host identity used to load the resolved source. */
+    id: string;
+    /** Truthy values mark a dependency that ordering does not follow. */
+    external?: boolean | string;
+  } | null>;
+  /**
    * Reads one resolved dependency before source preparation.
    *
    * @param id - Full resolver identity, including any query selecting transformed source.

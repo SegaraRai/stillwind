@@ -446,3 +446,49 @@ test("source and projection providers supply virtual implementations and capture
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("filesystem analysis orders modules by their script imports and reports an ordering cycle", async () => {
+  const root = await mkdtemp(path.join(import.meta.dirname, ".test-analysis-"));
+  const select = path.join(root, "select.tsx");
+  const item = path.join(root, "select-item.tsx");
+  await writeFile(
+    path.join(root, "tsconfig.json"),
+    JSON.stringify({
+      compilerOptions: {
+        jsx: "preserve",
+        paths: {
+          "@/*": ["./*"],
+        },
+      },
+    }),
+  );
+  const host = createFileSystemAnalysisHost({ css: "root.css", files: ["**/*.tsx"] }, root);
+  const project = new AnalysisProject(host);
+  try {
+    await writeFile(path.join(root, "root.css"), css);
+    await writeFile(
+      select,
+      'import { style } from "stillwind/react"; import { Item } from "@/select-item"; export const label = "label"; export const Select = () => <div {...style("red")}><Item /></div>;',
+    );
+    await writeFile(
+      item,
+      'import { style } from "stillwind/react"; import { label } from "./select"; export const Item = () => <div {...style("blue")}>{label}</div>;',
+    );
+    const packageRoot = path.join(root, "node_modules", "component");
+    await mkdir(packageRoot, { recursive: true });
+    await writeFile(path.join(packageRoot, "package.json"), JSON.stringify({ main: "index.js" }));
+    await writeFile(path.join(packageRoot, "index.js"), "export const x = 1;");
+    expect(await host.resolveOrdering?.("component", select)).toEqual({
+      id: path.join(packageRoot, "index.js"),
+      external: true,
+    });
+    expect(await host.resolveOrdering?.("@/select-item", select)).toEqual({ id: item });
+    await project.analyze(select);
+    const result = await project.analyze(item);
+    expect(result.status, result.error).toBe("complete");
+    expect(result.reports.map((report) => report.code)).toContain("cyclic-style-order");
+  } finally {
+    await project.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});

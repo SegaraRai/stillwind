@@ -112,3 +112,13 @@ test("a resolver domain does not resolve the imports of sources that its targets
   await project.prepare([island], host("client"), session);
   expect(project.source(island)).toBeDefined();
 });
+
+test("ordering caches last until a file changes", () => {
+  const project = new CompilationProject(true);
+  const cache = project.orderingCache<number>("reach");
+  cache.set("button.tsx", 1);
+  expect(project.orderingCache<number>("reach").get("button.tsx")).toBe(1);
+  expect(project.orderingCache<number>("summaries").size).toBe(0);
+  project.invalidateFile(path.resolve("/project/unrelated.ts"), false);
+  expect(project.orderingCache<number>("reach").size).toBe(0);
+});

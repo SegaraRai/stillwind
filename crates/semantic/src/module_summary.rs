@@ -96,6 +96,10 @@ pub struct ModuleSummary {
     /// `(source, imported)`. The host resolves each one after following re-exports.
     #[serde(default)]
     pub ordering_imports: Vec<ImportBinding>,
+    /// Names that this module exports from its own bindings, including `default`, sorted.
+    /// Re-exports with a `from` clause are in [`Self::re_exports`] instead.
+    #[serde(default)]
+    pub local_exports: Vec<LeanStr>,
 }
 
 impl ModuleSummary {
@@ -116,6 +120,7 @@ impl ModuleSummary {
             probe_imports: Vec::new(),
             export_imports: BTreeMap::new(),
             ordering_imports: Vec::new(),
+            local_exports: Vec::new(),
         }
     }
 

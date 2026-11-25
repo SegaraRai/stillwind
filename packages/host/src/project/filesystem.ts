@@ -45,6 +45,35 @@ export function createFileSystemAnalysisHost(
         : undefined,
   });
 
+  const orderingResolver = new ResolverFactory({
+    extensions: [
+      ".tsx",
+      ".ts",
+      ".mts",
+      ".cts",
+      ".jsx",
+      ".js",
+      ".mjs",
+      ".cjs",
+      ".astro",
+      ".svelte",
+      ".vue",
+    ],
+    extensionAlias: {
+      ".js": [".ts", ".tsx", ".js", ".jsx"],
+      ".mjs": [".mts", ".mjs"],
+      ".cjs": [".cts", ".cjs"],
+    },
+    conditionNames: ["import", "default"],
+    tsconfig:
+      typeFactsEnvironment.project.kind === "configured"
+        ? {
+            configFile: typeFactsEnvironment.project.configPath,
+            references: "auto",
+          }
+        : undefined,
+  });
+
   let documents: ReadonlyMap<string, string> = new Map();
   let buffers: ReadonlyMap<string, string> = new Map();
 
@@ -104,6 +133,43 @@ export function createFileSystemAnalysisHost(
   const supports = (id: string) =>
     /\.(?:[cm]?[jt]sx?|vue|svelte|astro)$/i.test(id) && !/\.d\.[cm]?ts$/i.test(id);
 
+  /**
+   * Resolves custom sources and framework components. Other script imports return null, because
+   * semantic traversal takes their identities from the checker.
+   *
+   * @param specifier - Authored module request.
+   * @param importer - Absolute path of the importing source.
+   * @returns The resolved identity, or null when the request is left to the checker or does not
+   * resolve.
+   */
+  const resolve = async (specifier: string, importer: string) => {
+    if (config.sources?.kind === "custom") {
+      const id = await config.sources.resolve?.(specifier, importer, { root, documents });
+      return id
+        ? {
+            id,
+          }
+        : null;
+    }
+    if (/\.(?:vue|svelte|astro)$/i.test(specifier)) {
+      if (specifier.startsWith(".") || path.isAbsolute(specifier)) {
+        const id = path.resolve(path.dirname(importer), specifier);
+        if (buffers.has(documentKey(id))) {
+          return {
+            id,
+          };
+        }
+      }
+      const id = (await frameworkResolver.async(path.dirname(importer), specifier)).path;
+      return id
+        ? {
+            id,
+          }
+        : null;
+    }
+    return null;
+  };
+
   return {
     root,
     config: resolvedConfig,
@@ -131,32 +197,24 @@ export function createFileSystemAnalysisHost(
         ? config.projection.prepare(input)
         : input;
     },
-    resolve: async (specifier, importer) => {
-      if (config.sources?.kind === "custom") {
-        const id = await config.sources.resolve?.(specifier, importer, { root, documents });
-        return id
-          ? {
-              id,
-            }
-          : null;
+    resolve,
+    resolveOrdering: async (specifier, importer) => {
+      const own = await resolve(specifier, importer);
+      if (own || config.sources?.kind === "custom") {
+        return own;
       }
-      if (/\.(?:vue|svelte|astro)$/i.test(specifier)) {
-        if (specifier.startsWith(".") || path.isAbsolute(specifier)) {
-          const id = path.resolve(path.dirname(importer), specifier);
-          if (buffers.has(documentKey(id))) {
-            return {
-              id,
-            };
+      const id = (await orderingResolver.async(path.dirname(importer), specifier)).path;
+      if (!id) {
+        return null;
+      }
+      return /[\\/]node_modules[\\/]/.test(id)
+        ? {
+            id,
+            external: true,
           }
-        }
-        const id = (await frameworkResolver.async(path.dirname(importer), specifier)).path;
-        return id
-          ? {
-              id,
-            }
-          : null;
-      }
-      return null;
+        : {
+            id,
+          };
     },
     watch: () => {},
     warn: () => {},
@@ -217,6 +275,7 @@ export function createFileSystemAnalysisHost(
     invalidate: async () => {
       cssResolver.clearCache();
       frameworkResolver.clearCache();
+      orderingResolver.clearCache();
     },
     close: async () => {},
   };

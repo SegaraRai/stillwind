@@ -1831,6 +1831,11 @@ export interface NativeModuleSummary {
    * back as an ordering module of the prepared source.
    */
   orderingImports: Array<NativeImportBinding>
+  /**
+   * Names that this module exports from its own bindings, including `default`, sorted.
+   * Re-exports with a `from` clause are in `reExports` instead.
+   */
+  localExports: Array<string>
   /** Assets declared by this module. */
   assets: Array<NativeAssetRecord>
   /** Values this module exports. */

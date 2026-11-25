@@ -87,6 +87,11 @@ export class CompilationProject {
   #revision = 0;
   /** Advances when sources or import links change so checker inputs are installed again. */
   #generation = 0;
+  /** Maps that CSS order traversals share, and the revision that they belong to. */
+  #ordering = {
+    revision: 0,
+    maps: new Map<string, Map<string, unknown>>(),
+  };
   /** Last backend and inputs installed by this project. */
   #installed?: {
     backend: TypeFactsBackend;
@@ -111,6 +116,29 @@ export class CompilationProject {
   /** Revision that a pending load must still match before it stores a source. */
   get revision(): number {
     return this.#revision;
+  }
+
+  /**
+   * Returns a map that CSS order traversals share until the next invalidation. Every change to a
+   * file advances the revision, so an entry never outlives the text that it was derived from.
+   *
+   * @param name - Name of the map. Include the resolver domain when the entries depend on import
+   * resolution.
+   * @returns The map for the current revision. Callers store only values derived from module text
+   * and import resolution.
+   */
+  orderingCache<T>(name: string): Map<string, T> {
+    if (this.#ordering.revision !== this.#revision) {
+      this.#ordering = {
+        revision: this.#revision,
+        maps: new Map(),
+      };
+    }
+    let map = this.#ordering.maps.get(name);
+    if (!map) {
+      this.#ordering.maps.set(name, (map = new Map()));
+    }
+    return map as Map<string, T>;
   }
 
   /**

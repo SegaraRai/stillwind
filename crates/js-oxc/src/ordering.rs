@@ -9,11 +9,14 @@
 //!
 //! Type-only imports, imports that the module never reads, side-effect imports, and
 //! macro imports produce no use.
+//!
+//! The module also lists the names that a module exports from its own bindings, so the
+//! host can follow an `export *` re-export only into the module that exports a name.
 
 use std::collections::BTreeSet;
 
-use lean_string::ToLeanStr;
-use oxc::ast::ast::{ImportDeclarationSpecifier, Program, Statement};
+use lean_string::{LeanStr, ToLeanStr};
+use oxc::ast::ast::{Declaration, ImportDeclarationSpecifier, Program, Statement};
 use oxc::semantic::{Reference, Scoping};
 
 use stillwind_ir::OrderingUse;
@@ -104,4 +107,58 @@ pub(crate) fn ordering_imports(
             }
         })
         .collect()
+}
+
+/// Returns the names that `program` exports from its own bindings, sorted and
+/// deduplicated.
+///
+/// The names come from `export` declarations, `export { local as name }` lists, and
+/// `export default`, which adds `default`. Type-only exports are left out. Re-exports
+/// with a `from` clause are left out, because the summary records them as re-exports.
+pub(crate) fn local_exports(program: &Program<'_>) -> Vec<LeanStr> {
+    let mut names = BTreeSet::new();
+    for statement in &program.body {
+        match statement {
+            Statement::ExportDeclaration(export) => match &export.declaration {
+                Declaration::VariableDeclaration(variables) => {
+                    for declarator in &variables.declarations {
+                        names.extend(
+                            declarator
+                                .id
+                                .get_binding_identifiers()
+                                .into_iter()
+                                .map(|identifier| identifier.name.to_lean_str()),
+                        );
+                    }
+                }
+                Declaration::FunctionDeclaration(function) => {
+                    names.extend(function.id.as_ref().map(|id| id.name.to_lean_str()));
+                }
+                Declaration::ClassDeclaration(class) => {
+                    names.extend(class.id.as_ref().map(|id| id.name.to_lean_str()));
+                }
+                Declaration::TSEnumDeclaration(declaration) => {
+                    names.insert(declaration.id.name.to_lean_str());
+                }
+                Declaration::TSNamespaceDeclaration(declaration) => {
+                    names.insert(declaration.id.name.to_lean_str());
+                }
+                _ => {}
+            },
+            Statement::ExportNamedDeclaration(export) if !export.export_kind.is_type() => {
+                names.extend(
+                    export
+                        .specifiers
+                        .iter()
+                        .filter(|specifier| !specifier.export_kind.is_type())
+                        .map(|specifier| MacroExtractor::module_export_name(&specifier.exported)),
+                );
+            }
+            Statement::ExportDefaultDeclaration(_) => {
+                names.insert("default".to_lean_str());
+            }
+            _ => {}
+        }
+    }
+    names.into_iter().collect()
 }

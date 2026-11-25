@@ -500,9 +500,12 @@ values from each other:
   reports every cycle. Report a cycle only when the modules on it set the same
   property, which needs the property supplies of each module in the project
   session.
-- Import traversal cost. The host repeats the traversal for every graph that
-  includes an importer. Share the resolved targets between graphs of one build
-  if the `ordering` phase grows in larger applications.
+- Import traversal cost in watch mode. A build with a fixed project shares the
+  resolved targets between graphs until a file changes. A Vite development
+  server and a watch build have no project, so each graph repeats the traversal
+  of the modules that it shares with other graphs. Share the targets in these
+  modes when the bundler reports every change, or measure the `ordering` phase
+  in a large application such as makeplane/plane first.
 - Import traversal in watch mode. The host passes every module that the
   ordering traversal reads to `watch`, and a Vite development server then
   compiles the importer again when such a module changes. Check webpack, Rspack,

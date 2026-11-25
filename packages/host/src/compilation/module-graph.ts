@@ -112,14 +112,32 @@ export function formatReport(
   return [options.primaryLocation === false ? heading : `${at}: ${heading}`, ...details].join("\n");
 }
 
+/** Modules that one ordering import reaches. */
+interface OrderingReach {
+  /** Compiler identities of the modules with styles whose CSS comes first. */
+  targets: Set<string>;
+  /** Resolver identities of the modules that the traversal reads, which the importer watches. */
+  reads: Set<string>;
+  /** False when the traversal stopped at a request that was still being followed. */
+  complete: boolean;
+}
+
 /** Collects prepared sources and semantic facts for one entry's demanded dependency graph. */
 export class ModuleGraph {
   /** Prepared sources keyed by compiler identity, including sources that later fail scanning. */
   readonly #attempted = new Map<string, PreparedSource>();
   /** Successful scanner summaries keyed by compiler identity. */
   readonly #summaries = new Map<string, NativeModuleSummary>();
-  /** Summaries of modules that only ordering imports reached, keyed by compiler identity. */
+  /**
+   * Summaries of modules that only ordering imports reached, keyed by compiler identity, for a
+   * graph without a project.
+   */
   readonly #orderingSummaries = new Map<string, NativeModuleSummary>();
+  /**
+   * Complete ordering traversals keyed by resolved module and imported name, for a graph without a
+   * project.
+   */
+  readonly #orderingReach = new Map<string, OrderingReach>();
   /** Sources retained for compilation, keyed by full host identity. */
   readonly #sources = new Map<string, PreparedSource>();
   /** Correspondence from compiler identities to full host resolver identities. */
@@ -641,6 +659,29 @@ export class ModuleGraph {
   }
 
   /**
+   * Returns the complete ordering traversals that this graph may reuse. A project shares them with
+   * the other graphs of its current revision, separately for each resolver domain.
+   *
+   * @returns Traversals keyed by resolved module and imported name.
+   */
+  #orderingReaches(): Map<string, OrderingReach> {
+    return (
+      this.project?.orderingCache<OrderingReach>(`reach:${this.host.resolverDomain ?? ""}`) ??
+      this.#orderingReach
+    );
+  }
+
+  /**
+   * Returns the summaries of modules that only ordering imports reached. A project shares them
+   * with the other graphs of its current revision.
+   *
+   * @returns Summaries keyed by compiler identity.
+   */
+  #orderingScans(): Map<string, NativeModuleSummary> {
+    return this.project?.orderingCache<NativeModuleSummary>("summaries") ?? this.#orderingSummaries;
+  }
+
+  /**
    * Resolves the ordering imports of a source to the modules whose CSS comes first.
    *
    * Each import resolves to the module that declares the imported value, after named and
@@ -671,15 +712,16 @@ export class ModuleGraph {
       moduleId: string;
     }[] = [];
     for (const ordering of summary.orderingImports) {
-      const targets = new Set<string>();
-      await this.#orderingTargets(
+      const reached = await this.#orderingTargets(
         source.resolverId,
         ordering.source,
         ordering.imported,
-        targets,
         new Set(),
       );
-      for (const moduleId of targets) {
+      for (const id of reached.reads) {
+        this.host.watch(id);
+      }
+      for (const moduleId of reached.targets) {
         if (moduleId !== source.moduleId) {
           modules.push({
             source: ordering.source,
@@ -693,60 +735,104 @@ export class ModuleGraph {
   }
 
   /**
-   * Adds the modules with styles that one import reaches to `targets`.
+   * Returns the modules with styles that one import reaches, and the modules that the traversal
+   * reads to find them.
+   *
+   * A complete result is kept, keyed by the resolved module and the imported name, because the
+   * imports of many sources reach the same shared modules. A result that stopped at a request in
+   * `visited` is not kept. That request was followed earlier in the same traversal, so the importer
+   * at the top of the traversal receives its targets through the earlier path, but this result can
+   * miss them.
    *
    * @param importer - Full resolver identity of the importing module.
    * @param specifier - Authored module request.
    * @param imported - Imported name, or `*` for a namespace import.
-   * @param targets - Compiler identities found so far. This call adds to it.
-   * @param visited - Requests already followed, which stop re-export and import cycles.
+   * @param visited - Requests that the traversal of one import of a source has followed. Each
+   * request is followed once, which also stops re-export and import cycles.
+   * @returns Compiler identities of the modules with styles, resolver identities of the modules
+   * read, and whether the result is complete.
    */
   async #orderingTargets(
     importer: string,
     specifier: string,
     imported: string,
-    targets: Set<string>,
     visited: Set<string>,
-  ): Promise<void> {
+  ): Promise<OrderingReach> {
     const resolved = await this.#resolveOrdering(importer, specifier);
-    const key = resolved && JSON.stringify([resolved.id, imported]);
-    if (!resolved || !key || visited.has(key)) {
-      return;
+    if (!resolved) {
+      return {
+        targets: new Set(),
+        reads: new Set(),
+        complete: true,
+      };
+    }
+    const key = JSON.stringify([resolved.id, imported]);
+    const kept = this.#orderingReaches().get(key);
+    if (kept) {
+      return kept;
+    }
+    if (visited.has(key)) {
+      return {
+        targets: new Set(),
+        reads: new Set(),
+        complete: false,
+      };
     }
     visited.add(key);
-    // The ordering of the importer depends on the text of every module that the traversal
-    // reads, also when its summary is already retained.
-    this.host.watch(resolved.id);
+    const reach: OrderingReach = {
+      targets: new Set(),
+      // The ordering of the importer depends on the text of every module that the traversal
+      // reads, also when its summary is already retained.
+      reads: new Set([resolved.id]),
+      complete: true,
+    };
+    const follow = async (next: string, name: string) => {
+      const inner = await this.#orderingTargets(resolved.id, next, name, visited);
+      for (const target of inner.targets) {
+        reach.targets.add(target);
+      }
+      for (const id of inner.reads) {
+        reach.reads.add(id);
+      }
+      reach.complete &&= inner.complete;
+    };
     const summary = await this.#orderingSummary(resolved.id, resolved.moduleId);
     if (!summary) {
-      targets.add(resolved.moduleId);
-      return;
-    }
-    if (imported !== "*") {
-      const named = summary.reExports.find((entry) => entry.exported === imported);
-      if (named) {
-        await this.#orderingTargets(resolved.id, named.source, named.imported, targets, visited);
-        return;
-      }
-    }
-    if (summary.macroImports > 0) {
-      targets.add(resolved.moduleId);
+      reach.targets.add(resolved.moduleId);
     } else {
-      for (const next of summary.orderingImports) {
-        await this.#orderingTargets(resolved.id, next.source, next.imported, targets, visited);
+      const named =
+        imported === "*"
+          ? undefined
+          : summary.reExports.find((entry) => entry.exported === imported);
+      const stars = summary.reExports.filter((entry) => entry.exported === "*");
+      if (named) {
+        await follow(named.source, named.imported);
+      } else {
+        // A named import that the module does not export itself comes from one of its `export *`
+        // re-exports, so only those are followed. A module without any ESM export, such as a
+        // CommonJS module, is treated as the declaring module.
+        const declares =
+          imported === "*" ||
+          summary.localExports.includes(imported) ||
+          (summary.localExports.length === 0 && summary.reExports.length === 0);
+        if (declares) {
+          if (summary.macroImports > 0) {
+            reach.targets.add(resolved.moduleId);
+          } else {
+            for (const next of summary.orderingImports) {
+              await follow(next.source, next.imported);
+            }
+          }
+        }
+        for (const entry of imported === "*" ? summary.reExports : stars) {
+          await follow(entry.source, imported === "*" ? entry.imported : imported);
+        }
       }
     }
-    for (const entry of summary.reExports) {
-      if (imported === "*" || entry.exported === "*") {
-        await this.#orderingTargets(
-          resolved.id,
-          entry.source,
-          imported === "*" ? entry.imported : imported,
-          targets,
-          visited,
-        );
-      }
+    if (reach.complete) {
+      this.#orderingReaches().set(key, reach);
     }
+    return reach;
   }
 
   /**
@@ -758,7 +844,7 @@ export class ModuleGraph {
    * @returns The summary, or undefined when the module cannot be loaded or scanned.
    */
   async #orderingSummary(id: string, moduleId: string): Promise<NativeModuleSummary | undefined> {
-    const retained = this.#summaries.get(moduleId) ?? this.#orderingSummaries.get(moduleId);
+    const retained = this.#summaries.get(moduleId) ?? this.#orderingScans().get(moduleId);
     if (retained) {
       return retained;
     }
@@ -771,7 +857,7 @@ export class ModuleGraph {
       const input = await this.#load(id);
       const prepared = "kind" in input ? input : await prepareSource(input);
       const summary = this.scan(prepared);
-      this.#orderingSummaries.set(moduleId, summary);
+      this.#orderingScans().set(moduleId, summary);
       return summary;
     } catch {
       // Ordering is advisory: a module that cannot be scanned keeps the default order.
@@ -789,9 +875,11 @@ export class ModuleGraph {
    */
   async #resolveOrdering(importer: string, specifier: string) {
     try {
-      const resolved = await (this.project
-        ? this.project.resolveImport(this.host, specifier, importer)
-        : this.host.resolve(specifier, importer, { skipSelf: true }));
+      const resolved = await (this.host.resolveOrdering
+        ? this.host.resolveOrdering(specifier, importer)
+        : this.project
+          ? this.project.resolveImport(this.host, specifier, importer)
+          : this.host.resolve(specifier, importer, { skipSelf: true }));
       if (!resolved || resolved.external) {
         return undefined;
       }

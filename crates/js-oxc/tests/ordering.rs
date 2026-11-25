@@ -55,3 +55,40 @@ export const b = style(base, 'p-1');
         ]
     );
 }
+
+/// The summary lists the names that the module exports from its own bindings, so the host
+/// can follow an `export *` re-export only into the module that exports a name.
+#[test]
+fn local_exports_list_own_bindings_and_skip_re_exports_and_types() {
+    let source = SourceFile::new(
+        FileId(1),
+        None,
+        None,
+        r"import { A } from './a';
+export const { b, c: d } = { b: 1, c: 2 };
+export function e() {}
+export class F {}
+export enum G { X }
+export { A, A as H, type I };
+export type J = string;
+export interface K {}
+export * from './star';
+export { L } from './l';
+export default function () {}
+type I = number;
+",
+    )
+    .unwrap();
+    let parsed = parse(
+        &source,
+        &ModuleId::from("ui.ts"),
+        &[],
+        &BTreeMap::new(),
+        ScriptLanguage::Ts,
+        ScriptModuleKind::Unambiguous,
+    );
+    assert_eq!(
+        parsed.summary.local_exports,
+        ["A", "F", "G", "H", "b", "d", "default", "e"]
+    );
+}

@@ -235,6 +235,9 @@ pub struct NativeModuleSummary {
     /// source and imported name. Pass each declaring module, after following re-exports,
     /// back as an ordering module of the prepared source.
     pub ordering_imports: Vec<NativeImportBinding>,
+    /// Names that this module exports from its own bindings, including `default`, sorted.
+    /// Re-exports with a `from` clause are in `reExports` instead.
+    pub local_exports: Vec<String>,
     /// Assets declared by this module.
     pub assets: Vec<NativeAssetRecord>,
     /// Values this module exports.
@@ -289,6 +292,11 @@ impl NativeModuleSummary {
                 .ordering_imports
                 .into_iter()
                 .map(Into::into)
+                .collect(),
+            local_exports: summary
+                .local_exports
+                .into_iter()
+                .map(|name| name.to_string())
                 .collect(),
             assets: summary.assets.into_iter().map(Into::into).collect(),
             exports: summary
