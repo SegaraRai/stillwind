@@ -62,6 +62,24 @@ fn a_component_precedes_the_module_that_passes_it_a_style() {
     assert!(button < app, "{css}");
 }
 
+/// The import alone orders the component first, even when the caller's style reaches
+/// the component through a variable or a child element.
+#[test]
+fn an_imported_component_precedes_the_importer_however_the_style_reaches_it() {
+    let app = r"import { style } from 'stillwind/react';
+import { Button } from './ui/button';
+const wide = style('p-4');
+export const App = () => <Button asChild><a {...wide} /></Button>;
+";
+    let mut session = session();
+    session.update_module(analysis("z/ui/button.tsx", BUTTON));
+    session.update_module(ordered("a/app.tsx", app, "z/ui/button.tsx"));
+    let css = session.css().unwrap().stylesheet.css;
+    let button = css.find("* 10)").expect("button rule");
+    let app = css.find("* 4)").expect("app rule");
+    assert!(button < app, "{css}");
+}
+
 /// In a chain of wrapper components, each component's CSS comes before the CSS
 /// of the module that passes it a style, although the paths sort the other way.
 #[test]

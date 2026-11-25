@@ -77,12 +77,6 @@ pub(crate) struct MacroExtractor<'a> {
     pub(crate) style_calls: Vec<StyleCall>,
     /// `style.forward()` calls passed to a call other than `style()`, in source order.
     pub(crate) forward_calls: Vec<ForwardCall>,
-    /// Symbols that each constant binding forwards to, used to resolve generated
-    /// component aliases.
-    pub(crate) ordering_aliases: HashMap<SymbolId, Vec<SymbolId>>,
-    /// References that may order CSS: the referenced symbol, the member name read from
-    /// it, and the triggering `style()` or `style.forward()` span, in visit order.
-    pub(crate) ordering_roots: Vec<(SymbolId, Option<LeanStr>, Span)>,
     /// Recipe factory calls whose values use the ordinary style-input parser.
     pub(crate) recipe_calls: Vec<RecipeCall>,
     /// `style.media()` calls in source order.
@@ -171,8 +165,6 @@ impl<'a> MacroExtractor<'a> {
             local_values: HashMap::new(),
             style_calls: Vec::new(),
             forward_calls: Vec::new(),
-            ordering_aliases: HashMap::new(),
-            ordering_roots: Vec::new(),
             recipe_calls: Vec::new(),
             media_calls: Vec::new(),
             css_calls: Vec::new(),

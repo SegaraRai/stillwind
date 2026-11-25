@@ -61,3 +61,76 @@ test("a rejected generator name is reported through the host warnings", async ()
   expect(warnings[0]!).toMatch(/the host generator failed/);
   expect(warnings[0]!).toMatch(/a{64}/);
 });
+
+test("an import orders the module with styles that it reaches through modules without styles", async () => {
+  const root = path.resolve("ordering");
+  const files: Record<string, string> = {
+    "app.tsx": `import { style } from "stillwind/react";
+import { Wrapper } from "./wrapper";
+export const App = () => <Wrapper {...style("p-4")} />;
+`,
+    "wrapper.tsx": `import { Button } from "./ui";
+export const Wrapper = (props: object) => <Button {...props} />;
+`,
+    "ui.ts": `export { Button } from "./button";
+export { Card } from "./card";
+`,
+    "button.tsx": `import { style } from "stillwind/react";
+export const Button = (props: object) => <button {...style("p-2", style.forward(props))} />;
+`,
+    "card.tsx": `import { style } from "stillwind/react";
+export const Card = () => <div {...style("p-1")} />;
+`,
+  };
+  const file = (id: string) => path.relative(root, id).replaceAll("\\", "/");
+  let compiled: {
+    moduleId: string;
+    orderingModules?: {
+      moduleId: string;
+    }[];
+  }[] = [];
+  const session = {
+    scanSource,
+    compile: (sources: typeof compiled) => {
+      compiled = sources;
+      return {
+        modules: [
+          {
+            moduleId: sources[0]!.moduleId,
+            code: "",
+            diagnostics: [],
+            lintFindings: [],
+            composition: [],
+            rejectedNames: [],
+          },
+        ],
+      };
+    },
+  } as unknown as NativeProjectSession;
+  await compileModule(
+    session,
+    () => ({}) as TypeScriptFactsService,
+    files["app.tsx"]!,
+    path.join(root, "app.tsx"),
+    {
+      resolve: async (specifier, importer) => {
+        if (!specifier.startsWith("./")) {
+          return null;
+        }
+        const base = path.join(path.dirname(importer), specifier);
+        const name = [".tsx", ".ts"]
+          .map((extension) => base + extension)
+          .find((id) => {
+            return file(id) in files;
+          });
+        return name ? { id: name } : null;
+      },
+      read: async (id) => files[file(id)]!,
+      describe: (id) => fileModuleDescriptor(root, id),
+      watch: () => {},
+      warn: (message) => expect.fail(message),
+    },
+  );
+  const app = compiled.find((source) => source.moduleId.endsWith("app.tsx"));
+  expect(app?.orderingModules?.map((ordering) => ordering.moduleId)).toEqual(["button.tsx"]);
+});

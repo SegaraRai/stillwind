@@ -25,18 +25,22 @@ fn ordering_imports(code: &str) -> Vec<(String, String)> {
         .collect()
 }
 
+/// Every import that the module reads as a value orders its module first, whatever the
+/// value is used for.
 #[test]
-fn components_that_receive_styles_order_their_modules_first() {
+fn value_imports_order_their_modules_first() {
     let imports = ordering_imports(
         r"import { style } from 'stillwind/react';
 import Card from './card';
 import * as ui from './ui';
 import { Icon } from './icon';
-import { ensure } from './runtime';
 import { base } from './base';
-const $$_Card = ensure(Card);
-export const a = <ui.Button {...style('p-4')}><Icon /></ui.Button>;
-new $$_Card({ props: { ...style('p-2') } });
+import { unused } from './unused';
+import type { Props } from './types';
+import { type Shape, wide } from './shapes';
+import './side-effect';
+const p: Props = { wide };
+export const a = <ui.Button {...p}><Icon /><Card /></ui.Button>;
 export const b = style(base, 'p-1');
 ",
     );
@@ -45,8 +49,9 @@ export const b = style(base, 'p-1');
         [
             ("./base".into(), "base".into()),
             ("./card".into(), "default".into()),
-            ("./runtime".into(), "ensure".into()),
-            ("./ui".into(), "Button".into()),
+            ("./icon".into(), "Icon".into()),
+            ("./shapes".into(), "wide".into()),
+            ("./ui".into(), "*".into()),
         ]
     );
 }

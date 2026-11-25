@@ -149,7 +149,7 @@ test("late dependency reads and cancellation cannot publish or replace the last 
   expect(cancelled.previousSuccess?.version).toBe(2);
 });
 
-test("semantic reads select a barrel export and exclude unrelated runtime imports", async () => {
+test("semantic reads select a barrel export, and ordering reads the imports that the entry uses", async () => {
   const reads: string[] = [];
   const barrel = path.join(root, "barrel.ts");
   const editor = project(async (id) => {
@@ -159,6 +159,9 @@ test("semantic reads select a barrel export and exclude unrelated runtime import
     }
     if (id === dependency) {
       return 'import { style } from "stillwind/react"; export const token = style.keyframes({ from: "red", to: "red" });';
+    }
+    if (id === path.join(root, "unvisited.ts")) {
+      return "export const route = 1; export const lazy = 2;";
     }
     expect.fail(`Unrelated source was read: ${id}`);
   });
@@ -171,7 +174,7 @@ test("semantic reads select a barrel export and exclude unrelated runtime import
   const result = await editor.analyze(entry);
   expect(result.status, result.error ?? JSON.stringify(result.output?.diagnostics)).toBe("success");
   expect(result.output!.css).toMatch(/color:\s*red/);
-  expect(reads).toStrictEqual([barrel, dependency]);
+  expect(reads).toStrictEqual([barrel, dependency, path.join(root, "unvisited.ts")]);
   expect(result.checkerStats!.overlayReads).toBeGreaterThan(0);
   expect(result.checkerStats!.diskReadRequests).toBeGreaterThan(0);
 });

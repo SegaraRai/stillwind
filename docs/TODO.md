@@ -475,8 +475,8 @@ Sources: [component conversion](../packages/projection/src/frameworks/index.ts),
 
 ## Styles passed to imported components
 
-Open work for `style.forward()` and for the CSS order of files that pass styles
-to imported components:
+Open work for `style.forward()` and for the CSS order of files that import
+values from each other:
 
 - Lint. Extend `interfering-imported-style-base` with an option such as
   `componentOverrides: "allow" | "report"` and `overridableProperties` (for
@@ -495,9 +495,17 @@ to imported components:
   values from element attributes in these entrypoints.
 - Vue falls through `class` and `style` to the root element automatically.
   Check in an application that this needs no forward.
-- Re-exports. The host follows a re-export to the declaring module only when it
-  has already scanned the re-exporting module. Decide whether ordering should
-  load barrel modules that no other demand loads.
+- Import cycles. The order follows every value import, so mutually recursive
+  components such as `Tree` and `TreeItem` form a cycle. `cyclic-style-order`
+  reports every cycle. Report a cycle only when the modules on it set the same
+  property, which needs the property supplies of each module in the project
+  session.
+- Import traversal cost. The host scans each local module that an import reaches
+  when the module has no `style()` call, and follows its imports. Measure the
+  first build and HMR of a large application, and share the resolved targets
+  between importers if the cost is visible. Watch mode rebuilds the importer when
+  such a module changes, through `watch`; check that the bundlers keep this
+  dependency.
 
 Sources: [CSS ordering](../packages/core/docs/concepts/css-ordering.md),
 [component conversion](../packages/projection/src/frameworks/index.ts).

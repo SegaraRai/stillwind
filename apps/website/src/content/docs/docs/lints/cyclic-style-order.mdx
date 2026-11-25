@@ -1,14 +1,13 @@
 ---
 title: cyclic-style-order
-description: Reports files that pass styles to components of each other, so their CSS order cannot follow both.
+description: Reports files that import values from each other, so their CSS order cannot follow both.
 slug: docs/lints/cyclic-style-order
 ---
 
 This rule reports a file whose CSS must come after another file's CSS, while
 that file's CSS must also come after this file, directly or through other
-files. A file must come after another file when it passes a `style()` result
-to a component that the other file declares, or when it builds a style on a
-base that the other file declares. See
+files. A file must come after another file when it imports and uses a value,
+such as a component or a base style, that the other file declares. See
 [CSS ordering](/docs/concepts/css-ordering#files-that-pass-styles-to-components).
 
 When the order forms a cycle, Stillwind keeps one of the orders, and the build
@@ -39,15 +38,14 @@ export function Button(props: ButtonProps) {
 }
 ```
 
-`card.tsx` passes a style to `Button`, and `button.tsx` passes a style to
-`Card`.
+`card.tsx` imports `Button`, and `button.tsx` imports `Card`.
 
 ## How to fix
 
-- Move one of the components to its own file, so that the files do not pass
-  styles to each other.
-- Or stop passing a style in one direction, for example by moving the
-  utilities into the receiving component.
+- Move the shared parts to a file that neither file imports from, so that the
+  imports go in one direction.
+- Or remove the import in one direction, for example by passing the component
+  as a prop or a slot.
 
 ## Rule settings
 

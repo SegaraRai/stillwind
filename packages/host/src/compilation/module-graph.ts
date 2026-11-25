@@ -118,6 +118,8 @@ export class ModuleGraph {
   readonly #attempted = new Map<string, PreparedSource>();
   /** Successful scanner summaries keyed by compiler identity. */
   readonly #summaries = new Map<string, NativeModuleSummary>();
+  /** Summaries of modules that only ordering imports reached, keyed by compiler identity. */
+  readonly #orderingSummaries = new Map<string, NativeModuleSummary>();
   /** Sources retained for compilation, keyed by full host identity. */
   readonly #sources = new Map<string, PreparedSource>();
   /** Correspondence from compiler identities to full host resolver identities. */
@@ -639,15 +641,18 @@ export class ModuleGraph {
   }
 
   /**
-   * Resolves the ordering imports of a source to the modules that declare the imported values.
+   * Resolves the ordering imports of a source to the modules whose CSS comes first.
    *
-   * A named re-export is followed when the summary of the re-exporting module is already
-   * available, so a barrel module is replaced by the module it re-exports from. Imports that do
-   * not resolve, or resolve to an external module, produce no entry.
+   * Each import resolves to the module that declares the imported value, after named and
+   * `export *` re-exports. When that module does not import a Stillwind macro module, its own
+   * value imports are followed instead, so a module that reaches a component through a module
+   * without styles still comes after the component. Imports that do not resolve, or resolve to
+   * an external or unsupported module, produce no entry.
    *
    * @param source - Importer whose ordering imports are resolved.
    * @param summary - Scan result of that importer.
-   * @returns Ordering modules for the prepared source, in the order of the summary's imports.
+   * @returns Ordering modules for the prepared source. Each entry keeps the authored import that
+   * leads to it, in the order of the summary's imports.
    */
   async orderingModules(
     source: PreparedSource,
@@ -665,38 +670,111 @@ export class ModuleGraph {
       moduleId: string;
     }[] = [];
     for (const ordering of summary.orderingImports) {
-      let importer = source.resolverId;
-      let specifier = ordering.source;
-      let imported = ordering.imported;
-      let moduleId: string | undefined;
-      // Barrel chains are short; the limit only stops a re-export cycle.
-      for (let depth = 0; depth < 8; depth++) {
-        const resolved = await this.#resolveOrdering(importer, specifier);
-        if (!resolved) {
-          break;
+      const targets = new Set<string>();
+      await this.#orderingTargets(
+        source.resolverId,
+        ordering.source,
+        ordering.imported,
+        targets,
+        new Set(),
+      );
+      for (const moduleId of targets) {
+        if (moduleId !== source.moduleId) {
+          modules.push({
+            source: ordering.source,
+            imported: ordering.imported,
+            moduleId,
+          });
         }
-        moduleId = resolved.moduleId;
-        const target = this.project?.source(resolved.id);
-        const next = (
-          (target && this.project?.summary(target)) ??
-          this.#summaries.get(resolved.moduleId)
-        )?.reExports.find((entry) => entry.exported === imported && imported !== "*");
-        if (!next) {
-          break;
-        }
-        importer = resolved.id;
-        specifier = next.source;
-        imported = next.imported;
-      }
-      if (moduleId !== undefined && moduleId !== source.moduleId) {
-        modules.push({
-          source: ordering.source,
-          imported: ordering.imported,
-          moduleId,
-        });
       }
     }
     return modules;
+  }
+
+  /**
+   * Adds the modules with styles that one import reaches to `targets`.
+   *
+   * @param importer - Full resolver identity of the importing module.
+   * @param specifier - Authored module request.
+   * @param imported - Imported name, or `*` for a namespace import.
+   * @param targets - Compiler identities found so far. This call adds to it.
+   * @param visited - Requests already followed, which stop re-export and import cycles.
+   */
+  async #orderingTargets(
+    importer: string,
+    specifier: string,
+    imported: string,
+    targets: Set<string>,
+    visited: Set<string>,
+  ): Promise<void> {
+    const resolved = await this.#resolveOrdering(importer, specifier);
+    const key = resolved && JSON.stringify([resolved.id, imported]);
+    if (!resolved || !key || visited.has(key)) {
+      return;
+    }
+    visited.add(key);
+    const summary = await this.#orderingSummary(resolved.id, resolved.moduleId);
+    if (!summary) {
+      targets.add(resolved.moduleId);
+      return;
+    }
+    if (imported !== "*") {
+      const named = summary.reExports.find((entry) => entry.exported === imported);
+      if (named) {
+        await this.#orderingTargets(resolved.id, named.source, named.imported, targets, visited);
+        return;
+      }
+    }
+    if (summary.macroImports > 0) {
+      targets.add(resolved.moduleId);
+    } else {
+      for (const next of summary.orderingImports) {
+        await this.#orderingTargets(resolved.id, next.source, next.imported, targets, visited);
+      }
+    }
+    for (const entry of summary.reExports) {
+      if (imported === "*" || entry.exported === "*") {
+        await this.#orderingTargets(
+          resolved.id,
+          entry.source,
+          imported === "*" ? entry.imported : imported,
+          targets,
+          visited,
+        );
+      }
+    }
+  }
+
+  /**
+   * Returns the summary of a module that an ordering import reaches, scanning it when no
+   * summary is retained. The module is watched, so a change to its imports rebuilds the
+   * importer.
+   *
+   * @param id - Full resolver identity of the module.
+   * @param moduleId - Compiler identity of the module.
+   * @returns The summary, or undefined when the module cannot be loaded or scanned.
+   */
+  async #orderingSummary(id: string, moduleId: string): Promise<NativeModuleSummary | undefined> {
+    const retained = this.#summaries.get(moduleId) ?? this.#orderingSummaries.get(moduleId);
+    if (retained) {
+      return retained;
+    }
+    const target = this.project?.source(id);
+    const projected = target && this.project?.summary(target);
+    if (projected) {
+      return projected;
+    }
+    this.host.watch(id);
+    try {
+      const input = await this.#load(id);
+      const prepared = "kind" in input ? input : await prepareSource(input);
+      const summary = this.scan(prepared);
+      this.#orderingSummaries.set(moduleId, summary);
+      return summary;
+    } catch {
+      // Ordering is advisory: a module that cannot be scanned keeps the default order.
+      return undefined;
+    }
   }
 
   /**
