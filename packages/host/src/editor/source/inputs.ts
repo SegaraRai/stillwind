@@ -559,8 +559,10 @@ export class SourceIndex {
    *
    * @param source - Prepared source whose checker AST contains `call`.
    * @param call - Call whose callee is the `recipe` method of a Stillwind style import.
-   * Keys are read from the base input, from each option of `variants`, and from the
-   * `class` and `className` inputs of `compoundVariants`. Other syntax adds nothing.
+   * Keys are read from the base input, from each value of `slots`, from each option of
+   * `variants`, and from the `class` and `className` inputs of `compoundVariants` and
+   * `compoundSlots`. With `slots`, an object whose keys all name slots is read slot by slot.
+   * Other syntax adds nothing.
    */
   #recipe(source: PreparedSource, call: ts.CallExpression): void {
     const [base, config] = call.arguments;
@@ -568,10 +570,26 @@ export class SourceIndex {
     if (!config || !ts.isObjectLiteralExpression(config)) {
       return;
     }
-    for (const property of config.properties) {
-      if (!ts.isPropertyAssignment(property) || ts.isComputedPropertyName(property.name)) {
-        continue;
+    const entries = config.properties.filter(
+      (property): property is ts.PropertyAssignment =>
+        ts.isPropertyAssignment(property) && !ts.isComputedPropertyName(property.name),
+    );
+    const slots = new Set<string>();
+    for (const property of entries) {
+      if (
+        propertyName(property) === "slots" &&
+        ts.isObjectLiteralExpression(property.initializer)
+      ) {
+        slots.add("base");
+        for (const slot of property.initializer.properties) {
+          if (ts.isPropertyAssignment(slot) && !ts.isComputedPropertyName(slot.name)) {
+            slots.add(propertyName(slot));
+            this.#recipeInput(source, slot.initializer, "");
+          }
+        }
       }
+    }
+    for (const property of entries) {
       const name = propertyName(property);
       const value = property.initializer;
       if (name === "variants" && ts.isObjectLiteralExpression(value)) {
@@ -579,12 +597,15 @@ export class SourceIndex {
           if (ts.isPropertyAssignment(axis) && ts.isObjectLiteralExpression(axis.initializer)) {
             for (const option of axis.initializer.properties) {
               if (ts.isPropertyAssignment(option)) {
-                this.#recipeInput(source, option.initializer, "");
+                this.#recipeSlotInput(source, option.initializer, slots);
               }
             }
           }
         }
-      } else if (name === "compoundVariants" && ts.isArrayLiteralExpression(value)) {
+      } else if (
+        (name === "compoundVariants" || name === "compoundSlots") &&
+        ts.isArrayLiteralExpression(value)
+      ) {
         for (const compound of value.elements) {
           if (!ts.isObjectLiteralExpression(compound)) {
             continue;
@@ -595,12 +616,43 @@ export class SourceIndex {
               !ts.isComputedPropertyName(entry.name) &&
               ["class", "className"].includes(propertyName(entry))
             ) {
-              this.#recipeInput(source, entry.initializer, "");
+              this.#recipeSlotInput(
+                source,
+                entry.initializer,
+                name === "compoundVariants" ? slots : new Set(),
+              );
             }
           }
         }
       }
     }
+  }
+
+  /**
+   * Records the variant keys in a recipe input that may select inputs by slot.
+   *
+   * @param source - Prepared source whose checker AST contains `node`.
+   * @param node - An input for the `base` slot, or an object whose keys all name slots.
+   * @param slots - Declared slot names including `base`, or an empty set without slots.
+   */
+  #recipeSlotInput(source: PreparedSource, node: ts.Node, slots: ReadonlySet<string>): void {
+    if (
+      slots.size > 0 &&
+      ts.isObjectLiteralExpression(node) &&
+      node.properties.length > 0 &&
+      node.properties.every(
+        (property) =>
+          ts.isPropertyAssignment(property) &&
+          !ts.isComputedPropertyName(property.name) &&
+          slots.has(propertyName(property)),
+      )
+    ) {
+      for (const property of node.properties) {
+        this.#recipeInput(source, (property as ts.PropertyAssignment).initializer, "");
+      }
+      return;
+    }
+    this.#recipeInput(source, node, "");
   }
 
   /**

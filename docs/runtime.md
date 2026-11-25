@@ -58,6 +58,13 @@ the `Recipe` export of the output representation, such as `stillwindClassNameObj
 structure. Each base, option, and compound style value becomes compiled class text
 or private fragments. Calls to the returned factory remain ordinary JavaScript.
 
+With `slots`, the factory returns an object with one selector for each slot and
+for `base`. Option values and compound `class` and `className` values may be
+objects whose keys name slots. The compiler replaces each value inside such an
+object. Compiled fragments have only symbol keys, so the runtime reads an object
+with string keys as a slot map. `compoundSlots` entries add their classes to
+each listed slot.
+
 ```tsx
 const button = style.recipe("inline-flex rounded-md", {
   variants: {

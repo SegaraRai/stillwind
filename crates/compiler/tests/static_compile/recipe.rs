@@ -258,3 +258,75 @@ fn recipe_empty_calls_and_shadowed_members_remain_valid_javascript() {
         "{output}"
     );
 }
+
+#[test]
+fn recipe_slots_compile_values_by_slot() {
+    let (source, result) = compile(
+        r"
+        import { style } from 'stillwind/react';
+        export const card = style.recipe('rounded', {
+            slots: { icon: 'size-4', label: 'text-sm' },
+            variants: {
+                size: { small: { base: 'p-2', icon: 'size-3' }, large: 'p-8' },
+                tone: { quiet: { 'hover:': 'opacity-50' } },
+            },
+            compoundVariants: [{ size: 'large', class: { label: 'text-lg' } }],
+            compoundSlots: [{ slots: ['icon', 'label'], size: 'small', class: 'gap-1' }],
+        });
+    ",
+    );
+    assert!(
+        result.lint_findings.is_empty(),
+        "{:?}",
+        result.lint_findings
+    );
+    let output = render_transforms(&source, &result.transforms).unwrap().code;
+    assert!(output.contains("slots: { icon: \"sw_"), "{output}");
+    assert!(output.contains("small: { base: \"sw_"), "{output}");
+    assert!(output.contains("slots: ['icon', 'label']"), "{output}");
+    for declaration in ["width", "font-size", "padding", "gap", ":hover"] {
+        assert!(
+            result.module_css.contains(declaration),
+            "{declaration}: {}",
+            result.module_css
+        );
+    }
+}
+
+#[test]
+fn recipe_slots_report_unknown_and_invalid_slots() {
+    let (source, result) = compile(
+        r"
+        import { style } from 'stillwind/react';
+        export const card = style.recipe('rounded', {
+            slots: { icon: 'size-4', 'hover:': 'p-1' },
+            variants: { size: { small: { label: 'p-2', icon: 'size-3' } } },
+            compoundSlots: [{ slots: ['label'], class: 'gap-1' }],
+        });
+        export const plain = style.recipe('rounded', {
+            compoundSlots: [{ slots: ['base'], class: 'gap-1' }],
+        });
+    ",
+    );
+    let reasons = result
+        .lint_findings
+        .iter()
+        .filter_map(|finding| match &finding.diagnostic {
+            LintDiagnostic::InvalidRecipeConfig { reason } => Some(reason.to_string()),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        reasons,
+        [
+            "invalid slot name",
+            "unknown slot",
+            "slots must be a literal array of declared slot names",
+            "compoundSlots requires slots",
+        ],
+        "{reasons:?}"
+    );
+    let output = render_transforms(&source, &result.transforms).unwrap().code;
+    assert!(!output.contains("gap-1"), "{output}");
+    assert!(!result.module_css.contains("gap"), "{}", result.module_css);
+}

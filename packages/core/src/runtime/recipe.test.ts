@@ -89,6 +89,97 @@ test("Recipe selects defaults, boolean and numeric options, and every matching c
   });
 });
 
+test("Recipe with slots selects props for each slot", () => {
+  const card = formats.stillwindClassNameObjectRecipe("root", {
+    slots: {
+      base: "base-slot",
+      icon: "icon",
+      label: "label",
+    },
+    variants: {
+      size: {
+        small: {
+          base: "root-small",
+          icon: "icon-small",
+        },
+        large: "root-large",
+      },
+      tone: {
+        quiet: {
+          label: "label-quiet",
+        },
+        loud: {},
+      },
+    },
+    defaultVariants: {
+      size: "small",
+    },
+    compoundVariants: [
+      {
+        size: "small",
+        tone: "quiet",
+        class: {
+          icon: "icon-small-quiet",
+        },
+      },
+      {
+        size: "large",
+        className: "root-large-compound",
+      },
+    ],
+    compoundSlots: [
+      {
+        slots: ["icon", "label"],
+        tone: "quiet",
+        class: "quiet-part",
+      },
+    ],
+  });
+  const forwarded = formats.stillwindClassNameObjectForward({
+    className: "forwarded",
+  });
+  const slots = (props?: Record<string, unknown>, forward?: unknown) =>
+    card(props, forward) as Record<string, (props?: Record<string, unknown>) => unknown>;
+  const { base, icon, label } = slots(
+    {
+      tone: "quiet",
+      className: "outer",
+    },
+    forwarded,
+  );
+  expect(base!()).toEqual({
+    className: "root base-slot root-small outer forwarded",
+  });
+  expect(icon!()).toEqual({
+    className: "icon icon-small icon-small-quiet quiet-part",
+  });
+  expect(
+    label!({
+      className: "own",
+    }),
+  ).toEqual({
+    className: "label label-quiet quiet-part own",
+  });
+  expect(
+    icon!({
+      size: "large",
+      tone: undefined,
+    }),
+  ).toEqual({
+    className: "icon quiet-part",
+  });
+  const large = slots({
+    size: "large",
+  });
+  expect(large.base!()).toEqual({
+    className: "root base-slot root-large root-large-compound",
+  });
+  expect(large.label!()).toEqual({
+    className: "label",
+  });
+  expect(Object.keys(large)).toEqual(["base", "icon", "label"]);
+});
+
 test("Recipe ignores inherited options and supports base-only and empty factories", () => {
   const options = Object.assign(
     Object.create({

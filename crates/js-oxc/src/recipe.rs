@@ -5,6 +5,11 @@
 //! records only the callee and style expressions that need replacement. Selection values
 //! remain ordinary JavaScript literals. Recipe values reuse the style-input parser after
 //! syntax validation.
+//!
+//! A configuration with `slots` names element parts. Option values and compound
+//! `class` and `className` values may then be objects whose keys all name slots,
+//! and `compoundSlots` entries add classes to several slots. The values inside such
+//! objects are extracted as separate recipe values.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -112,11 +117,15 @@ impl<'a> MacroExtractor<'a> {
         let Some(properties) = self.recipe_properties(expression) else {
             return;
         };
+        let slots = properties
+            .iter()
+            .find(|(name, property)| name == "slots" && !is_undefined(&property.value))
+            .and_then(|(_, property)| self.recipe_slots(&property.value, output, values));
         let mut axes = BTreeMap::new();
         for (name, property) in &properties {
             if !matches!(
                 name.as_str(),
-                "variants" | "defaultVariants" | "compoundVariants"
+                "slots" | "variants" | "defaultVariants" | "compoundVariants" | "compoundSlots"
             ) {
                 self.recipe_error(&property.value, "unknown configuration property");
                 self.recipe_omit_property(property);
@@ -141,7 +150,7 @@ impl<'a> MacroExtractor<'a> {
                     let mut keys = BTreeSet::new();
                     for (key, option) in options {
                         keys.insert(key);
-                        self.recipe_value(&option.value, output, values);
+                        self.recipe_slot_value(&option.value, slots.as_ref(), output, values);
                     }
                     axes.insert(axis, keys);
                 }
@@ -162,7 +171,15 @@ impl<'a> MacroExtractor<'a> {
                     }
                 }
                 "compoundVariants" => {
-                    self.recipe_compounds(&property.value, &axes, output, values);
+                    self.recipe_compounds(&property.value, &axes, slots.as_ref(), output, values);
+                }
+                "compoundSlots" => {
+                    if let Some(slots) = &slots {
+                        self.recipe_compound_slots(&property.value, &axes, slots, output, values);
+                    } else {
+                        self.recipe_error(&property.value, "compoundSlots requires slots");
+                        self.recipe_omit_property(property);
+                    }
                 }
                 _ => {}
             }
@@ -170,10 +187,170 @@ impl<'a> MacroExtractor<'a> {
         values.sort_by_key(|value| value.span.start);
     }
 
+    /// Extracts the value of each slot and returns the slot names, including `base`.
+    /// A name that is empty, starts with `--`, ends with `:`, or is `class` or
+    /// `className` is reported and omitted, because an option value could not tell
+    /// such a slot map from a utility input or from the class props.
+    fn recipe_slots(
+        &mut self,
+        expression: &Expression<'a>,
+        output: OutputFormat,
+        values: &mut Vec<StyleCall>,
+    ) -> Option<BTreeSet<LeanStr>> {
+        let properties = self.recipe_properties(expression)?;
+        let mut names = BTreeSet::from([LeanStr::from("base")]);
+        for (name, property) in properties {
+            if !is_slot_name(&name) {
+                self.recipe_error(&property.value, "invalid slot name");
+                self.recipe_omit_property(property);
+                continue;
+            }
+            names.insert(name);
+            self.recipe_value(&property.value, output, values);
+        }
+        Some(names)
+    }
+
+    /// Extracts a value that applies to the `base` slot, or the values of an object
+    /// whose keys all name slots. An unknown slot is reported and its entry omitted.
+    fn recipe_slot_value(
+        &mut self,
+        expression: &Expression<'a>,
+        slots: Option<&BTreeSet<LeanStr>>,
+        output: OutputFormat,
+        values: &mut Vec<StyleCall>,
+    ) {
+        let (slots, object) = match (slots, expression.get_inner_expression()) {
+            (Some(slots), Expression::ObjectExpression(object))
+                if !object.properties.is_empty()
+                    && object.properties.iter().all(|entry| {
+                        matches!(entry, ObjectPropertyKind::ObjectProperty(property)
+                            if !property.computed
+                                && self
+                                    .static_property_name(&property.key)
+                                    .is_some_and(|name| is_slot_name(&name.value)))
+                    }) =>
+            {
+                (slots, object)
+            }
+            _ => {
+                self.recipe_value(expression, output, values);
+                return;
+            }
+        };
+        for (name, property) in self.recipe_object_properties(object) {
+            if slots.contains(&name) {
+                self.recipe_value(&property.value, output, values);
+            } else {
+                self.recipe_error(&property.value, "unknown slot");
+                self.recipe_omit_property(property);
+            }
+        }
+    }
+
+    fn recipe_compound_slots(
+        &mut self,
+        expression: &Expression<'a>,
+        axes: &BTreeMap<LeanStr, BTreeSet<LeanStr>>,
+        slots: &BTreeSet<LeanStr>,
+        output: OutputFormat,
+        values: &mut Vec<StyleCall>,
+    ) {
+        let Expression::ArrayExpression(entries) = expression.get_inner_expression() else {
+            self.recipe_error(expression, "compoundSlots requires a literal array");
+            self.recipe_replace(expression, "[]");
+            return;
+        };
+        for entry in &entries.elements {
+            let Some(entry) = entry.as_expression() else {
+                self.lint_findings.push(LintFinding::new(
+                    LintDiagnostic::InvalidRecipeConfig {
+                        reason: "compoundSlots cannot contain spreads or empty slots".into(),
+                    },
+                    self.source_span(entry.span()),
+                ));
+                self.omit_input(entry.span());
+                self.recipe_replacements.push(RecipeReplacement {
+                    span: self.source_span(entry.span()),
+                    replacement: if matches!(entry, ArrayExpressionElement::Elision(_)) {
+                        "...[],"
+                    } else {
+                        "...[]"
+                    }
+                    .into(),
+                });
+                continue;
+            };
+            let finding_start = self.lint_findings.len();
+            let value_start = values.len();
+            let edit_start = self.recipe_replacements.len();
+            let mut valid = true;
+            if let Some(properties) = self.recipe_properties(entry) {
+                let mut listed = false;
+                for (key, property) in properties {
+                    match key.as_str() {
+                        "class" | "className" => {
+                            self.recipe_value(&property.value, output, values);
+                        }
+                        "slots" => {
+                            listed = true;
+                            valid &= self.recipe_slot_list(&property.value, slots);
+                        }
+                        _ => valid &= self.recipe_choice(&key, &property.value, axes, true),
+                    }
+                }
+                if !listed {
+                    self.recipe_error(entry, "compoundSlots entries require slots");
+                }
+            } else {
+                valid = false;
+            }
+            valid &= !self.lint_findings[finding_start..].iter().any(|finding| {
+                matches!(
+                    finding.diagnostic,
+                    LintDiagnostic::InvalidRecipeConfig { .. }
+                )
+            });
+            if !valid {
+                values.truncate(value_start);
+                self.recipe_replacements.truncate(edit_start);
+                self.recipe_replace(entry, "...[]");
+            }
+        }
+    }
+
+    /// Whether `expression` is a literal array of declared slot names. Reports it
+    /// otherwise.
+    fn recipe_slot_list(&mut self, expression: &Expression<'a>, slots: &BTreeSet<LeanStr>) -> bool {
+        let valid =
+            match expression.get_inner_expression() {
+                Expression::ArrayExpression(array) => array.elements.iter().all(|element| {
+                    match element
+                        .as_expression()
+                        .map(Expression::get_inner_expression)
+                    {
+                        Some(Expression::StringLiteral(value)) => self
+                            .unicode_string(value.value, value.span)
+                            .is_some_and(|name| slots.contains(name)),
+                        _ => false,
+                    }
+                }),
+                _ => false,
+            };
+        if !valid {
+            self.recipe_error(
+                expression,
+                "slots must be a literal array of declared slot names",
+            );
+        }
+        valid
+    }
+
     fn recipe_compounds(
         &mut self,
         expression: &Expression<'a>,
         axes: &BTreeMap<LeanStr, BTreeSet<LeanStr>>,
+        slots: Option<&BTreeSet<LeanStr>>,
         output: OutputFormat,
         values: &mut Vec<StyleCall>,
     ) {
@@ -209,7 +386,7 @@ impl<'a> MacroExtractor<'a> {
             if let Some(conditions) = self.recipe_properties(compound) {
                 for (axis, condition) in conditions {
                     if matches!(axis.as_str(), "class" | "className") {
-                        self.recipe_value(&condition.value, output, values);
+                        self.recipe_slot_value(&condition.value, slots, output, values);
                     } else {
                         valid &= self.recipe_choice(&axis, &condition.value, axes, true);
                     }
@@ -424,6 +601,15 @@ impl<'a> MacroExtractor<'a> {
             self.source_span(expression.span()),
         ));
     }
+}
+
+/// Whether `name` can name a slot without being read as a utility input key or as
+/// a class prop.
+fn is_slot_name(name: &str) -> bool {
+    !name.is_empty()
+        && !name.starts_with("--")
+        && !name.ends_with(':')
+        && !matches!(name, "class" | "className")
 }
 
 fn is_undefined(expression: &Expression<'_>) -> bool {

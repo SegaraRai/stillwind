@@ -72,6 +72,7 @@ the libraries that Tailwind projects use to build class strings:
 | [`clsx`](https://github.com/lukeed/clsx), [`classnames`](https://github.com/JedWatson/classnames) | `style()` with conditions                    |
 | [`tailwind-merge`](https://github.com/dcastil/tailwind-merge)                                     | Compose a base with new utilities            |
 | `cva` from [Class Variance Authority](https://cva.style/)                                         | `style.recipe()` with the same configuration |
+| `tv` from [tailwind-variants](https://www.tailwind-variants.org/)                                 | `style.recipe()` with `slots`                |
 
 ### clsx and classnames
 
@@ -131,6 +132,36 @@ class-variance-authority. Write each option value as a plain utility string,
 without `&&` or a ternary. The props that the factory returns cannot be passed
 to `style()` as a base. The [`style.recipe()` reference](/docs/macros/recipe) lists
 the other differences.
+
+### tailwind-variants
+
+Replace `tv({ base, ... })` with `style.recipe(base, { ... })`. Move `base` to the
+first argument, and keep `slots`, `variants`, `defaultVariants`,
+`compoundVariants`, and `compoundSlots`. Each slot function returns props
+instead of a class string, so spread it onto the element:
+
+```tsx
+import { style } from "stillwind/react";
+
+const card = style.recipe("flex gap-2", {
+  slots: {
+    icon: "size-4",
+  },
+});
+
+export function Card() {
+  const { base, icon } = card();
+  return (
+    <div {...base()}>
+      <span {...icon()} />
+    </div>
+  );
+}
+```
+
+`extend` and the `twMerge` options are not supported. Utilities do not need a
+runtime merge, because the compiler's CSS order decides which declaration wins.
+See [Slots](/docs/macros/recipe#slots).
 
 For new components, consider state variants and `data-*` attributes instead of
 options. See [Reusable styles](/docs/guides/reusable-styles).

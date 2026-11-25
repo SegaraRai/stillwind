@@ -129,7 +129,8 @@ test("variant keys and style.when arguments complete and preview only variants",
 const stored = style.when("focus:", "");
 const value = style({ "hover:": "block", "wide:": { "focus:": "flex" }, "ho": "block", "--gap": "1px" });
 const sheet = style.css({ "hover:": "block" }, { selector: ":host" });
-const factory = style.recipe({ "hover:": "block" }, { variants: { size: { sm: { "wide:": "flex" } } } });`;
+const factory = style.recipe({ "hover:": "block" }, { variants: { size: { sm: { "wide:": "flex" } } } });
+const slotted = style.recipe("", { slots: { icon: "flex" }, variants: { size: { sm: { icon: { "wide:": "block" } } } } });`;
   const current = project(
     source,
     {},
@@ -159,6 +160,10 @@ const factory = style.recipe({ "hover:": "block" }, { variants: { size: { sm: { 
     expect(nested!.css).toContain("&:focus");
     expect((await hover('"hover:"', source.indexOf("style.css")))!.css).toContain("&:hover");
     expect((await hover('"wide:"', source.indexOf("recipe")))!.css).toContain("@media");
+    // A key inside a slot value previews like a key in any other recipe input.
+    const slotted = (await hover('"wide:"', source.indexOf("slotted")))!;
+    expect(source.slice(slotted.start, slotted.end)).toBe("wide:");
+    expect(slotted.css).toContain("@media");
     expect((await hover('"focus:"'))!.css).toContain("&:focus");
     // A custom-property key is not a variant key, so hover describes the enclosing call.
     const property = (await hover('"--gap"'))!;

@@ -180,3 +180,68 @@ const vueProps: typeof classOnly = vue.recipe("p-2")();
 const stringStyle: { class?: string; style?: string } = svelte.recipe({ "--tone": "red" })();
 const astroProps: typeof stringStyle = astro.recipe("p-2")();
 void [classOnly, solidProps, vueProps, stringStyle, astroProps];
+
+const card = react.recipe("rounded", {
+  slots: {
+    icon: "size-4",
+    label: "text-sm",
+  },
+  variants: {
+    size: {
+      small: {
+        base: "p-2",
+        icon: "size-3",
+      },
+      large: "p-4",
+    },
+  },
+  defaultVariants: {
+    size: "small",
+  },
+  compoundVariants: [
+    {
+      size: "large",
+      class: {
+        label: "text-lg",
+      },
+    },
+  ],
+  compoundSlots: [
+    {
+      slots: ["icon", "label"],
+      size: "small",
+      class: "gap-1",
+    },
+  ],
+});
+const parts = card({
+  size: "large",
+  className: "outer",
+});
+const slotProps: typeof props = parts.icon({
+  size: "small",
+  className: "own",
+});
+void [slotProps, parts.base(), parts.label()];
+
+export type InferredSlotSelection = Assert<
+  Equal<
+    VariantProps<typeof card>,
+    {
+      readonly size?: "small" | "large" | null | undefined;
+    }
+  >
+>;
+
+// @ts-expect-error Unknown slot.
+void card().missing;
+// @ts-expect-error Compound slots list declared slots only.
+react.recipe(null, {
+  slots: { icon: "size-4" },
+  compoundSlots: [
+    {
+      slots: ["label"],
+      class: "gap-1",
+    },
+  ],
+});

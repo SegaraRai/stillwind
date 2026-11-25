@@ -4,12 +4,15 @@ description: Create a factory that selects compiled styles by option, with the c
 slug: docs/macros/recipe
 ---
 
-`style.recipe(base?, config?)` creates a factory with the configuration format of
-`cva` from [Class Variance Authority](https://cva.style/). The compiler
-generates the CSS for every option at build time. Calling the factory selects
-the compiled classes for the chosen options and returns props for an element.
+`style.recipe(base?, config?)` creates a factory with the configuration format
+of `cva` from [Class Variance Authority](https://cva.style/). With `slots`, it
+also accepts the slot configuration of
+[tailwind-variants](https://www.tailwind-variants.org/). The compiler generates
+the CSS for every option at build time. Calling the factory selects the
+compiled classes for the chosen options and returns props for an element.
 
-`style.recipe()` exists mainly to migrate existing CVA components. For new
+`style.recipe()` exists mainly to migrate existing CVA and tailwind-variants
+components. For new
 components, see [Reusable styles](/docs/guides/reusable-styles).
 
 ## Example
@@ -46,11 +49,13 @@ export const props = button({ size: "large" });
 
 Write the configuration as an object literal in the call:
 
-| Field              | Value                                                            |
-| ------------------ | ---------------------------------------------------------------- |
-| `variants`         | Each option name maps each value to a style                      |
-| `defaultVariants`  | The value that each option uses when the call passes `undefined` |
-| `compoundVariants` | Entries that add `class` when every listed option matches        |
+| Field              | Value                                                                              |
+| ------------------ | ---------------------------------------------------------------------------------- |
+| `variants`         | Each option name maps each value to a style                                        |
+| `defaultVariants`  | The value that each option uses when the call passes `undefined`                   |
+| `compoundVariants` | Entries that add `class` when every listed option matches                          |
+| `slots`            | Each slot name maps to the style of that element part                              |
+| `compoundSlots`    | Entries that add `class` to every slot in `slots` when every listed option matches |
 
 `class` and `className` cannot be option names, because the factory uses them
 for classes from other stylesheets. An option with the values `true` and
@@ -102,6 +107,82 @@ The factory does not merge utilities at runtime. When two selected styles set
 the same property, the compiler's CSS order decides which one wins.
 
 The props that the factory returns cannot be passed to `style()` as a base.
+
+## Slots
+
+A component often styles several elements, such as a root, an icon, and a label.
+`slots` names these parts. Each recipe with slots also has a `base` slot, which
+receives the first argument of `style.recipe()`:
+
+```tsx
+import { style } from "stillwind/react";
+
+export const card = style.recipe("flex items-center rounded-md", {
+  slots: {
+    icon: "size-4",
+    label: "text-sm",
+  },
+  variants: {
+    size: {
+      small: {
+        base: "p-2",
+        icon: "size-3",
+      },
+      large: "p-4",
+    },
+  },
+  compoundVariants: [
+    {
+      size: "large",
+      class: {
+        label: "text-lg",
+      },
+    },
+  ],
+  compoundSlots: [
+    {
+      slots: ["icon", "label"],
+      size: "small",
+      class: "gap-1",
+    },
+  ],
+});
+
+export function Card({ size, className }: CardProps) {
+  const { base, icon, label } = card({ size, className });
+  return (
+    <div {...base()}>
+      <span {...icon()} />
+      <span {...label()}>Title</span>
+    </div>
+  );
+}
+```
+
+With `slots`, an option value or a compound `class` or `className` value can be
+an object whose keys all name slots. Each key adds its style to that slot. Any
+other value applies to the `base` slot. A slot name cannot be empty, cannot
+start with `--` or end with `:`, and cannot be `class` or `className`, because
+those keys have other meanings in a style value.
+
+Calling the factory returns one function for each slot. Each slot function
+returns props for its element. A slot receives, in order:
+
+1. For the `base` slot, the first argument of `style.recipe()`.
+2. Its value in `slots`.
+3. Its part of each selected option value.
+4. Its part of each matching compound variant.
+5. The `class` of each matching `compoundSlots` entry that lists it.
+6. For the `base` slot, the classes and the `style.forward()` value passed to
+   the factory.
+7. The classes and the `style.forward()` value passed to the slot function.
+
+A slot function also accepts option values, which replace the values passed to
+the factory for that slot only, as in `icon({ size: "large" })`.
+
+`style.recipe()` does not support the `extend` field of tailwind-variants.
+[invalid-recipe-config](/docs/lints/invalid-recipe-config) reports it and unknown
+slot names.
 
 ## Generated code
 

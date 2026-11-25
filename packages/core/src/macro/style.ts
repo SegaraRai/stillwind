@@ -12,6 +12,10 @@ import type {
   RecipeInput,
   RecipeResult,
   RecipeSelection,
+  RecipeSlotConfig,
+  RecipeSlotName,
+  RecipeSlots,
+  RecipeSlotVariantsOf,
   RecipeVariants,
 } from "./recipe.ts";
 import type { AnchorScope, StyleRef, StyleVariantKey } from "./refs.ts";
@@ -300,6 +304,34 @@ export type StyleMacroWithoutForward<Props = object> = {
    * @returns Stylesheet text.
    */
   css(...inputs: [...StyleCssInput[], StyleCssOptions]): string;
+
+  /**
+   * Compiles a recipe definition with slots and returns a function that selects props for each
+   * slot. The first argument adds styles to the `base` slot. Calling the factory returns one
+   * function for each slot in `slots` and for `base`. The classes and the `style.forward()`
+   * value passed to the factory apply to the `base` slot. A slot function accepts variant
+   * choices that replace the factory's choices, its own classes, and its own `style.forward()`
+   * value.
+   *
+   * @param base - Styles included in the `base` slot of every selection.
+   * @param config - Static slots, variants, defaults, compound variants, and compound slots.
+   * @returns A reusable factory returning an object of slot functions.
+   */
+  recipe<
+    Slots extends RecipeSlots,
+    Variants extends RecipeSlotVariantsOf<Slots> = Record<never, never>,
+  >(
+    base: RecipeInput,
+    config: RecipeSlotConfig<Slots, Variants>,
+  ): (
+    props?: RecipeSelection<Variants> & RecipeClassProps,
+    forwarded?: StyleForward,
+  ) => {
+    readonly [Slot in RecipeSlotName<Slots>]: (
+      props?: RecipeSelection<Variants> & RecipeClassProps,
+      forwarded?: StyleForward,
+    ) => RecipeResult<Props>;
+  };
 
   /**
    * Compiles a recipe definition and returns a function that selects element props.
