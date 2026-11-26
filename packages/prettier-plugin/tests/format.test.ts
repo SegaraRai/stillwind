@@ -1,4 +1,5 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -125,13 +126,30 @@ test("framework parsers delegate printing after sorting original scripts and exp
 });
 
 test("files without a configuration retain ordinary formatting and invalid explicit config fails", async () => {
-  const filepath = path.resolve(import.meta.dirname, "unconfigured.tsx");
-  const source = 'const value="flex block";';
-  expect(await format(source, { filepath, plugins: [plugin] })).toBe(
-    await format(source, { filepath }),
-  );
-  const options = { filepath, plugins: [plugin], stillwindConfig: "missing-stillwind.config.ts" };
-  await expect(format(source, options)).rejects.toThrow();
+  // The repository root has a configuration, so the file must be outside the repository.
+  const root = await mkdtemp(path.join(tmpdir(), "stillwind-prettier-unconfigured-"));
+  try {
+    const filepath = path.join(root, "unconfigured.tsx");
+    const source = 'const value="flex block";';
+    expect(
+      await format(source, {
+        filepath,
+        plugins: [plugin],
+      }),
+    ).toBe(
+      await format(source, {
+        filepath,
+      }),
+    );
+    const options = {
+      filepath,
+      plugins: [plugin],
+      stillwindConfig: "missing-stillwind.config.ts",
+    };
+    await expect(format(source, options)).rejects.toThrow();
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test("ignored utility literals cannot move across neighboring array inputs", async () => {
