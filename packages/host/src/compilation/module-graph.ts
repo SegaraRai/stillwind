@@ -855,10 +855,16 @@ export class ModuleGraph {
     }
     try {
       const input = await this.#load(id);
+      this.project?.recordOrderingRead(id);
       const prepared = "kind" in input ? input : await prepareSource(input);
-      const summary = this.scan(prepared);
-      this.#orderingScans().set(moduleId, summary);
-      return summary;
+      // The project does not retain the module. A retained source becomes a checker input, so the
+      // next semantic resolution of every later graph would install and resolve all sources again.
+      const result = tracePhase("scan", 1, () => this.session.scanSource(prepared));
+      if (result.kind === "failed") {
+        return undefined;
+      }
+      this.#orderingScans().set(moduleId, result.summary);
+      return result.summary;
     } catch {
       // Ordering is advisory: a module that cannot be scanned keeps the default order.
       return undefined;

@@ -87,6 +87,11 @@ export class CompilationProject {
   #revision = 0;
   /** Advances when sources or import links change so checker inputs are installed again. */
   #generation = 0;
+  /**
+   * Normalized identities, as {@link sourceKey} defines them, of files that CSS order traversals
+   * scanned without retaining them as sources. They are not checker inputs.
+   */
+  readonly #orderingReads = new Set<string>();
   /** Maps that CSS order traversals share, and the revision that they belong to. */
   #ordering = {
     revision: 0,
@@ -154,6 +159,23 @@ export class CompilationProject {
   /** Returns the normalized identities of the prepared sources, as {@link sourceKey} defines them. */
   sourceKeys(): string[] {
     return [...this.#sources.keys()];
+  }
+
+  /**
+   * Records a file that a CSS order traversal read without retaining it as a source.
+   *
+   * @param id - Full resolver ID of the file.
+   */
+  recordOrderingRead(id: string): void {
+    this.#orderingReads.add(sourceKey(id));
+  }
+
+  /**
+   * Returns the normalized identities of files that only CSS order traversals read, as
+   * {@link sourceKey} defines them. A full {@link invalidate} clears them.
+   */
+  orderingReadKeys(): string[] {
+    return [...this.#orderingReads];
   }
 
   /** Returns the prepared documents' original text so plugins can find candidates together. */
@@ -363,6 +385,7 @@ export class CompilationProject {
     if (ids === undefined) {
       this.#sources.clear();
       this.#reload.clear();
+      this.#orderingReads.clear();
     } else {
       for (const id of typeof ids === "string" ? [ids] : ids) {
         this.#sources.delete(sourceKey(id));

@@ -183,13 +183,15 @@ export class AnalysisProject {
   /**
    * Lists the files that analysis has observed, for comparison with paths in watch notifications.
    *
-   * @returns Keys from `sourceKey` for prepared sources, files that CSS or plugins read, and paths
+   * @returns Keys from `sourceKey` for prepared sources, files that only CSS order traversals
+   * read, files that CSS or plugins read, and paths
    * that the checker read or tested, including missing paths. A custom semantic backend contributes
    * nothing.
    */
   reads(): Set<string> {
     return new Set([
       ...this.#compilation.sourceKeys(),
+      ...this.#compilation.orderingReadKeys(),
       ...[...this.#css.dependencies, ...(this.#facts?.dependencies ?? [])].map(sourceKey),
     ]);
   }

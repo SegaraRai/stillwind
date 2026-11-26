@@ -6,6 +6,7 @@ import { expect, test } from "vite-plus/test";
 import type { TypeScriptFactsService } from "../semantics/node/service.ts";
 import { compileModule } from "./compiler.ts";
 import { fileModuleDescriptor } from "./filesystem.ts";
+import { CompilationProject } from "./project.ts";
 
 test("a rejected generator name is reported through the host warnings", async () => {
   // A rejected name comes from the host's generator rather than from the source, so it has no
@@ -62,7 +63,7 @@ test("a rejected generator name is reported through the host warnings", async ()
   expect(warnings[0]!).toMatch(/a{64}/);
 });
 
-test("an import orders the module with styles that it reaches through modules without styles, and watches them", async () => {
+test("an import orders the module with styles that it reaches through modules without styles, watches them, and records them as reads", async () => {
   const root = path.resolve("ordering");
   const files: Record<string, string> = {
     "app.tsx": `import { style } from "stillwind/react";
@@ -90,6 +91,7 @@ export const Card = () => <div {...style("p-1")} />;
     }[];
   }[] = [];
   const watched = new Set<string>();
+  const project = new CompilationProject(true);
   const session = {
     scanSource,
     compile: (sources: typeof compiled) => {
@@ -131,11 +133,21 @@ export const Card = () => <div {...style("p-1")} />;
       watch: (id) => watched.add(file(id)),
       warn: (message) => expect.fail(message),
     },
+    {},
+    project,
   );
   const app = compiled.find((source) => source.moduleId.endsWith("app.tsx"));
   expect(app?.orderingModules?.map((ordering) => ordering.moduleId)).toEqual(["button.tsx"]);
   // A change to the import of a module on the path changes the ordering of the importer.
   expect([...watched].sort()).toEqual(["button.tsx", "ui.ts", "wrapper.tsx"]);
+  // Modules that only the ordering traversal reads are not checker inputs, but they are reads.
+  const name = (key: string) => path.basename(key);
+  expect(project.sourceKeys().map(name)).toEqual(["app.tsx"]);
+  expect(project.orderingReadKeys().map(name).sort()).toEqual([
+    "button.tsx",
+    "ui.ts",
+    "wrapper.tsx",
+  ]);
 });
 
 /**
