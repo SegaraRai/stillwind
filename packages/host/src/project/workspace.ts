@@ -435,12 +435,17 @@ export class AnalysisWorkspace {
    *
    * @param patterns - Optional additional globs relative to each project's root. Empty or omitted
    * filters check every configured target.
+   * @param projects - Optional zero-based project indices to analyze. Omission analyzes every
+   * project. Indices that no project has are ignored.
    * @returns Scoped results in project order, then sorted target order. Overlapping memberships remain separate.
    * @throws If target enumeration fails. Analysis failures are represented in individual results.
    */
-  async lint(patterns?: string[]): Promise<WorkspaceResult[]> {
+  async lint(patterns?: string[], projects?: readonly number[]): Promise<WorkspaceResult[]> {
     const results: WorkspaceResult[] = [];
     for (const [index, project] of this.projects.entries()) {
+      if (projects && !projects.includes(index)) {
+        continue;
+      }
       const files = await this.targets(project, patterns, { stylesheets: true });
       await project.analysis.prepare(files);
       for (const file of files) {

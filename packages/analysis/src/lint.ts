@@ -1,9 +1,9 @@
 import type { WorkspaceResult } from "@stillwind/host";
 
+import { ProjectWorkers } from "./project-workers.ts";
 import { lintReports } from "./reports.ts";
 import { resolveRewriteConfig, rewriteFiles, type RewriteOptions } from "./rewrite-files.ts";
 import type { RewriteFileFailure } from "./rewrite.ts";
-import { AnalysisWorker } from "./worker-client.ts";
 
 /** Lint results preserve project membership and identify incomplete analysis. */
 export interface LintResult {
@@ -24,12 +24,14 @@ export interface LintResult {
 }
 
 /**
- * Analyzes configured target scopes in a child process and closes it before returning.
+ * Analyzes configured target scopes in child processes and closes them before returning. Disjoint
+ * project groups are analyzed concurrently.
  *
  * @param options - Configuration discovery and optional target filters. Omission checks all
  * configured targets from the process working directory.
  * @returns Results and an exit code. Readonly lint returns code 2 for empty selection or incomplete analysis.
- * @throws If configuration discovery, worker initialization, target enumeration, or cleanup fails.
+ * @throws If configuration discovery, worker initialization, target enumeration, or cleanup fails,
+ * or if concurrency is invalid.
  * Fix mode reports failures per target and continues with healthy targets. Empty selection throws.
  */
 export async function lint(
@@ -52,10 +54,18 @@ export async function lint(
     };
   }
   const config = resolveRewriteConfig(options);
-  const worker = new AnalysisWorker();
+  const workers = await ProjectWorkers.open(config, {
+    patterns: options.patterns,
+    concurrency: options.concurrency,
+  });
   try {
-    await worker.open(config);
-    const results = await worker.lint(options.patterns);
+    const results = (
+      await Promise.all(
+        workers.groups.map((group) => group.worker.lint(options.patterns, group.projects)),
+      )
+    )
+      .flat()
+      .sort((a, b) => a.project - b.project);
     const exitCode =
       !results.length || results.some(({ result }) => result.status !== "complete")
         ? 2
@@ -64,7 +74,7 @@ export async function lint(
           : 0;
     return { config, results, exitCode };
   } finally {
-    await worker.close();
+    await workers.close();
   }
 }
 

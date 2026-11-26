@@ -27,10 +27,20 @@ export type WorkerRequest =
       method: "lint";
       /** Additional target globs relative to each project root. Omission checks all configured targets. */
       patterns?: readonly string[];
+      /** Zero-based indices of the projects to analyze. Omission analyzes every project. */
+      projects?: readonly number[];
     }
   | {
       /** Serialized discriminator for enumerating distinct targets. */
       method: "targets";
+      /** Additional project-relative globs. An empty or omitted list keeps every configured target. */
+      patterns?: readonly string[];
+      /** Adds the stylesheets that each project lints. */
+      stylesheets?: boolean;
+    }
+  | {
+      /** Serialized discriminator for enumerating the targets of each project. */
+      method: "projectTargets";
       /** Additional project-relative globs. An empty or omitted list keeps every configured target. */
       patterns?: readonly string[];
       /** Adds the stylesheets that each project lints. */
@@ -228,11 +238,11 @@ export class AnalysisWorker {
    * Replaces the child workspace, closing any previously opened hosts first.
    *
    * @param config - Configuration path. Relative paths use the child's inherited working directory.
-   * @returns A promise that resolves after the configuration and project hosts have opened.
+   * @returns The number of configured projects, after the configuration and project hosts have opened.
    * @throws If configuration evaluation, project initialization, or transport fails.
    */
-  async open(config: string): Promise<void> {
-    await this.request({
+  open(config: string): Promise<number> {
+    return this.request({
       method: "open",
       config,
     });
@@ -257,13 +267,15 @@ export class AnalysisWorker {
    *
    * @param patterns - Additional globs relative to each project root. Empty or omitted filters
    * retain every configured target.
+   * @param projects - Zero-based indices of the projects to analyze. Omission analyzes every project.
    * @returns Results in project order and sorted target order within each project.
    * @throws If the workspace has not opened, enumeration fails, or transport fails.
    */
-  lint(patterns?: readonly string[]): Promise<WorkspaceResult[]> {
+  lint(patterns?: readonly string[], projects?: readonly number[]): Promise<WorkspaceResult[]> {
     return this.request({
       method: "lint",
       patterns,
+      projects,
     });
   }
 
@@ -278,6 +290,23 @@ export class AnalysisWorker {
   targets(patterns?: readonly string[], stylesheets?: boolean): Promise<string[]> {
     return this.request({
       method: "targets",
+      patterns,
+      stylesheets,
+    });
+  }
+
+  /**
+   * Enumerates the targets of each project in the opened workspace.
+   *
+   * @param patterns - Additional project-relative globs. Omission or an empty list retains all targets.
+   * @param stylesheets - Adds the stylesheets that each project lints.
+   * @returns One list of sorted absolute paths for each project, in project order. A path that
+   * several projects include appears in each of their lists.
+   * @throws If the workspace has not opened, enumeration fails, or transport fails.
+   */
+  projectTargets(patterns?: readonly string[], stylesheets?: boolean): Promise<string[][]> {
+    return this.request({
+      method: "projectTargets",
       patterns,
       stylesheets,
     });

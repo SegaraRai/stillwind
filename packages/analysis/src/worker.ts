@@ -63,7 +63,8 @@ process.on("disconnect", () => {
  *
  * @param request - Operation payload. Open must complete before other operations except close.
  * @returns The operation result, including a boolean for refresh, or undefined for state changes.
- * The targets operation returns sorted, distinct paths.
+ * The open operation returns the number of configured projects. The targets operation returns
+ * sorted, distinct paths.
  * @throws If no workspace is open or the selected workspace operation fails.
  */
 async function handle(request: WorkerRequest): Promise<unknown> {
@@ -72,7 +73,7 @@ async function handle(request: WorkerRequest): Promise<unknown> {
     workspace = undefined;
     workspace = await AnalysisWorkspace.open(request.config);
     rewriter = new SourceRewriter(workspace);
-    return undefined;
+    return workspace.projects.length;
   }
 
   if (!workspace) {
@@ -94,6 +95,15 @@ async function handle(request: WorkerRequest): Promise<unknown> {
       return [...new Set(files.flat())].sort();
     }
 
+    case "projectTargets":
+      return Promise.all(
+        workspace.projects.map((project) =>
+          workspace!.targets(project, request.patterns ? [...request.patterns] : undefined, {
+            stylesheets: request.stylesheets,
+          }),
+        ),
+      );
+
     case "rewrite":
       return runRewriteWithHooks(
         workspace,
@@ -104,7 +114,7 @@ async function handle(request: WorkerRequest): Promise<unknown> {
       );
 
     case "lint":
-      return workspace.lint(request.patterns ? [...request.patterns] : undefined);
+      return workspace.lint(request.patterns ? [...request.patterns] : undefined, request.projects);
 
     case "analyze":
       return workspace.analyze(request.file);
@@ -198,6 +208,7 @@ async function runRewriteWithHooks(
     currentWorkspace.projects,
     hooks.command,
     hooks.mode,
+    hooks.projects,
   );
   try {
     const formatted = await applyFormatHooks(currentWorkspace.projects, batch, originals, session);

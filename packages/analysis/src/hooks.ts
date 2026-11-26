@@ -9,6 +9,12 @@ export interface HookRunOptions {
   command: HookCommand;
   /** Whether modified buffers will be written to disk or only checked. */
   mode: HookMode;
+  /**
+   * Zero-based indices of the projects whose hooks this rewrite sets up. Omission selects every
+   * project. Each project must be selected in exactly one concurrent rewrite, so its `setup` and
+   * `teardown` run once per command.
+   */
+  projects?: readonly number[];
 }
 
 /**
@@ -33,12 +39,15 @@ export class ProjectHookSession {
   }
 
   /**
-   * Creates contexts for all projects and runs `setup` in project and array order.
-   * If a `setup` callback throws, earlier initialized hooks are torn down before rethrowing.
+   * Creates contexts for all projects and runs `setup` of the selected projects in project and
+   * array order. If a `setup` callback throws, earlier initialized hooks are torn down before
+   * rethrowing.
    *
    * @param projects - Opened workspace projects.
    * @param command - Invoking CLI command.
    * @param mode - Write or check mode.
+   * @param selected - Zero-based indices of the projects whose hooks run. Omission selects every
+   * project.
    * @returns An open session whose `close()` must be awaited in a `finally` block.
    * @throws If any hook's `setup` callback throws.
    */
@@ -46,6 +55,7 @@ export class ProjectHookSession {
     projects: readonly WorkspaceProject[],
     command: HookCommand,
     mode: HookMode,
+    selected?: readonly number[],
   ): Promise<ProjectHookSession> {
     const controller = new AbortController();
     const contexts: HookContext[] = projects.map((project) => ({
@@ -58,6 +68,9 @@ export class ProjectHookSession {
     const session = new ProjectHookSession(contexts);
     try {
       for (const [index, project] of projects.entries()) {
+        if (selected && !selected.includes(index)) {
+          continue;
+        }
         const context = contexts[index];
         for (const hook of project.config.hooks ?? []) {
           if (hook.setup) {

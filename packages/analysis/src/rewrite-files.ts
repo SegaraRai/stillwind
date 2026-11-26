@@ -5,8 +5,13 @@ import { findConfiguration } from "@stillwind/config/node";
 import type { WorkspaceResult } from "@stillwind/host";
 
 import type { HookRunOptions } from "./hooks.ts";
-import type { RewriteFileFailure, RewriteInput, RewriteOperation } from "./rewrite.ts";
-import { AnalysisWorker } from "./worker-client.ts";
+import { ProjectWorkers } from "./project-workers.ts";
+import type {
+  RewriteBatchResult,
+  RewriteFileFailure,
+  RewriteInput,
+  RewriteOperation,
+} from "./rewrite.ts";
 import { writeChangedFiles } from "./write.ts";
 
 /**
@@ -19,6 +24,11 @@ export interface RewriteOptions {
   cwd?: string;
   /** Additional globs relative to each project root. Omission or an empty list retains all configured targets. */
   patterns?: string[];
+  /**
+   * Maximum number of analysis worker processes. Omission selects half of the available
+   * parallelism. Projects that share a target are analyzed in the same process.
+   */
+  concurrency?: number;
 }
 
 /**
@@ -37,13 +47,16 @@ interface RewriteFilesResult {
 
 /**
  * Computes all replacements before optionally saving changed files. Fixes return final findings.
+ * Disjoint project groups are rewritten concurrently in separate worker processes. A group reads
+ * the targets of other groups from disk, not from their buffers of the current pass.
  *
  * @param options - Configuration discovery and optional filters within configured target scopes.
  * @param operation - Utility sorting, converged lint fixes, or converged lint fixes followed by sorting.
  * @param write - Whether to verify and save changed bytes after every replacement is planned.
  * @returns Configuration, sorted changed paths, findings, and independent target failures.
  * Saving reports only paths whose writes succeeded. Check mode reports planned changes.
- * @throws If selection is empty, configuration, worker communication, or cleanup fails.
+ * @throws If selection is empty, concurrency is invalid, or configuration, worker communication,
+ * or cleanup fails.
  */
 export async function rewriteFiles(
   options: RewriteOptions,
@@ -52,10 +65,13 @@ export async function rewriteFiles(
   hooks?: HookRunOptions,
 ): Promise<RewriteFilesResult> {
   const config = resolveRewriteConfig(options);
-  const worker = new AnalysisWorker();
+  const workers = await ProjectWorkers.open(config, {
+    patterns: options.patterns,
+    stylesheets: true,
+    concurrency: options.concurrency,
+  });
   try {
-    await worker.open(config);
-    const files = await worker.targets(options.patterns, true);
+    const files = workers.files;
     if (!files.length) {
       throw new Error("No analysis targets matched the configured scopes");
     }
@@ -86,7 +102,22 @@ export async function rewriteFiles(
         });
       }
     }
-    const batch = await worker.rewrite(inputs, operation, hooks);
+    const groupOf = new Map(
+      workers.groups.flatMap((group, index) => group.files.map((file) => [file, index] as const)),
+    );
+    const batches = await Promise.all(
+      workers.groups.map((group, index) =>
+        group.worker.rewrite(
+          inputs.filter((input) => groupOf.get(input.file) === index),
+          operation,
+          hooks && group.projects ? { ...hooks, projects: group.projects } : hooks,
+        ),
+      ),
+    );
+    const batch: RewriteBatchResult = {
+      outputs: batches.flatMap((entry) => entry.outputs),
+      failures: batches.flatMap((entry) => entry.failures),
+    };
     failures.push(...batch.failures);
     const changes = batch.outputs.map((output) => ({
       file: output.file,
@@ -113,7 +144,7 @@ export async function rewriteFiles(
       failures,
     };
   } finally {
-    await worker.close();
+    await workers.close();
   }
 }
 
