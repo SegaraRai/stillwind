@@ -36,8 +36,8 @@ catalogs:
     "@jridgewell/trace-mapping": ^0.3.31
     "@rolldown/browser": ^1.3.1
     "@types/node": ^26.6.6
-    "@vitest/browser-playwright": 5.1.0
-    "@vitest/ui": 5.1.0
+    "@vitest/browser-playwright": 5.1.1
+    "@vitest/ui": 5.1.1
     "@webref/css": 8.7.8
     astro: ^7.4.8
     cf: ^1.0.0-beta.29
@@ -46,9 +46,9 @@ catalogs:
     rolldown: ^1.3.1
     tailwindcss: 4.3.5
     typescript: ^6.0.3
-    vite: npm:@voidzero-dev/vite-plus-core@1.6.0
-    vite-plus: 1.6.0
-    vitest: 5.1.0
+    vite: npm:@voidzero-dev/vite-plus-core@8.3.8001
+    vite-plus: 1.8.0
+    vitest: 5.1.1
 
 overrides:
   # The browser loader and wasm-runtime plugins require the same emnapi API.
@@ -65,10 +65,8 @@ overrides:
 
 peerDependencyRules:
   allowAny:
-    - vite
     - vitest
   allowedVersions:
-    vite: "*"
     vitest: "*"
 
 patchedDependencies:
