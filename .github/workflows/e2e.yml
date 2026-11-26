@@ -44,7 +44,6 @@ jobs:
           persist-credentials: false
       - uses: voidzero-dev/setup-vp@v1.22.0
         with:
-          node-version: "26.13.0"
           cache: false
       - name: Set up Rust
         run: |

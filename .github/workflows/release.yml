@@ -67,7 +67,6 @@ jobs:
           persist-credentials: false
       - uses: voidzero-dev/setup-vp@v1.22.0
         with:
-          node-version: "26.13.0"
           cache: false
           run-install: false
       # The binding needs no install scripts, and sharp 0.32 from the Gatsby fixture cannot
@@ -114,7 +113,6 @@ jobs:
           persist-credentials: false
       - uses: voidzero-dev/setup-vp@v1.22.0
         with:
-          node-version: "26.13.0"
           cache: false
       - name: Set up Rust
         run: |
@@ -176,7 +174,6 @@ jobs:
           persist-credentials: false
       - uses: voidzero-dev/setup-vp@v1.22.0
         with:
-          node-version: "26.13.0"
           cache: false
       - name: Set up Rust
         run: |
@@ -269,7 +266,6 @@ jobs:
           persist-credentials: false
       - uses: voidzero-dev/setup-vp@v1.22.0
         with:
-          node-version: "26.13.0"
           cache: false
           run-install: false
       # The packaging commands below run without `vp run`, so they need only these packages. A
@@ -330,7 +326,6 @@ jobs:
           persist-credentials: false
       - uses: voidzero-dev/setup-vp@v1.22.0
         with:
-          node-version: "26.13.0"
           cache: false
       - name: Set up Rust
         run: |
@@ -378,7 +373,6 @@ jobs:
           persist-credentials: false
       - uses: voidzero-dev/setup-vp@v1.22.0
         with:
-          node-version: "26.13.0"
           cache: false
       - uses: actions/download-artifact@v8.0.2
         with:
@@ -424,7 +418,6 @@ jobs:
           persist-credentials: false
       - uses: voidzero-dev/setup-vp@v1.22.0
         with:
-          node-version: "26.13.0"
           cache: false
       - uses: actions/download-artifact@v8.0.2
         with:
@@ -490,7 +483,6 @@ jobs:
           persist-credentials: false
       - uses: voidzero-dev/setup-vp@v1.22.0
         with:
-          node-version: "26.13.0"
           cache: false
           run-install: false
       - run: vp i --frozen-lockfile --ignore-scripts --filter @stillwind/vscode-extension
@@ -524,7 +516,6 @@ jobs:
           persist-credentials: false
       - uses: voidzero-dev/setup-vp@v1.22.0
         with:
-          node-version: "26.13.0"
           cache: false
           run-install: false
       - uses: actions/download-artifact@v8.0.2

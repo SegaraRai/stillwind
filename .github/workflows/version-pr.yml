@@ -33,7 +33,6 @@ jobs:
           persist-credentials: false
       - uses: voidzero-dev/setup-vp@v1.22.0
         with:
-          node-version: "26.13.0"
           cache: false
           run-install: false
       - run: vp i --frozen-lockfile --ignore-scripts --filter @stillwind-internal/root

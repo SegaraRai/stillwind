@@ -43,7 +43,6 @@ jobs:
           persist-credentials: false
       - uses: voidzero-dev/setup-vp@v1.22.0
         with:
-          node-version: "26.13.0"
           cache: false
           run-install: false
       - run: vp i --frozen-lockfile --filter @stillwind-internal/tools-sites...
@@ -99,7 +98,6 @@ jobs:
           : "${PUBLIC_PLAYGROUND_URL:?Set SITES_PREVIEW_PLAYGROUND_URL}"
       - uses: voidzero-dev/setup-vp@v1.22.0
         with:
-          node-version: "26.13.0"
           cache: false
       - name: Set up Rust
         run: |
@@ -230,7 +228,6 @@ jobs:
           persist-credentials: false
       - uses: voidzero-dev/setup-vp@v1.22.0
         with:
-          node-version: "26.13.0"
           cache: false
           run-install: false
       - run: vp i --frozen-lockfile --filter @stillwind-internal/e2e-play
@@ -267,7 +264,6 @@ jobs:
           persist-credentials: false
       - uses: voidzero-dev/setup-vp@v1.22.0
         with:
-          node-version: "26.13.0"
           cache: false
           run-install: false
       - name: Require successful selected checks
@@ -311,7 +307,6 @@ jobs:
       - uses: voidzero-dev/setup-vp@v1.22.0
         if: steps.head.outputs.current == 'true'
         with:
-          node-version: "26.13.0"
           cache: false
           run-install: false
       - name: Install deployment tools
