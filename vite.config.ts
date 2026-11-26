@@ -117,6 +117,21 @@ export default defineConfig(({ mode }) => ({
       "generate:tailwind-order":
         "vp run @stillwind-internal/tools-tailwind#generate:tailwind-order",
       "generate:webref": "vp run @stillwind-internal/tools-webref#generate:webref",
+      // build
+      build: {
+        command: "",
+        dependsOn: [
+          "@stillwind/cli#build",
+          "@stillwind/host#build",
+          "@stillwind/integration#build",
+          "@stillwind/native#build",
+          "@stillwind/native#collect:local",
+          "@stillwind/native#typecheck",
+          "@stillwind/projection#build",
+          "prettier-plugin-stillwind#build",
+          "stillwind#build",
+        ],
+      },
       // dev
       "dev:play": "vp run @stillwind-internal/apps-play#dev",
       "dev:web": "vp run @stillwind-internal/apps-website#dev",
