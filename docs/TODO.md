@@ -493,8 +493,6 @@ values from each other:
   result that can replace its class or style.
 - Lit, Alpine, and vanilla. Decide whether `style.forward()` reads forwarded
   values from element attributes in these entrypoints.
-- Vue falls through `class` and `style` to the root element automatically.
-  Check in an application that this needs no forward.
 - Import cycles. The order follows every value import, so mutually recursive
   components such as `Tree` and `TreeItem` form a cycle. `cyclic-style-order`
   reports every cycle. Report a cycle only when the modules on it set the same

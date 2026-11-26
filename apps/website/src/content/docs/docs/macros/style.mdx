@@ -179,6 +179,16 @@ sure that no prop that comes after the result replaces its `className` or
 [`style.recipe()`](/docs/macros/recipe) factory takes it as its second argument. The
 Lit, Alpine, and vanilla entrypoints do not provide `style.forward()`.
 
+A Vue component with one root element does not need `style.forward()`. Vue
+adds the `class` and `style` attributes that the component receives to its root
+element, after the root's own classes and styles. A `style()` result that is
+passed to such a component therefore works like a forwarded one: the caller's
+classes come after the component's classes, and the caller's inline styles and
+custom properties replace the root's ones with the same name. Vue does not add
+these attributes when the component sets `inheritAttrs: false` or renders
+several root nodes. In those components, pass `useAttrs()` or `$attrs` to
+`style.forward()` in the call of the element that should receive them.
+
 A call can have several `style.forward()` arguments. Their inline styles and
 custom properties apply in argument order, so a later value replaces an earlier
 one. Their classes are joined, and as with several bases, the CSS order decides
