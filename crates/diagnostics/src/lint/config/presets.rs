@@ -13,6 +13,7 @@ const RECOMMENDED: &[(LintKind, LintSeverity)] = &[
     (LintKind::InvalidLintSuppression, LintSeverity::Warn),
     (LintKind::DuplicateUtility, LintSeverity::Warn),
     (LintKind::ConflictingUtilities, LintSeverity::Warn),
+    (LintKind::PartialUtilityOverride, LintSeverity::Warn),
     (LintKind::MismatchedFrameworkImport, LintSeverity::Warn),
     (LintKind::MutatingMacroArgument, LintSeverity::Deny),
     (LintKind::SuspendingMacroArgument, LintSeverity::Deny),

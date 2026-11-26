@@ -103,6 +103,25 @@ pub struct RecipeCall {
     /// coordinates.
     #[serde(default)]
     pub replacements: Vec<RecipeReplacement>,
+    /// The slots and layer of each value in [`Self::values`], in any order. A value
+    /// whose role is missing takes part in no layer comparison.
+    #[serde(default)]
+    pub roles: Vec<RecipeValueRole>,
+}
+
+/// The slots that one recipe value styles, and whether the value adds to their base
+/// values.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecipeValueRole {
+    /// Span of the value, equal to the span of its [`StyleCall`].
+    pub span: Span,
+    /// Names of the slots that the value styles. The first argument styles `base`.
+    pub slots: Vec<LeanStr>,
+    /// Whether the value is a variant option or a compound value, which applies on
+    /// top of the base values of its slots. False for a base value, which is the first
+    /// argument or an entry of `slots`.
+    pub overlay: bool,
 }
 
 /// One configuration expression or entry replaced during recipe validation.

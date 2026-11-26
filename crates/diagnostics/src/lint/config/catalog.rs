@@ -334,6 +334,7 @@ define_lint_rules! {
     Hazard {
         DuplicateUtility => "duplicate-utility",
         ConflictingUtilities => "conflicting-utilities",
+        PartialUtilityOverride => "partial-utility-override",
         ConflictingProviderProperties => "conflicting-provider-properties",
         UnverifiedStyleBase => "unverified-style-base",
         AmbiguousStyleBaseOrder => "ambiguous-style-base-order",

@@ -102,6 +102,12 @@ competing declarations when the other cascade criteria, such as specificity
 and importance, are equal. See [Override a style](/docs/guides/style#override-a-style)
 and [CSS ordering](/docs/concepts/css-ordering).
 
+`twMerge()` removes the overridden utility, but Stillwind keeps its CSS. When the
+overriding utility sets fewer properties, the other properties keep their values.
+For example, `text-[0.8rem]` over `text-sm` leaves the line height of `text-sm`.
+[partial-utility-override](/docs/lints/partial-utility-override) reports these
+overrides in bases, conditions, and recipe options.
+
 ### cva
 
 Replace `cva(` with `style.recipe(`, and import `VariantProps` from your framework's

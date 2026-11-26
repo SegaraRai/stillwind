@@ -22,7 +22,7 @@ use oxc::span::GetSpan;
 use oxc::syntax::number::ToJsString;
 
 use stillwind_diagnostics::{LintDiagnostic, LintFinding};
-use stillwind_ir::{OutputFormat, RecipeCall, RecipeReplacement, StyleCall};
+use stillwind_ir::{OutputFormat, RecipeCall, RecipeReplacement, RecipeValueRole, StyleCall};
 use stillwind_source::Spanned;
 
 use crate::{local_span::LocalSpan, state::MacroExtractor};
@@ -78,17 +78,19 @@ impl<'a> MacroExtractor<'a> {
                 values: Vec::new(),
                 empty: true,
                 replacements: Vec::new(),
+                roles: Vec::new(),
             });
             return;
         }
         let replacement_start = self.recipe_replacements.len();
+        let role_start = self.recipe_roles.len();
         let mut values = Vec::new();
         if let Some(base) = call
             .arguments
             .first()
             .and_then(|argument| argument.as_expression())
         {
-            self.recipe_value(base, output, &mut values);
+            self.recipe_value(base, output, &mut values, &[LeanStr::from("base")], false);
         }
         if let Some(config) = call
             .arguments
@@ -105,6 +107,7 @@ impl<'a> MacroExtractor<'a> {
             values,
             empty: false,
             replacements: self.recipe_replacements.split_off(replacement_start),
+            roles: self.recipe_roles.split_off(role_start),
         });
     }
 
@@ -205,8 +208,14 @@ impl<'a> MacroExtractor<'a> {
                 self.recipe_omit_property(property);
                 continue;
             }
+            self.recipe_value(
+                &property.value,
+                output,
+                values,
+                std::slice::from_ref(&name),
+                false,
+            );
             names.insert(name);
-            self.recipe_value(&property.value, output, values);
         }
         Some(names)
     }
@@ -234,13 +243,19 @@ impl<'a> MacroExtractor<'a> {
                 (slots, object)
             }
             _ => {
-                self.recipe_value(expression, output, values);
+                self.recipe_value(expression, output, values, &[LeanStr::from("base")], true);
                 return;
             }
         };
         for (name, property) in self.recipe_object_properties(object) {
             if slots.contains(&name) {
-                self.recipe_value(&property.value, output, values);
+                self.recipe_value(
+                    &property.value,
+                    output,
+                    values,
+                    std::slice::from_ref(&name),
+                    true,
+                );
             } else {
                 self.recipe_error(&property.value, "unknown slot");
                 self.recipe_omit_property(property);
@@ -284,22 +299,28 @@ impl<'a> MacroExtractor<'a> {
             let finding_start = self.lint_findings.len();
             let value_start = values.len();
             let edit_start = self.recipe_replacements.len();
+            let role_start = self.recipe_roles.len();
             let mut valid = true;
             if let Some(properties) = self.recipe_properties(entry) {
-                let mut listed = false;
+                let mut listed = None;
                 for (key, property) in properties {
                     match key.as_str() {
                         "class" | "className" => {
-                            self.recipe_value(&property.value, output, values);
+                            self.recipe_value(&property.value, output, values, &[], true);
                         }
                         "slots" => {
-                            listed = true;
-                            valid &= self.recipe_slot_list(&property.value, slots);
+                            let names = self.recipe_slot_list(&property.value, slots);
+                            valid &= names.is_some();
+                            listed = Some(names.unwrap_or_default());
                         }
                         _ => valid &= self.recipe_choice(&key, &property.value, axes, true),
                     }
                 }
-                if !listed {
+                if let Some(names) = listed {
+                    for role in &mut self.recipe_roles[role_start..] {
+                        role.slots.clone_from(&names);
+                    }
+                } else {
                     self.recipe_error(entry, "compoundSlots entries require slots");
                 }
             } else {
@@ -319,31 +340,39 @@ impl<'a> MacroExtractor<'a> {
         }
     }
 
-    /// Whether `expression` is a literal array of declared slot names. Reports it
-    /// otherwise.
-    fn recipe_slot_list(&mut self, expression: &Expression<'a>, slots: &BTreeSet<LeanStr>) -> bool {
-        let valid =
-            match expression.get_inner_expression() {
-                Expression::ArrayExpression(array) => array.elements.iter().all(|element| {
+    /// Returns the slot names of `expression` in written order when it is a literal
+    /// array of declared slot names. Reports it and returns `None` otherwise.
+    fn recipe_slot_list(
+        &mut self,
+        expression: &Expression<'a>,
+        slots: &BTreeSet<LeanStr>,
+    ) -> Option<Vec<LeanStr>> {
+        let names = match expression.get_inner_expression() {
+            Expression::ArrayExpression(array) => array
+                .elements
+                .iter()
+                .map(|element| {
                     match element
                         .as_expression()
                         .map(Expression::get_inner_expression)
                     {
                         Some(Expression::StringLiteral(value)) => self
                             .unicode_string(value.value, value.span)
-                            .is_some_and(|name| slots.contains(name)),
-                        _ => false,
+                            .filter(|name| slots.contains(*name))
+                            .map(ToLeanStr::to_lean_str),
+                        _ => None,
                     }
-                }),
-                _ => false,
-            };
-        if !valid {
+                })
+                .collect::<Option<Vec<_>>>(),
+            _ => None,
+        };
+        if names.is_none() {
             self.recipe_error(
                 expression,
                 "slots must be a literal array of declared slot names",
             );
         }
-        valid
+        names
     }
 
     fn recipe_compounds(
@@ -515,12 +544,22 @@ impl<'a> MacroExtractor<'a> {
         true
     }
 
+    /// Extracts one value and records its role: the `slots` that it styles, and
+    /// whether it is an `overlay` on their base values. An invalid value is reported
+    /// and becomes an empty value.
     fn recipe_value(
         &mut self,
         expression: &Expression<'a>,
         output: OutputFormat,
         values: &mut Vec<StyleCall>,
+        slots: &[LeanStr],
+        overlay: bool,
     ) {
+        self.recipe_roles.push(RecipeValueRole {
+            span: self.source_span(expression.span()),
+            slots: slots.to_vec(),
+            overlay,
+        });
         if !self.valid_recipe_value(expression) {
             self.omit_input(expression.span());
             self.lint_findings.push(LintFinding::new(

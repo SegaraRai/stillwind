@@ -160,6 +160,7 @@ impl<'a> CallEmitter<'a> {
             ),
             span: self.call.span,
             root: StyleEffect::All(std::mem::take(&mut self.style_effects)),
+            layers: Vec::new(),
         };
         let parts = std::mem::take(&mut self.parts);
         let call_span = self.call.span;

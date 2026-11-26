@@ -19,7 +19,9 @@ use cssparser::Token;
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
 use stillwind_css::{ValueType, declaration_ranges, parse_structure, split_top_level};
-use stillwind_syntax::{Value, decode_arbitrary_value, utility_registration_key};
+use stillwind_syntax::{
+    Utility, Value, decode_arbitrary_value, parse_candidate, utility_registration_key,
+};
 
 use super::super::context::ArbitraryValueCheck;
 use super::super::values::{expand_placeholder, named_value_source, theme_domain_pattern};
@@ -34,6 +36,37 @@ use super::resolve::{
 };
 use super::variables::{single_variable, variable_mismatch};
 use crate::{CustomUtility, ThemeIndex};
+
+/// Returns the family of the utility that the candidate `raw` names: the name of the
+/// longest utility definition whose name matches the utility, without a trailing `-*`
+/// and a leading `-`. For example, `text-sm`, `text-[0.8rem]`, and `md:text-lg/7`
+/// belong to the family `text`, and `-mt-2` belongs to `mt`.
+///
+/// Returns `None` for an arbitrary property such as `[color:red]`, for a string that
+/// is not a candidate, and when no definition matches. The longest matching name is
+/// not always the definition that resolves the candidate, because this function does
+/// not check value domains.
+pub fn utility_family(raw: &str, theme: &ThemeIndex) -> Option<LeanStr> {
+    let candidate = parse_candidate(raw)?;
+    let Utility::Named { name, .. } = &candidate.utility else {
+        return None;
+    };
+    let lookup = if candidate.negative {
+        format_args!("-{name}").to_lean_string()
+    } else {
+        name.to_lean_string()
+    };
+    theme
+        .matching_utilities(&lookup)
+        .into_iter()
+        .chain(theme.registry().matching_utilities(&lookup))
+        .map(|definition| definition.name.as_str())
+        .max_by_key(|name| name.len())
+        .map(|name| {
+            let name = name.strip_suffix("-*").unwrap_or(name);
+            name.strip_prefix('-').unwrap_or(name).to_lean_str()
+        })
+}
 
 /// Returns the named spelling that the bracket utility name `name` resolves as, such as
 /// `icon-mdi--close` for `icon-[mdi--close]`.

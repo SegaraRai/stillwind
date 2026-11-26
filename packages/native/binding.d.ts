@@ -1590,6 +1590,8 @@ export interface NativeLintOptions {
   duplicateUtility?: string
   /** Settings for `conflicting-utilities`. */
   conflictingUtilities?: NativeConflictingUtilitiesOptions
+  /** Settings for `partial-utility-override`. */
+  partialUtilityOverride?: string
   /** Settings for `conflicting-provider-properties`. */
   conflictingProviderProperties?: string
   /** Settings for `unverified-style-base`. */

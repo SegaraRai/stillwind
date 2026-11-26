@@ -68,8 +68,8 @@ pub use model::{
     AnchorScope, AssetReference, BranchArm, ClassExpression, ConditionalBranches, ContainerType,
     CssCall, CssInput, CustomPropertyEntry, ForwardCall, GroupEntry, KeyframesBody,
     KeyframesBranch, KeyframesDefinition, KeyframesFrame, MacroImport, MacroImportSpecifier,
-    MediaCall, ModuleImports, ModuleIr, OrderingUse, RecipeCall, RecipeReplacement, RefCondition,
-    RefDefinition, RefProjection, RuleExpression, RuleExpressionError, RuleExpressionErrorKind,
-    SelectEntry, StoredVariantDefinition, StyleCall, StyleInput, StyleVariant,
-    ViewTransitionDefinition, ViewTransitionKey, ViewTransitionName,
+    MediaCall, ModuleImports, ModuleIr, OrderingUse, RecipeCall, RecipeReplacement,
+    RecipeValueRole, RefCondition, RefDefinition, RefProjection, RuleExpression,
+    RuleExpressionError, RuleExpressionErrorKind, SelectEntry, StoredVariantDefinition, StyleCall,
+    StyleInput, StyleVariant, ViewTransitionDefinition, ViewTransitionKey, ViewTransitionName,
 };

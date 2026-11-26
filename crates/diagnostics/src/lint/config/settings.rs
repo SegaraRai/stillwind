@@ -210,7 +210,7 @@ mod tests {
                 assert_eq!(config.severity(), severity);
             }
         }
-        assert_eq!(names.len(), 75);
+        assert_eq!(names.len(), 76);
         for name in [
             "custom",
             "",
@@ -265,6 +265,7 @@ mod tests {
                 "prefer-canonical-utilities": "warn",
                 "duplicate-utility": "warn",
                 "conflicting-utilities": "warn",
+                "partial-utility-override": "warn",
                 "invalid-lint-suppression": "warn",
                 "ineffective-anchor-scope": "warn",
                 "missing-ref-attachment": "warn",

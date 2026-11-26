@@ -66,6 +66,9 @@ impl ModuleIr {
             for replacement in &mut recipe.replacements {
                 replacement.span = map(replacement.span)?;
             }
+            for role in &mut recipe.roles {
+                role.span = map(role.span)?;
+            }
             for value in &mut recipe.values {
                 value.span = map(value.span)?;
                 for input in &mut value.inputs {

@@ -20,7 +20,8 @@ use oxc::span::Span as OxcSpan;
 use stillwind_diagnostics::{CompileError, LintFinding};
 use stillwind_ir::{
     CssCall, ForwardCall, FrameworkSpec, KeyframesDefinition, MediaCall, OutputFormat, RecipeCall,
-    RecipeReplacement, RefDefinition, StoredVariantDefinition, StyleCall, ViewTransitionDefinition,
+    RecipeReplacement, RecipeValueRole, RefDefinition, StoredVariantDefinition, StyleCall,
+    ViewTransitionDefinition,
 };
 use stillwind_semantic::{
     AssetKind, AssetMetadata, AssetRecord, CheckedValue, DeclarationKey, ExportedValue, IdentityId,
@@ -93,6 +94,8 @@ pub(crate) struct MacroExtractor<'a> {
     /// Source replacements that turn unsupported recipe entries into empty entries, in
     /// visit order.
     pub(crate) recipe_replacements: Vec<RecipeReplacement>,
+    /// Roles of the recipe values extracted from the current factory.
+    pub(crate) recipe_roles: Vec<RecipeValueRole>,
     /// Whether extraction collects lint directives and findings that do not affect
     /// output. Findings for omitted inputs, fatal diagnostics, and IR extraction stay
     /// enabled.
@@ -172,6 +175,7 @@ impl<'a> MacroExtractor<'a> {
             diagnostics: Vec::new(),
             lint_findings: Vec::new(),
             recipe_replacements: Vec::new(),
+            recipe_roles: Vec::new(),
             lint: true,
             imports: Vec::new(),
             consumed_macro_uses: Vec::new(),

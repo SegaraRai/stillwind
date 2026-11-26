@@ -34,7 +34,7 @@ pub use utilities::{
     UtilityDeclaration, UtilityDiagnosticData, UtilityFailure, UtilityFailureReason, UtilityOrder,
     UtilityPropertySort, UtilityResolutionError, UtilityTokenUse, VariableMismatch,
     VariableTypeSource, check_candidate_variants, dynamic_named_spelling, resolve_utility,
-    utility_value_range,
+    utility_family, utility_value_range,
 };
 pub use values::{
     NumericDomain, NumericKind, ThemeValueMismatch, functional_domain_shapes, named_domain_values,

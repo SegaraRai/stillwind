@@ -64,16 +64,17 @@ report never matches.
 
 ## Conflicting or duplicated styles
 
-| Rule                                                                           | Reports                                                                 | Default |
-| ------------------------------------------------------------------------------ | ----------------------------------------------------------------------- | ------- |
-| [ambiguous-style-base-order](/docs/lints/ambiguous-style-base-order)           | Two base styles in one call that set the same property                  | warn    |
-| [conflicting-provider-properties](/docs/lints/conflicting-provider-properties) | A container or anchor property that a ref method and a utility both set | warn    |
-| [conflicting-utilities](/docs/lints/conflicting-utilities)                     | Utilities that set the same property, such as `p-2 p-4`                 | warn    |
-| [cyclic-style-order](/docs/lints/cyclic-style-order)                           | Files that pass styles to components of each other                      | warn    |
-| [duplicate-utility](/docs/lints/duplicate-utility)                             | The same utility twice under the same conditions                        | warn    |
-| [interfering-imported-style-base](/docs/lints/interfering-imported-style-base) | An imported base style that sets the same property as another style     | warn    |
-| [multiple-style-forwards](/docs/lints/multiple-style-forwards)                 | A `style()` call with more than one `style.forward()` argument          | warn    |
-| [unverified-style-base](/docs/lints/unverified-style-base)                     | A base style whose origin the CLI cannot determine from its type        | warn    |
+| Rule                                                                           | Reports                                                                                            | Default |
+| ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- | ------- |
+| [ambiguous-style-base-order](/docs/lints/ambiguous-style-base-order)           | Two base styles in one call that set the same property                                             | warn    |
+| [conflicting-provider-properties](/docs/lints/conflicting-provider-properties) | A container or anchor property that a ref method and a utility both set                            | warn    |
+| [conflicting-utilities](/docs/lints/conflicting-utilities)                     | Utilities that set the same property, such as `p-2 p-4`                                            | warn    |
+| [cyclic-style-order](/docs/lints/cyclic-style-order)                           | Files that pass styles to components of each other                                                 | warn    |
+| [duplicate-utility](/docs/lints/duplicate-utility)                             | The same utility twice under the same conditions                                                   | warn    |
+| [interfering-imported-style-base](/docs/lints/interfering-imported-style-base) | An imported base style that sets the same property as another style                                | warn    |
+| [multiple-style-forwards](/docs/lints/multiple-style-forwards)                 | A `style()` call with more than one `style.forward()` argument                                     | warn    |
+| [partial-utility-override](/docs/lints/partial-utility-override)               | An override that leaves properties of the overridden utility, such as the line height of `text-sm` | warn    |
+| [unverified-style-base](/docs/lints/unverified-style-base)                     | A base style whose origin the CLI cannot determine from its type                                   | warn    |
 
 ## Styles that do not apply as written
 

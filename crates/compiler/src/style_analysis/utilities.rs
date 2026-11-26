@@ -39,6 +39,7 @@ pub(super) fn check(style: &ResolvedStyle<'_>) -> Vec<LintFinding> {
         let SupplyKind::Utility {
             candidate,
             contexts,
+            ..
         } = &current.supply.kind
         else {
             continue;
@@ -47,6 +48,7 @@ pub(super) fn check(style: &ResolvedStyle<'_>) -> Vec<LintFinding> {
             let SupplyKind::Utility {
                 candidate: previous_candidate,
                 contexts: previous_contexts,
+                ..
             } = &previous.supply.kind
             else {
                 continue;
@@ -68,7 +70,11 @@ pub(super) fn check(style: &ResolvedStyle<'_>) -> Vec<LintFinding> {
                     utility: candidate.clone(),
                 }
             } else {
+                // A utility under more conditions than the previous one overrides it
+                // when they apply, as in `style("p-2", wide && "p-4")`.
+                // `partial-utility-override` checks such overrides instead.
                 if !conflict
+                    || current.extends(previous)
                     || policy.ignores_utility(utility_name(candidate))
                     || policy.ignores_utility(utility_name(previous_candidate))
                 {

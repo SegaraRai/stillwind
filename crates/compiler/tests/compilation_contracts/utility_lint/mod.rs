@@ -5,6 +5,8 @@
 //! - [`candidates`] checks redundant and contradicting variants, clamped and invalid
 //!   values, and untyped variables, with their ranges and fixes.
 //! - [`overlap`] checks competing contributions, duplicates, and suppression usage.
+//! - [`overrides`] checks overrides by conditions, bases, and recipe options that leave
+//!   properties of the overridden utility in place.
 //! - [`restrictions`] checks source value, utility, declaration, and token
 //!   restrictions.
 //! - [`support`] supplies the builders that these cases share.
@@ -28,6 +30,7 @@ use super::support::{CompilationFixture, compile_with_options};
 
 mod candidates;
 mod overlap;
+mod overrides;
 mod restrictions;
 mod support;
 mod units;

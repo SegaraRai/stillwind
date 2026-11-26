@@ -25,6 +25,9 @@ pub struct StyleEffects {
     /// Direct contribution tree before base resolution; an empty `All` supplies
     /// nothing.
     pub(crate) root: StyleEffect,
+    /// Recipe values whose CSS precedes this recipe value's CSS and that style the same
+    /// element when this value applies. Empty outside recipes and for base values.
+    pub(crate) layers: Vec<IdentityId>,
 }
 
 impl StyleEffects {
@@ -125,6 +128,10 @@ pub(crate) enum SupplyKind {
     Utility {
         candidate: LeanStr,
         contexts: Vec<RuleContext>,
+        /// Family of the utility, such as `text` for `text-sm`, from
+        /// [`utility_family`](stillwind_design_system::utility_family). `None` for an
+        /// arbitrary property.
+        family: Option<LeanStr>,
     },
     /// A resolved CSS or inline declaration.
     Declaration {

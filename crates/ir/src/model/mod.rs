@@ -36,7 +36,7 @@ pub use expression::{
 };
 pub use module::{
     CssCall, CssInput, ForwardCall, MacroImport, MacroImportSpecifier, MediaCall, ModuleImports,
-    ModuleIr, OrderingUse, RecipeCall, RecipeReplacement,
+    ModuleIr, OrderingUse, RecipeCall, RecipeReplacement, RecipeValueRole,
 };
 pub use style::{
     AnchorScope, ContainerType, RefCondition, RefProjection, StyleCall, StyleInput, StyleVariant,

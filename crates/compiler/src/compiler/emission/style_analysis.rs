@@ -15,6 +15,7 @@ use stillwind_css::{
     arbitrary_value_flags, declaration_ranges, inspect_css_value, instantiate_selector,
     property_value_domains, selector_is_element_condition,
 };
+use stillwind_design_system::utility_family;
 use stillwind_diagnostics::{LintConfig, LintDiagnostic, LintFinding, LintKind};
 use stillwind_ir::ConditionalBranches;
 use stillwind_semantic::IdentityId;
@@ -105,6 +106,7 @@ impl CallEmitter<'_> {
                 supplies.push(SupplyKind::Utility {
                     candidate: utility.candidate.clone(),
                     contexts,
+                    family: utility_family(&utility.candidate, self.theme),
                 });
                 for finding in check(utility, &supplies, self.theme, &self.lint_settings, span) {
                     if !policy_findings.contains(&finding) {

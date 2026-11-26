@@ -396,6 +396,21 @@ pub enum LintDiagnostic {
         /// Competing property names and shorthand relationships.
         properties: LeanStr,
     },
+    /// A utility overrides an earlier utility of the same family, but the earlier
+    /// utility also sets properties that the later one does not set, so their values
+    /// remain. The later utility comes from a condition, from a call that adds to a
+    /// base, or from a recipe option.
+    #[error(
+        "`{utility}` overrides `{previous}`, but `{previous}` also sets `{properties}`, which `{utility}` does not set"
+    )]
+    PartialUtilityOverride {
+        /// Candidate of the earlier layer.
+        previous: LeanStr,
+        /// Candidate of the later layer.
+        utility: LeanStr,
+        /// Properties that only the earlier candidate sets, joined with `` `, ` ``.
+        properties: LeanStr,
+    },
     /// A physical declaration has a logical counterpart.
     #[error("prefer a logical declaration for `{property}: {value}`")]
     PhysicalDeclaration {
@@ -946,6 +961,7 @@ impl LintDiagnostic {
             Self::IndirectStyling { .. } => LintKind::PreferDirectStyling,
             Self::DuplicateUtility { .. } => LintKind::DuplicateUtility,
             Self::ConflictingUtilities { .. } => LintKind::ConflictingUtilities,
+            Self::PartialUtilityOverride { .. } => LintKind::PartialUtilityOverride,
             Self::PhysicalDeclaration { .. } => LintKind::PreferLogicalProperties,
             Self::RestrictedLengthUnit { .. } => LintKind::NoRestrictedLengthUnits,
             Self::RestrictedThemeToken { .. } => LintKind::NoRestrictedThemeTokens,

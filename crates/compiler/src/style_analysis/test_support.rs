@@ -35,6 +35,7 @@ pub(super) fn effects(module: &str, root: StyleEffect) -> StyleEffects {
         identity: identity(module),
         span: Span::new(FileId(1), 0, 100),
         root,
+        layers: Vec::new(),
     }
 }
 

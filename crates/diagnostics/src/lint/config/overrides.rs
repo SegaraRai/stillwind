@@ -99,6 +99,8 @@ pub struct LintOverrides {
     pub ineffective_anchor_scope: Option<LintSeverity>,
     /// Reporting level for `missing-ref-attachment`.
     pub missing_ref_attachment: Option<LintSeverity>,
+    /// Reporting level for `partial-utility-override`.
+    pub partial_utility_override: Option<LintSeverity>,
     /// Reporting level for `conflicting-provider-properties`.
     pub conflicting_provider_properties: Option<LintSeverity>,
     /// Reporting level for `prefer-typed-relationships`.
@@ -352,6 +354,10 @@ impl LintOverrides {
                 self.ineffective_anchor_scope,
             ),
             (LintKind::MissingRefAttachment, self.missing_ref_attachment),
+            (
+                LintKind::PartialUtilityOverride,
+                self.partial_utility_override,
+            ),
             (
                 LintKind::ConflictingProviderProperties,
                 self.conflicting_provider_properties,

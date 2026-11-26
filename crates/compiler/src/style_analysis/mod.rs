@@ -11,6 +11,8 @@
 //!   after an update.
 //! - [`composition`] resolves bases and keeps decisions and origins.
 //! - [`effects`] owns the direct contribution records.
+//! - [`overrides`] checks overrides that leave properties of the overridden utility in
+//!   place.
 //! - [`properties`] checks attachments and property interference.
 //! - [`utilities`] compares direct candidates with the detection settings of the
 //!   producing call.
@@ -19,6 +21,7 @@
 mod checks;
 mod composition;
 mod effects;
+mod overrides;
 mod properties;
 mod utilities;
 mod view_transition;

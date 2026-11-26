@@ -42,7 +42,7 @@ mod variables;
 
 pub use body::UtilityResolutionError;
 pub use diagnosis::{UtilityFailure, UtilityFailureReason, check_candidate_variants};
-pub use matching::dynamic_named_spelling;
+pub use matching::{dynamic_named_spelling, utility_family};
 pub use nested::{NestedUtilityAtRule, NestedUtilityRule};
 pub use order::{UtilityOrder, UtilityPropertySort};
 pub use ranges::utility_value_range;

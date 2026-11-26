@@ -7,7 +7,7 @@
 
 use stillwind_diagnostics::{LintFinding, LintKind};
 
-use super::{ResolvedStyle, properties, utilities, view_transition};
+use super::{ResolvedStyle, overrides, properties, utilities, view_transition};
 
 /// Returns composition-dependent lint findings for a result from
 /// [`StyleResolver`](super::composition::StyleResolver). The findings retain diagnostic
@@ -18,6 +18,7 @@ pub fn check_style(style: &ResolvedStyle<'_>) -> Vec<LintFinding> {
     let mut findings = properties::check(style);
     findings.extend(view_transition::check(style));
     findings.extend(utilities::check(style));
+    findings.extend(overrides::check(style));
     findings
 }
 
@@ -30,6 +31,7 @@ pub const fn is_style_analysis_lint(kind: LintKind) -> bool {
         LintKind::MissingRefAttachment
             | LintKind::DuplicateUtility
             | LintKind::ConflictingUtilities
+            | LintKind::PartialUtilityOverride
             | LintKind::ConflictingProviderProperties
             | LintKind::MissingViewTransitionName
             | LintKind::DuplicateViewTransitionName
@@ -58,6 +60,7 @@ mod tests {
         let mut expected = vec![
             LintKind::DuplicateUtility,
             LintKind::ConflictingUtilities,
+            LintKind::PartialUtilityOverride,
             LintKind::MissingRefAttachment,
             LintKind::ConflictingProviderProperties,
             LintKind::MissingViewTransitionName,

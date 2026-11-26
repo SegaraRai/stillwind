@@ -81,6 +81,8 @@ pub struct NativeLintOptions {
     pub duplicate_utility: Option<String>,
     /// Settings for `conflicting-utilities`.
     pub conflicting_utilities: Option<NativeConflictingUtilitiesOptions>,
+    /// Settings for `partial-utility-override`.
+    pub partial_utility_override: Option<String>,
     /// Settings for `conflicting-provider-properties`.
     pub conflicting_provider_properties: Option<String>,
     /// Settings for `unverified-style-base`.
@@ -317,6 +319,10 @@ impl TryFrom<NativeLintOptions> for LintOverrides {
             conflicting_utilities: input
                 .conflicting_utilities
                 .map(TryInto::try_into)
+                .transpose()?,
+            partial_utility_override: input
+                .partial_utility_override
+                .map(|value| lint_severity(&value))
                 .transpose()?,
             conflicting_provider_properties: input
                 .conflicting_provider_properties

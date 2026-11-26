@@ -73,6 +73,7 @@ fn emission(parts: Vec<StyleEmissionPart>, base: bool) -> StyleEmission {
             ),
             span: Span::new(FileId(1), 0, 0),
             root: StyleEffect::All(Vec::new()),
+            layers: Vec::new(),
         },
         static_names: if base { vec!["_base".into()] } else { vec![] },
         parts,

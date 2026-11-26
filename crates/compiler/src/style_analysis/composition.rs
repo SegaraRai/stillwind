@@ -41,9 +41,16 @@ impl<'a> StyleResolver<'a> {
     pub fn resolve(&mut self, identity: &IdentityId) -> Option<ResolvedStyle<'a>> {
         let root = *self.registry.get(identity)?;
         let summary = self.summary(identity, &mut BTreeSet::new());
+        let mut layers = Vec::new();
+        for layer in &root.layers {
+            if self.registry.contains_key(layer) {
+                layers.extend(self.summary(layer, &mut BTreeSet::new()).supplies);
+            }
+        }
         Some(ResolvedStyle {
             root,
             supplies: summary.supplies,
+            layers,
             unknown: summary.unknown,
             registry: self.registry.clone(),
         })
@@ -177,6 +184,9 @@ pub struct ResolvedStyle<'a> {
     pub(super) root: &'a StyleEffects,
     /// Original supplies with the conditions imposed by every inherited use.
     pub(super) supplies: Vec<ResolvedSupply<'a>>,
+    /// Supplies of the registered recipe values that the root lists in
+    /// [`StyleEffects::layers`], with conditions relative to those values.
+    pub(super) layers: Vec<ResolvedSupply<'a>>,
     /// Conditions under which unavailable base contributions could occur.
     unknown: Vec<Vec<Decision>>,
     registry: Arc<BTreeMap<IdentityId, &'a StyleEffects>>,
@@ -244,6 +254,16 @@ impl ResolvedSupply<'_> {
     /// Returns whether the two supplies require no conflicting source decisions.
     pub(super) fn coexists(&self, other: &Self) -> bool {
         compatible(&self.decisions, &other.decisions)
+    }
+    /// Returns whether this supply requires every source decision of `other` and at
+    /// least one more. Its CSS then follows the CSS of `other` within one call, because
+    /// the CSS of an outer condition comes before the CSS of a condition inside it.
+    pub(super) fn extends(&self, other: &Self) -> bool {
+        self.decisions.len() > other.decisions.len()
+            && other
+                .decisions
+                .iter()
+                .all(|decision| self.decisions.contains(decision))
     }
     /// Returns whether both records describe the same original contribution.
     /// Different inherited paths and direct base identities do not change its origin.
@@ -384,6 +404,7 @@ mod tests {
             identity: identity(module),
             span: Span::new(FileId(1), 0, 100),
             root,
+            layers: Vec::new(),
         }
     }
 

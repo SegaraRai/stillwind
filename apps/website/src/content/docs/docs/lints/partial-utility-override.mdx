@@ -1,0 +1,68 @@
+---
+title: partial-utility-override
+description: Reports a utility that overrides another utility of the same family but leaves some of its properties in place, such as the line height of text-sm.
+slug: docs/lints/partial-utility-override
+---
+
+This rule reports a utility that overrides an earlier utility of the same family,
+when the earlier utility also sets a property that the later utility does not set.
+That property keeps the value of the earlier utility.
+
+For example, `text-sm` sets `font-size` and `line-height`, and `text-[0.8rem]`
+sets only `font-size`. When `text-[0.8rem]` overrides `text-sm`, the font size
+changes, but the line height of `text-sm` remains. tailwind-merge removes the
+whole `text-sm` in this case, so code written for `cn()` can look different after
+migration.
+
+The rule checks these overrides:
+
+- A utility of the call overrides a utility of a base, as in
+  `style(base, "text-[0.8rem]")`.
+- A utility under a JavaScript condition overrides a utility that is written
+  before it under fewer conditions, as in
+  `style("text-sm", compact && "text-[0.8rem]")`.
+- A variant option or a compound value of
+  [`style.recipe()`](/docs/macros/recipe) overrides a utility of the base value of
+  the same slot.
+
+The rule compares only utilities of the same family, such as `text-*`, under the
+same CSS variants. `px-4` with `pl-2` is not reported, because the other side of
+the padding is meant to remain.
+
+## Reported
+
+<DiagnosticExample code="partial-utility-override">
+
+```tsx
+import { style } from "stillwind/react";
+
+const label = style("text-sm font-medium");
+export const compact = style(label, "text-[0.8rem]");
+```
+
+</DiagnosticExample>
+
+## Fixed
+
+```tsx
+import { style } from "stillwind/react";
+
+const label = style("text-sm font-medium");
+export const compact = style(label, "text-[0.8rem]/5");
+```
+
+## How to fix
+
+- Set the remaining properties in the same layer, such as the line height in
+  `text-[0.8rem]/5`.
+- Or use a utility that sets the same properties, such as `text-xs` in place of
+  `text-[0.8rem]`.
+- If the remaining value is what you want, keep the code and turn the rule off
+  for that line.
+
+[conflicting-utilities](/docs/lints/conflicting-utilities) reports utilities that
+compete in one layer, where the code does not show which one wins.
+
+## Rule settings
+
+<LintRuleSummary name="partial-utility-override" />

@@ -208,6 +208,12 @@ export const lintRules = {
     },
     options: ["severity", "allowShorthandOverrides", "writingModes", "ignoredUtilities"],
   },
+  "partial-utility-override": {
+    category: "hazard",
+    nativeName: "partialUtilityOverride",
+    defaults: null,
+    options: null,
+  },
   "conflicting-provider-properties": {
     category: "hazard",
     nativeName: "conflictingProviderProperties",

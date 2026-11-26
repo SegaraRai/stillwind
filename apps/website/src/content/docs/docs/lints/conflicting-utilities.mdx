@@ -8,6 +8,15 @@ This rule reports two utilities that set the same CSS property under the same
 conditions. Only one of them takes effect. The order of the generated CSS decides
 which one, not the order in your code, so the code does not show the result.
 
+The rule does not report a utility under a JavaScript condition that is written
+after the other utility and under more conditions, as in
+`style("p-2", wide && "p-4")`. Its CSS comes later, so it overrides the other
+utility when the condition is true, as the code shows.
+[partial-utility-override](/docs/lints/partial-utility-override) checks such
+overrides. When the utility under more conditions is written first, as in
+`style(wide && "p-4", "p-2")`, the rule still reports the pair, because that
+utility wins although `p-2` is written last.
+
 ## Reported
 
 <DiagnosticExample code="conflicting-utilities">

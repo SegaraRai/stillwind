@@ -13,7 +13,7 @@
 //! symbols, and CSS are cleared, so a caller never receives a plan that describes half
 //! a compilation.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use lean_string::{LeanString, ToLeanString};
 
@@ -22,11 +22,11 @@ use stillwind_diagnostics::{
     CompileDiagnostic, CompileError, LintFinding, LintSurface, finish_lint_findings,
 };
 use stillwind_ir::{
-    IncompatibleComposition, ModuleAnalysis, StoredVariantDefinition, composition_dependencies,
-    ordered_style_calls, validate_composition,
+    IncompatibleComposition, ModuleAnalysis, RecipeCall, StoredVariantDefinition, StyleCall,
+    composition_dependencies, ordered_style_calls, validate_composition,
 };
-use stillwind_semantic::AssetKind;
-use stillwind_source::{SourceFile, Span};
+use stillwind_semantic::{AssetKind, IdentityId};
+use stillwind_source::{BytePos, ModuleId, SourceFile, Span};
 
 use super::conditionals::{lower, report_skipped_conditionals};
 use super::css_call::{CssOutput, css_call_text, minify_css_call_text};
@@ -234,6 +234,7 @@ impl Compiler {
                 })
                 .filter_map(|symbol| push_or_report(&mut diagnostics, symbol, source.full_span())),
         );
+        let recipe_layers = recipe_layers(&module.recipe_calls, module_id);
         let mut recipe_values = module
             .recipe_calls
             .iter()
@@ -271,13 +272,16 @@ impl Compiler {
                 runtime_assets: &mut runtime_assets,
                 required_definitions: &mut required_definitions,
             };
-            let Some(emission) = (if recipe {
+            let Some(mut emission) = (if recipe {
                 CallEmitter::run_recipe(emitter_inputs)
             } else {
                 CallEmitter::run(emitter_inputs)
             }) else {
                 continue;
             };
+            if recipe && let Some(layers) = recipe_layers.get(&(call.span.start, call.span.end)) {
+                emission.style_effects.layers.clone_from(layers);
+            }
             result.style_effects.push(emission.style_effects.clone());
             result.classes.extend(emission.classes.iter().cloned());
             symbols.extend(emission.written_name_symbols.iter().cloned());
@@ -719,6 +723,43 @@ fn dedupe_stored_variant_findings(
         seen.push(finding.clone());
         true
     });
+}
+
+/// Returns the layers of each overlay value of `recipes`, keyed by the start and end of
+/// the value's span. A layer is a base value of the same factory that styles one of the
+/// overlay's slots and starts before it, so its CSS comes first. Values without a role
+/// have no layers and are no layer.
+fn recipe_layers(
+    recipes: &[RecipeCall],
+    module_id: &ModuleId,
+) -> BTreeMap<(BytePos, BytePos), Vec<IdentityId>> {
+    let mut layers = BTreeMap::new();
+    for recipe in recipes {
+        let role = |value: &StyleCall| recipe.roles.iter().find(|role| role.span == value.span);
+        for value in &recipe.values {
+            let Some(overlay) = role(value).filter(|role| role.overlay) else {
+                continue;
+            };
+            let bases = recipe
+                .values
+                .iter()
+                .filter(|base| {
+                    base.span.start < value.span.start
+                        && role(base).is_some_and(|role| {
+                            !role.overlay
+                                && role.slots.iter().any(|slot| overlay.slots.contains(slot))
+                        })
+                })
+                .map(|base| {
+                    IdentityId::new(AssetKind::Style, module_id.clone(), base.key.clone(), "")
+                })
+                .collect::<Vec<_>>();
+            if !bases.is_empty() {
+                layers.insert((value.span.start, value.span.end), bases);
+            }
+        }
+    }
+    layers
 }
 
 /// Whether the CSS of one asset kind belongs to this band.
