@@ -359,8 +359,8 @@ export class PluginTheme {
    * Emits the plugins' own theme configuration, which native utility resolution also needs.
    *
    * @returns A `@stillwind-plugin-theme` block with the configured variables and keyframes, and a
-   * `@stillwind-plugin-theme inline` block with the values that refer to their own variable, or an
-   * empty string when the plugins configure nothing.
+   * `@stillwind-plugin-theme inline reference` block with the values that refer to their own
+   * variable, or an empty string when the plugins configure nothing.
    */
   css(): string {
     const configured: Dictionary = {};
@@ -403,8 +403,9 @@ export class PluginTheme {
         continue;
       }
       // A value such as daisyUI's `colors.primary: "var(--color-primary)"` names the variable
-      // that it would define. Emitting it would make the variable invalid through a cycle, so
-      // utilities inline the reference and the plugin's own CSS keeps defining the variable.
+      // that it would define. Declaring it would make the variable invalid through a cycle. The
+      // `reference` mode keeps the value out of the generated CSS even when a `var()` refers to
+      // it, so utilities inline the reference and the plugin's own CSS defines the variable.
       if (selfReference(name, value)) {
         inline += `--${name}:${String(value)};`;
       } else {
@@ -438,7 +439,7 @@ export class PluginTheme {
     }
     return [
       declarations || frames ? `@stillwind-plugin-theme{${declarations}${frames}}` : "",
-      inline ? `@stillwind-plugin-theme inline{${inline}}` : "",
+      inline ? `@stillwind-plugin-theme inline reference{${inline}}` : "",
     ].join("");
   }
 

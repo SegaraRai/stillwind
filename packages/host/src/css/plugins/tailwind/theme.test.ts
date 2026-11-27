@@ -171,7 +171,7 @@ test("values that refer to their own variable are inlined instead of declared", 
     ).css(),
   ).toBe(
     "@stillwind-plugin-theme{--color-brand:var(--color-primary);}" +
-      "@stillwind-plugin-theme inline{--color-primary:var(--color-primary);--color-accent:var(--color-accent, red);}",
+      "@stillwind-plugin-theme inline reference{--color-primary:var(--color-primary);--color-accent:var(--color-accent, red);}",
   );
 });
 
