@@ -14,6 +14,7 @@ const rsbuild = await createRsbuild({
     root: dir,
     plugins: [
       bundler.pluginStillwind({
+        configFile: false,
         css: path.join(dir, "root.css"),
         root: dir,
       }),

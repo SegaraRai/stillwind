@@ -8,6 +8,7 @@ const compiler = rspack({
   context: dir,
   plugins: [
     new StillwindPlugin({
+      configFile: false,
       css: path.join(dir, "root.css"),
       root: dir,
     }),

@@ -77,6 +77,7 @@ if (import.meta.hot) {
       logLevel: "silent",
       plugins: [
         stillwind({
+          configFile: false,
           css: path.join(directory, "root.css"),
           emission,
         }),
@@ -331,6 +332,7 @@ if (import.meta.hot) {
         ...config(),
         plugins: [
           stillwind({
+            configFile: false,
             css: "./root.css",
             automatic: false,
           }),

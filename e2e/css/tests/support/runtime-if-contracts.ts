@@ -33,6 +33,7 @@ export async function expectComputedConditions(
     logLevel: "silent",
     plugins: [
       stillwind({
+        configFile: false,
         css: path.join(dir, "root.css"),
         useCssIf,
       }),

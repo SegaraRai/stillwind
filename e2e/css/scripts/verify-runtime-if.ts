@@ -150,6 +150,7 @@ element.append(pseudoElement);
         logLevel: "silent",
         plugins: [
           stillwind({
+            configFile: false,
             css: path.join(dir, "root.css"),
             useCssIf,
           }),

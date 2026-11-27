@@ -139,6 +139,7 @@ if (import.meta.hot) {
     logLevel: "silent",
     plugins: [
       stillwind({
+        configFile: false,
         css: path.join(directory, "root.css"),
         emission,
       }),
