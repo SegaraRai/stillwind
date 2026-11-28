@@ -403,7 +403,9 @@ impl ValueType {
             Self::Ratio => Ratio::parse_string(value).is_ok(),
             Self::Easing => EasingFunction::parse_string(value).is_ok(),
             Self::LineWidth => BorderSideWidth::parse_string(value).is_ok(),
-            Self::ZIndex => value.trim() == "auto" || Self::Integer.accepts(value),
+            Self::ZIndex => {
+                value.trim().eq_ignore_ascii_case("auto") || Self::Integer.accepts(value)
+            }
             Self::Color => CssColor::parse_string(value).is_ok(),
             Self::Image => Image::parse_string(value).is_ok(),
             Self::Url => Url::parse_string(value).is_ok(),
@@ -565,7 +567,8 @@ mod tests {
             ValueType::from_hint("family-name"),
             Some(ValueType::FontFamily)
         );
-        assert!(ValueType::Integer.accepts("initial"));
+        assert!(ValueType::Integer.accepts("INITIAL"));
+        assert!(ValueType::ZIndex.accepts("AUTO"));
         assert!(ValueType::Length.accepts("calc(var(--gutter) * 2)"));
         assert!(!ValueType::Length.accepts("var(gutter)"));
         assert!(ValueType::LengthPercentage.accepts_hint(ValueType::Percentage));

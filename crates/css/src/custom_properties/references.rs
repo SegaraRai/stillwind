@@ -14,6 +14,8 @@ use std::collections::BTreeSet;
 use cssparser::{Parser, Token};
 use lean_string::{LeanStr, ToLeanStr};
 
+use stillwind_source::AsciiCase;
+
 use crate::parser::{closer, parse_css_block};
 
 /// Returns every distinct `--name` ident or function name in `css`, in `BTreeSet`
@@ -35,7 +37,7 @@ pub fn custom_property_references(css: &str) -> BTreeSet<LeanStr> {
 /// property has a value, the reference computes to that value. A value with a priority
 /// suffix or any token outside the `var()` returns `None`.
 pub fn var_reference(value: &str) -> Option<&str> {
-    let inner = value.trim().strip_prefix("var(")?;
+    let inner = value.trim().strip_prefix_ignore_ascii_case("var(")?;
     let mut depth = 0_usize;
     let mut end = None;
     for (index, character) in inner.char_indices() {
@@ -134,8 +136,8 @@ mod tests {
     #[test]
     fn var_reference_accepts_one_reference_with_or_without_a_fallback() {
         assert_eq!(
-            var_reference(" var( --tw-border-style ) "),
-            Some("--tw-border-style")
+            var_reference(" VAR( --tw-Border-Style ) "),
+            Some("--tw-Border-Style")
         );
         assert_eq!(
             var_reference("var(--tw-leading, var(--text-sm--line-height))"),

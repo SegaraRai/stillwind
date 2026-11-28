@@ -12,7 +12,7 @@ use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 use stillwind_css::{CssNode, CssNodeKind, parse_structure};
 use stillwind_design_system::{ThemeIndex, take_property_requirements};
 use stillwind_diagnostics::CompileDiagnostic;
-use stillwind_source::ReplaceText;
+use stillwind_source::{AsciiCase, ReplaceText};
 
 use super::super::authored_directives::expand_authored_directives;
 use crate::CompilerOptions;
@@ -83,11 +83,7 @@ fn resolve_theme_references(
     css: &str,
     theme: &ThemeIndex,
 ) -> Result<LeanString, CompileDiagnostic> {
-    if !css
-        .as_bytes()
-        .windows(b"theme(".len())
-        .any(|window| window.eq_ignore_ascii_case(b"theme("))
-    {
+    if !css.contains_ignore_ascii_case("theme(") {
         return Ok(css.to_lean_string());
     }
     let mut edits = Vec::new();

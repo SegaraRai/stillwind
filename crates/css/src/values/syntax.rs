@@ -17,6 +17,8 @@ use lightningcss::values::length::LengthPercentage;
 use lightningcss::values::number::CSSNumber;
 use lightningcss::values::time::Time;
 
+use stillwind_source::AsciiCase;
+
 use super::properties::CssProperty;
 use crate::colors::is_css_string;
 use crate::functions::find_css_functions;
@@ -107,7 +109,7 @@ fn component_values_are_well_formed(parser: &mut Parser<'_>, source: &str) -> bo
 /// Whether one complete math function, such as `calc(1rem + 2px)`, parses as a
 /// calculation of a number, length, percentage, angle, or time.
 fn math_function_parses(function: &str) -> bool {
-    function.contains("var(")
+    contains_custom_property_reference(function)
         || CSSNumber::parse_string(function).is_ok()
         || LengthPercentage::parse_string(function).is_ok()
         || AnglePercentage::parse_string(function).is_ok()
@@ -142,16 +144,23 @@ pub(super) fn gradient_position(function: &str, value: &str) -> bool {
 /// rather than accepted unchecked.
 pub(super) fn content_value(value: &str) -> bool {
     let value = value.trim();
-    matches!(
-        value,
-        "normal" | "none" | "open-quote" | "close-quote" | "no-open-quote" | "no-close-quote"
-    ) || is_css_string(value)
+    [
+        "normal",
+        "none",
+        "open-quote",
+        "close-quote",
+        "no-open-quote",
+        "no-close-quote",
+    ]
+    .iter()
+    .any(|keyword| value.eq_ignore_ascii_case(keyword))
+        || is_css_string(value)
         || ["attr(", "counter(", "counters(", "leader(", "element("]
             .iter()
             .any(|prefix| {
                 value
-                    .strip_prefix(prefix)
-                    .is_some_and(|value| value.ends_with(')'))
+                    .strip_prefix_ignore_ascii_case(prefix)
+                    .is_some_and(|rest| rest.ends_with(')'))
             })
         || Image::parse_string(value).is_ok()
 }
@@ -187,10 +196,13 @@ mod tests {
     #[test]
     fn value_shapes_require_valid_css_and_expected_property_grammar() {
         assert!(contains_custom_property_reference("calc(var(--x) * 2)"));
+        assert!(contains_custom_property_reference("CALC(VAR(--x) * 2)"));
         assert!(!contains_custom_property_reference("var(x)"));
         assert!(gradient_arguments("linear-gradient", "red, blue"));
         assert!(!gradient_arguments("linear-gradient", "red / blue"));
         assert!(content_value("'hello'"));
+        assert!(content_value("NORMAL"));
+        assert!(content_value("ATTR(data-label)"));
         assert!(!content_value("hello"));
         assert!(transform_function_arguments("skew", "15deg"));
         assert!(!transform_function_arguments("skew", "red"));

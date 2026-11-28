@@ -205,7 +205,7 @@ fn scan_directives(
     loop {
         let start = parser.position().byte_index();
         match parser.next_including_whitespace_and_comments() {
-            Ok(Token::AtKeyword(name)) if name.as_ref() == directive => {
+            Ok(Token::AtKeyword(name)) if name.eq_ignore_ascii_case(directive) => {
                 let header_start = parser.position().byte_index();
                 loop {
                     match parser.next_including_whitespace_and_comments() {
@@ -383,8 +383,8 @@ mod tests {
         assert_eq!(rules[0].body, None);
     }
 
-    /// An unterminated statement or block is dropped, and the directive name is matched
-    /// exactly.
+    /// An unterminated statement or block is dropped, and the directive name matches
+    /// ASCII case-insensitively without matching longer names.
     #[test]
     fn scan_directives_skips_unterminated_directives_and_other_names() {
         for css in ["@foo unterminated", "@foo open { body"] {
@@ -401,7 +401,8 @@ mod tests {
         let css = "@foobar x; @Foo x; @foo y;";
         let mut rules = Vec::new();
         scan_directives(&mut Parser::new(css), css, "foo", &mut rules);
-        assert_eq!(rules.len(), 1, "{:?}", rules.len());
-        assert_eq!(rules[0].header, "y");
+        assert_eq!(rules.len(), 2, "{:?}", rules.len());
+        assert_eq!(rules[0].header, "x");
+        assert_eq!(rules[1].header, "y");
     }
 }

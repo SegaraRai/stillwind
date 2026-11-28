@@ -127,8 +127,9 @@ pub enum ColorScheme {
     Dark,
 }
 
-/// Replaces each complete lowercase `light-dark()` call in `value` with its argument
-/// for `scheme`, including calls inside the selected argument.
+/// Replaces each complete `light-dark()` call in `value` with its argument for `scheme`,
+/// including calls inside the selected argument. Function names match ASCII
+/// case-insensitively.
 ///
 /// A call without a closing parenthesis or without exactly two top-level arguments
 /// keeps its spelling, so [`color_rgba`] still rejects the result.
@@ -280,6 +281,10 @@ mod tests {
         assert_eq!(
             select_color_scheme("light-dark(red, lime, blue)", ColorScheme::Dark),
             "light-dark(red, lime, blue)"
+        );
+        assert_eq!(
+            select_color_scheme("LIGHT-DARK(red, blue)", ColorScheme::Dark),
+            "blue"
         );
         assert_eq!(color_rgba("light-dark(red, blue)"), None);
     }

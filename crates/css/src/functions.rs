@@ -6,6 +6,7 @@
 use std::ops::Range;
 
 use cssparser::{Parser, Token};
+use stillwind_source::AsciiCase;
 
 use crate::parser::{consume, parse_css_block};
 
@@ -25,16 +26,24 @@ pub struct CssFunctionMatch {
 /// Finds all occurrences of several complete, unescaped function names in one token
 /// walk.
 ///
-/// Results follow source order, including nested matches. Consumers replacing an outer
-/// invocation must skip matches contained in that replacement range. `from` filters
-/// results without discarding lexical context before that offset.
+/// Custom function names starting with `--` match case-sensitively; standard CSS
+/// function names match ASCII case-insensitively. Results follow source order, including
+/// nested matches. Consumers replacing an outer invocation must skip matches contained
+/// in that replacement range. `from` filters results without discarding lexical context
+/// before that offset.
 pub fn find_css_functions(value: &str, names: &[&str], from: usize) -> Vec<CssFunctionMatch> {
     let custom_only = names.iter().all(|name| name.starts_with("--"));
     if names.is_empty()
         || from >= value.len()
         || !value.contains('(')
         || (custom_only && !value.contains("--"))
-        || (names.len() == 1 && !value.contains(names[0]))
+        || (names.len() == 1
+            && !names[0].is_empty()
+            && if custom_only {
+                !value.contains(names[0])
+            } else {
+                !value.contains_ignore_ascii_case(names[0])
+            })
     {
         return Vec::new();
     }
@@ -68,10 +77,18 @@ fn collect_functions(
                 let name_index = (start >= from && (!custom_only || function.starts_with("--")))
                     .then(|| {
                         names.iter().position(|name| {
-                            function.as_ref() == *name
-                                && value[start..]
-                                    .strip_prefix(name)
-                                    .is_some_and(|tail| tail.starts_with('('))
+                            let (matches_token, tail) = if name.starts_with("--") {
+                                (
+                                    function.as_ref() == *name,
+                                    value[start..].strip_prefix(name),
+                                )
+                            } else {
+                                (
+                                    function.eq_ignore_ascii_case(name),
+                                    value[start..].strip_prefix_ignore_ascii_case(name),
+                                )
+                            };
+                            matches_token && tail.is_some_and(|tail| tail.starts_with('('))
                         })
                     })
                     .flatten();
@@ -181,24 +198,26 @@ mod tests {
         assert_eq!(&value[found[0].start..found[0].start + 4], "--x(");
     }
 
-    /// A name that only starts with a requested one is not a match, and the name
-    /// comparison is case-sensitive outside `url(` handling.
+    /// A name that only starts with a requested one is not a match. Custom `--` function
+    /// names match case-sensitively, while standard CSS function names match ASCII
+    /// case-insensitively.
     #[test]
     fn scan_does_not_match_a_longer_or_differently_cased_name() {
-        let value = "--xy(1) --x(2) CALC(3) calc(4)";
+        let value = "--xy(1) --X(1) --x(2) CALC(3) calc(4)";
         let found = find_css_functions(value, &["--x", "calc"], 0);
         assert_eq!(
             found
                 .iter()
                 .map(|m| &value[m.start..m.end.unwrap()])
                 .collect::<Vec<_>>(),
-            ["--x(2)", "calc(4)"]
+            ["--x(2)", "CALC(3)", "calc(4)"]
         );
         for (value, name) in [
             ("--xy(1)", "--x"),
-            ("CALC(1)", "calc"),
+            ("--X(1)", "--x"),
             ("--x (1)", "--x"),
             (r"\--x(1)", "--x"),
+            (r"\calc(1)", "calc"),
         ] {
             assert_eq!(
                 find_css_functions(value, &[name], 0),

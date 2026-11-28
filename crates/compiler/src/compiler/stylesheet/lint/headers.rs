@@ -14,6 +14,7 @@ use stillwind_css::{
     CssCase, absolutize_nested_selector, normalize_css_fragment, parse_css_block,
     selector_list_branches,
 };
+use stillwind_source::AsciiCase;
 
 /// One authored or expanded header, as its text appears in the stylesheet.
 #[derive(Clone, Copy, Debug)]
@@ -76,7 +77,7 @@ impl Header {
                     )),
                     // `selector()` arguments are selectors, in which a space before `:`
                     // is a descendant combinator.
-                    "supports" if prelude.contains("selector(") => {
+                    "supports" if prelude.contains_ignore_ascii_case("selector(") => {
                         normalize_css_fragment(prelude, SELECTOR_SPACING, CssCase::Keep)
                     }
                     "supports" => normalize_css_fragment(prelude, CONDITION_SPACING, CssCase::Keep),

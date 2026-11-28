@@ -8,18 +8,21 @@
 //!
 //! Modules:
 //!
+//! - [`ascii_case`] matches string slices ignoring ASCII case without allocation.
 //! - [`construction`] joins and replaces compact owned text.
 //! - [`mod@file`] validates immutable text and converts editor positions.
 //! - [`registry`] keeps revisions and allocates IDs within one project scope.
 //! - [`span`] defines byte ranges and their buffer identities.
 //! - [`uri`] validates host document identities.
 
+mod ascii_case;
 mod construction;
 mod file;
 mod registry;
 mod span;
 mod uri;
 
+pub use ascii_case::AsciiCase;
 pub use construction::{JoinText, ReplaceText};
 pub use file::{Position, SourceError, SourceFile};
 pub use registry::{SourceRegistry, SourceRegistryError};

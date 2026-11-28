@@ -7,6 +7,8 @@
 
 use std::ops::Range;
 
+use stillwind_source::AsciiCase;
+
 use super::list::{selector_list_branches, split_pseudo_element};
 use super::subject::is_wrapped_subject;
 use crate::{CssBlock, CssNode, CssNodeKind, parse_structure, validate_css_syntax};
@@ -25,7 +27,7 @@ use crate::{CssBlock, CssNode, CssNodeKind, parse_structure, validate_css_syntax
 /// Returns `None` when `css` is not balanced CSS or no rule changes. A wrapper that
 /// shares an at-rule with other contents stays in place.
 pub fn hoist_pseudo_element_conditions(css: &str) -> Option<String> {
-    if !css.contains(":is(") || validate_css_syntax(css).is_err() {
+    if !css.contains_ignore_ascii_case(":is(") || validate_css_syntax(css).is_err() {
         return None;
     }
     let mut output = String::with_capacity(css.len());
@@ -195,6 +197,10 @@ mod tests {
             (
                 ".a::marker, .a ::marker{:is(.g &){color:red}}",
                 ".a{:is(.g &){&::marker{color:red}}}.a *{:is(.g &){&::marker{color:red}}}",
+            ),
+            (
+                ".a::before{:IS(.g &){color:red}}",
+                ".a{:IS(.g &){&::before{color:red}}}",
             ),
         ] {
             assert_eq!(

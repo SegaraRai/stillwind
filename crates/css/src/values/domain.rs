@@ -11,13 +11,12 @@ use super::validation::ValueType;
 /// True for the five CSS-wide keywords, which every property accepts before its own
 /// grammar is considered.
 ///
-/// The comparison trims whitespace and is case-sensitive, so only the canonical
-/// lowercase spelling is recognized.
+/// The comparison trims whitespace and is ASCII case-insensitive.
 pub(super) fn is_css_wide_keyword(value: &str) -> bool {
-    matches!(
-        value.trim(),
-        "initial" | "inherit" | "unset" | "revert" | "revert-layer"
-    )
+    let value = value.trim();
+    ["initial", "inherit", "unset", "revert", "revert-layer"]
+        .iter()
+        .any(|keyword| value.eq_ignore_ascii_case(keyword))
 }
 
 /// A `--value([…])` domain. These names are CSS value definitions, not CSS property
@@ -68,7 +67,14 @@ mod tests {
 
     #[test]
     fn keyword_and_hint_boundaries_do_not_admit_unknown_domains() {
-        for keyword in ["initial", "inherit", "unset", "revert", "revert-layer"] {
+        for keyword in [
+            "initial",
+            "INITIAL",
+            "inherit",
+            "unset",
+            "revert",
+            "Revert-Layer",
+        ] {
             assert!(is_css_wide_keyword(keyword));
         }
         assert!(!is_css_wide_keyword("initially"));

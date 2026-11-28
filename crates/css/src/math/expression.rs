@@ -25,7 +25,8 @@ pub(super) enum MathValue {
     Dimension(
         /// Numeric coefficient preceding the unit.
         f64,
-        /// Authored unit token, without whitespace or a numeric prefix; compared by exact spelling.
+        /// Authored unit token, without whitespace or a numeric prefix; compared ASCII
+        /// case-insensitively.
         LeanStr,
     ),
     /// A percentage, stored as the numeric part only.

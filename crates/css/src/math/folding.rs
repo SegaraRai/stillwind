@@ -162,6 +162,7 @@ mod boundary_tests {
 
     #[test]
     fn preserves_invalid_math_and_applies_zero_units_only_to_numeric_zero() {
+        assert_eq!(fold_calc_expressions("CALC(1PX + 2px)", None), "3PX");
         assert_eq!(fold_calc_expressions("calc(1 +)", None), "calc(1 +)");
         assert_eq!(fold_calc_expressions("calc(1 + 2", None), "calc(1 + 2");
         assert_eq!(fold_calc_expressions("calc(2 - 2)", Some("px")), "0px");

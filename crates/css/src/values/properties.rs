@@ -187,26 +187,33 @@ impl CssProperty {
             CssPropertyGrammar::Columns => columns_value(value),
             CssPropertyGrammar::Contain => contain_value(value),
             CssPropertyGrammar::FlexBasis => {
-                value.trim() == "content" || lightning_css_accepts("width", value)
+                value.trim().eq_ignore_ascii_case("content")
+                    || lightning_css_accepts("width", value)
             }
             CssPropertyGrammar::FontFeatureSettings => font_feature_settings(value),
             CssPropertyGrammar::ObjectPosition => Position::parse_string(value).is_ok(),
             CssPropertyGrammar::OutlineOffset => Length::parse_string(value).is_ok(),
             CssPropertyGrammar::TextUnderlineOffset => {
-                value.trim() == "auto" || LengthPercentage::parse_string(value).is_ok()
+                value.trim().eq_ignore_ascii_case("auto")
+                    || LengthPercentage::parse_string(value).is_ok()
             }
             CssPropertyGrammar::LengthList(max) => length_list(value, max),
             CssPropertyGrammar::WillChange => will_change(value),
             CssPropertyGrammar::Zoom => {
-                matches!(value.trim(), "normal" | "reset")
+                ["normal", "reset"]
+                    .iter()
+                    .any(|keyword| value.trim().eq_ignore_ascii_case(keyword))
                     || NumberOrPercentage::parse_string(value).is_ok()
             }
             CssPropertyGrammar::AnchorName => dashed_ident_list(value, "none"),
             CssPropertyGrammar::PositionAnchor => {
-                value.trim() == "auto" || dashed_ident(value.trim())
+                value.trim().eq_ignore_ascii_case("auto") || dashed_ident(value.trim())
             }
             CssPropertyGrammar::AnchorScope => {
-                matches!(value.trim(), "none" | "all") || dashed_ident_list(value, "")
+                ["none", "all"]
+                    .iter()
+                    .any(|keyword| value.trim().eq_ignore_ascii_case(keyword))
+                    || dashed_ident_list(value, "")
             }
             CssPropertyGrammar::PositionArea => position_area(value),
             CssPropertyGrammar::PositionTryFallbacks => position_try_fallbacks(value),
@@ -242,9 +249,12 @@ fn columns_value(value: &str) -> bool {
     let mut width = false;
     let mut count = false;
     for value in values {
-        if !width && (value == "auto" || Length::parse_string(value).is_ok()) {
+        if !width && (value.eq_ignore_ascii_case("auto") || Length::parse_string(value).is_ok()) {
             width = true;
-        } else if !count && (value == "auto" || value.parse::<u32>().is_ok_and(|value| value > 0)) {
+        } else if !count
+            && (value.eq_ignore_ascii_case("auto")
+                || value.parse::<u32>().is_ok_and(|value| value > 0))
+        {
             count = true;
         } else {
             return false;
@@ -259,18 +269,27 @@ fn contain_value(value: &str) -> bool {
     const SINGLE: &[&str] = &["none", "strict", "content"];
     const COMPONENTS: &[&str] = &["size", "inline-size", "layout", "style", "paint"];
     let values = value.split_whitespace().collect::<Vec<_>>();
-    SINGLE.contains(&value.trim())
+    let trimmed = value.trim();
+    SINGLE
+        .iter()
+        .any(|keyword| trimmed.eq_ignore_ascii_case(keyword))
         || (!values.is_empty()
             && values.len() <= COMPONENTS.len()
-            && values.iter().all(|value| COMPONENTS.contains(value))
-            && values.windows(2).all(|pair| pair[0] != pair[1]))
+            && values.iter().all(|value| {
+                COMPONENTS
+                    .iter()
+                    .any(|keyword| value.eq_ignore_ascii_case(keyword))
+            })
+            && values
+                .windows(2)
+                .all(|pair| !pair[0].eq_ignore_ascii_case(pair[1])))
 }
 
 /// Validates `font-feature-settings`: `normal`, or a comma-separated list of
 /// four-character ASCII tags with an optional `on`/`off`/integer value.
 fn font_feature_settings(value: &str) -> bool {
     let value = value.trim();
-    value == "normal"
+    value.eq_ignore_ascii_case("normal")
         || value.split(',').all(|feature| {
             let mut parts = feature.split_whitespace();
             let Some(tag) = parts.next() else {
@@ -281,7 +300,12 @@ fn font_feature_settings(value: &str) -> bool {
                 .and_then(|tag| tag.strip_suffix('"'))
                 .is_some_and(|tag| tag.len() == 4 && tag.is_ascii());
             let valid_value = match parts.next() {
-                None | Some("on" | "off") => true,
+                None => true,
+                Some(flag)
+                    if flag.eq_ignore_ascii_case("on") || flag.eq_ignore_ascii_case("off") =>
+                {
+                    true
+                }
                 Some(number) => number.parse::<i32>().is_ok(),
             };
             valid_tag && valid_value && parts.next().is_none()
@@ -292,25 +316,24 @@ fn font_feature_settings(value: &str) -> bool {
 /// `contents`, or custom identifiers.
 fn will_change(value: &str) -> bool {
     let value = value.trim();
-    value == "auto"
+    value.eq_ignore_ascii_case("auto")
         || value.split(',').all(|item| {
             let item = item.trim();
-            matches!(item, "scroll-position" | "contents") || custom_ident(item)
+            item.eq_ignore_ascii_case("scroll-position")
+                || item.eq_ignore_ascii_case("contents")
+                || custom_ident(item)
         })
 }
 
-/// Approximate custom-identifier check using character classes and lowercase CSS-wide
-/// keyword exclusions. It accepts non-ASCII characters but does not implement CSS
-/// escape decoding or the full identifier grammar.
+/// Approximate custom-identifier check using character classes and ASCII
+/// case-insensitive CSS-wide keyword exclusions. It accepts non-ASCII characters but
+/// does not implement CSS escape decoding or the full identifier grammar.
 pub(super) fn custom_ident(value: &str) -> bool {
     value
         .chars()
         .next()
         .is_some_and(|character| !character.is_ascii_digit())
-        && !matches!(
-            value,
-            "initial" | "inherit" | "unset" | "revert" | "revert-layer"
-        )
+        && !is_css_wide_keyword(value)
         && value.chars().all(|character| {
             character.is_ascii_alphanumeric()
                 || matches!(character, '-' | '_')
@@ -324,7 +347,8 @@ pub(super) fn custom_ident(value: &str) -> bool {
 /// An empty list is only valid through the keyword.
 fn dashed_ident_list(value: &str, keyword: &str) -> bool {
     let value = value.trim();
-    value == keyword || (!value.is_empty() && value.split_whitespace().all(dashed_ident))
+    (!keyword.is_empty() && value.eq_ignore_ascii_case(keyword))
+        || (!value.is_empty() && value.split_whitespace().all(dashed_ident))
 }
 
 /// True for a dashed ident: `--` followed by at least one identifier character.
@@ -395,11 +419,21 @@ fn position_area(value: &str) -> bool {
         "span-self-block-end",
     ];
 
+    let is_horizontal = |candidate: &str| {
+        HORIZONTAL
+            .iter()
+            .any(|keyword| candidate.eq_ignore_ascii_case(keyword))
+    };
+    let is_vertical = |candidate: &str| {
+        VERTICAL
+            .iter()
+            .any(|keyword| candidate.eq_ignore_ascii_case(keyword))
+    };
     let values = value.split_whitespace().collect::<Vec<_>>();
-    matches!(values.as_slice(), [single] if HORIZONTAL.contains(single) || VERTICAL.contains(single))
+    matches!(values.as_slice(), [single] if is_horizontal(single) || is_vertical(single))
         || matches!(values.as_slice(), [first, second] if {
-            (HORIZONTAL.contains(first) && VERTICAL.contains(second))
-                || (VERTICAL.contains(first) && HORIZONTAL.contains(second))
+            (is_horizontal(first) && is_vertical(second))
+                || (is_vertical(first) && is_horizontal(second))
         })
 }
 
@@ -409,7 +443,11 @@ fn position_try_fallbacks(value: &str) -> bool {
     const TACTICS: &[&str] = &["flip-block", "flip-inline", "flip-start", "flip-end"];
     value.split(',').all(|item| {
         let item = item.trim();
-        !item.is_empty() && (dashed_ident(item) || TACTICS.contains(&item))
+        !item.is_empty()
+            && (dashed_ident(item)
+                || TACTICS
+                    .iter()
+                    .any(|tactic| item.eq_ignore_ascii_case(tactic)))
     })
 }
 
@@ -487,21 +525,43 @@ mod boundary_tests {
     #[test]
     fn property_grammar_helpers_reject_extra_tokens_and_reserved_identifiers() {
         for (valid, invalid, check) in [
-            ("2 auto", "2 3 4", columns_value as fn(&str) -> bool),
-            ("layout paint", "layout layout", contain_value),
-            ("\"liga\" on", "\"liga\" on extra", font_feature_settings),
-            ("transform, opacity", "1thing", will_change),
-            ("hello-world", "inherit", custom_ident),
+            ("2 AUTO", "2 3 4", columns_value as fn(&str) -> bool),
+            ("LAYOUT PAINT", "layout LAYOUT", contain_value),
+            ("\"liga\" ON", "\"liga\" on extra", font_feature_settings),
+            ("transform, CONTENTS", "1thing", will_change),
+            ("hello-world", "INHERIT", custom_ident),
             ("--x", "--", dashed_ident),
-            ("left top", "left right", position_area),
+            ("LEFT TOP", "LEFT RIGHT", position_area),
         ] {
             assert!(check(valid), "{valid}");
             assert!(!check(invalid), "{invalid}");
         }
+        assert!(dashed_ident_list("NONE", "none"));
         assert!(dashed_ident_list("--one --two", "none"));
         assert!(!dashed_ident_list("--one two", "none"));
-        assert!(position_try_fallbacks("--fallback"));
+        assert!(position_try_fallbacks("--fallback, FLIP-BLOCK"));
         assert!(!position_try_fallbacks(""));
+        assert!(
+            CssProperty::from_name("flex-basis")
+                .unwrap()
+                .accepts("CONTENT")
+        );
+        assert!(
+            CssProperty::from_name("text-underline-offset")
+                .unwrap()
+                .accepts("AUTO")
+        );
+        assert!(CssProperty::from_name("zoom").unwrap().accepts("NORMAL"));
+        assert!(
+            CssProperty::from_name("position-anchor")
+                .unwrap()
+                .accepts("AUTO")
+        );
+        assert!(
+            CssProperty::from_name("anchor-scope")
+                .unwrap()
+                .accepts("ALL")
+        );
         assert!(CssProperty::from_name("unknown-property-xyz").is_none());
     }
 }
