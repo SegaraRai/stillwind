@@ -258,6 +258,7 @@ impl Compiler {
         for (call, recipe) in calls {
             let emitter_inputs = CallEmitterInputs {
                 preview: None,
+                conditional_labels: &[],
                 source,
                 module_id,
                 options,

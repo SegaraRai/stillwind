@@ -61,20 +61,10 @@ impl ModuleIr {
             }
         }
         for recipe in &mut result.recipe_calls {
-            recipe.span = map(recipe.span)?;
-            recipe.callee_span = map(recipe.callee_span)?;
-            for replacement in &mut recipe.replacements {
-                replacement.span = map(replacement.span)?;
-            }
-            for role in &mut recipe.roles {
-                role.span = map(role.span)?;
-            }
-            for value in &mut recipe.values {
-                value.span = map(value.span)?;
-                for input in &mut value.inputs {
-                    map_input(input, &mut map)?;
-                }
-            }
+            map_recipe(recipe, &mut map)?;
+        }
+        for label in &mut result.conditional_labels {
+            label.span = map(label.span)?;
         }
         for forward in &mut result.forward_calls {
             forward.callee_span = map(forward.callee_span)?;
@@ -133,6 +123,33 @@ impl ModuleIr {
         }
         Ok(result)
     }
+}
+
+fn map_recipe<E>(
+    recipe: &mut crate::RecipeCall,
+    map: &mut impl FnMut(Span) -> Result<Span, E>,
+) -> Result<(), E> {
+    recipe.span = map(recipe.span)?;
+    recipe.callee_span = map(recipe.callee_span)?;
+    for replacement in &mut recipe.replacements {
+        replacement.span = map(replacement.span)?;
+    }
+    for role in &mut recipe.roles {
+        role.span = map(role.span)?;
+    }
+    for scope in &mut recipe.preview_scopes {
+        scope.span = map(scope.span)?;
+        for value in &mut scope.values {
+            *value = map(*value)?;
+        }
+    }
+    for value in &mut recipe.values {
+        value.span = map(value.span)?;
+        for input in &mut value.inputs {
+            map_input(input, map)?;
+        }
+    }
+    Ok(())
 }
 
 fn map_value<T, E>(

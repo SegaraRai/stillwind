@@ -181,26 +181,14 @@ pub(crate) fn parse_with_coordinates(
         &extractor.export_symbols,
         &mut summary,
     );
-    diagnostics.extend(extractor.diagnostics);
-    let mut lint_findings = extractor.lint_findings;
+    diagnostics.extend(std::mem::take(&mut extractor.diagnostics));
+    let mut lint_findings = std::mem::take(&mut extractor.lint_findings);
 
     let mut imports = collect_imports(&result.program, semantic.scoping(), source.id());
-    imports.consumed_uses = extractor.consumed_macro_uses;
+    imports.consumed_uses = std::mem::take(&mut extractor.consumed_macro_uses);
     let erased = reads_in_omitted_inputs(&imports, &extractor.omitted_inputs);
     imports.consumed_uses.extend(erased);
-    let module = ModuleIr {
-        imports,
-        style_calls: extractor.style_calls,
-        recipe_calls: extractor.recipe_calls,
-        media_calls: extractor.media_calls,
-        css_calls: extractor.css_calls,
-        ref_definitions: extractor.ref_definitions,
-        keyframes_declarations: extractor.keyframes_declarations,
-        view_transition_declarations: extractor.view_transition_declarations,
-        stored_variants: extractor.stored_variants,
-        forward_calls: extractor.forward_calls,
-        ordering_uses,
-    };
+    let module = extractor.take_module_ir(imports, ordering_uses);
     if lint {
         lint_findings.extend(validate(&result.program, &module, source.id()));
     }

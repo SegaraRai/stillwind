@@ -429,8 +429,207 @@ console.log(mq, button, attached);`;
 
     const recipeCall = await hover(current, source, "style.recipe");
     expect(recipeCall).toContain("display: block");
+    expect(recipeCall).toContain("/* dim === true */");
     expect(recipeCall).toContain("opacity: .5");
     expect(await hover(current, source, "button,")).toBe(recipeCall);
+  } finally {
+    await current.close();
+  }
+});
+
+test("conditional utilities, recipe variants, slots, compounds, and recipe calls show comments and scoped previews", async () => {
+  const source = `import {style} from "stillwind/react";
+declare const active: boolean;
+declare const size: "sm" | "lg";
+const styled = style(
+  "block",
+  active && ["opacity-50", "opacity-100"],
+  active ? "flex" : "hidden",
+  ({ sm: "inline", lg: "grid" })[size],
+);
+const button = style.recipe("block", {
+  variants: {
+    intent: {
+      primary: "flex",
+      secondary: "inline",
+    },
+    size: {
+      sm: "opacity-50",
+      lg: "opacity-100",
+    },
+  },
+  defaultVariants: {
+    size: "sm",
+  },
+  compoundVariants: [
+    {
+      intent: ["primary", "secondary"],
+      size: "lg",
+      class: "grid",
+    },
+  ],
+});
+const card = style.recipe("", {
+  slots: {
+    root: "block",
+    icon: "inline",
+  },
+  variants: {
+    compact: {
+      true: {
+        root: "flex",
+      },
+    },
+  },
+  compoundSlots: [
+    {
+      slots: ["root", "icon"],
+      compact: true,
+      class: "opacity-50",
+    },
+  ],
+});
+const primaryCall = button({ intent: "primary" });
+const largeCall = button({ intent: "primary", size: "lg" });
+console.log(styled, primaryCall, largeCall, card);`;
+  const current = await project(
+    source,
+    {},
+    `
+@utility flex { display: flex; }
+@utility hidden { display: none; }
+@utility inline { display: inline; }
+@utility grid { display: grid; }`,
+  );
+  try {
+    // Conditional comments on whole style() call and isolated conditional literals.
+    const wholeStyled = await hover(current, source, "style(");
+    expect(wholeStyled).toContain("display: block");
+    expect(wholeStyled).toContain("/* active */\n& {\n  opacity: 1;\n  opacity: .5;");
+    expect(wholeStyled).toContain("/* !active */\n& {\n  display: none;");
+    expect(wholeStyled).toContain('/* size === "sm" */\n& {\n  display: inline;');
+    expect(wholeStyled).toContain('/* size === "lg" */\n& {\n  display: grid;');
+
+    // Scoped sub-expression hover on `active && [...]`.
+    const branchHover = await hover(current, source, "active &&");
+    expect(branchHover).toContain("/* active */");
+    expect(branchHover).toContain("opacity: .5");
+    expect(branchHover).toContain("opacity: 1");
+    expect(branchHover).not.toContain("display: block");
+    expect(branchHover).not.toContain("display: none");
+
+    // Recipe whole preview has no comment on base and comments on variants + compound.
+    const wholeRecipe = await hover(current, source, 'style.recipe("block"');
+    expect(wholeRecipe).toContain("display: block");
+    expect(wholeRecipe).not.toContain("/* base */");
+    expect(wholeRecipe).toContain('/* intent === "primary" */');
+    expect(wholeRecipe).toContain('/* intent === "secondary" */');
+    expect(wholeRecipe).toContain(
+      '/* (intent === "primary" || intent === "secondary") && size === "lg" */',
+    );
+
+    // Scoped hover on recipe variant axis (`intent:`) and single option (`primary:`).
+    const axisHover = await hover(current, source, "intent: {");
+    expect(axisHover).toContain('/* intent === "primary" */');
+    expect(axisHover).toContain('/* intent === "secondary" */');
+    expect(axisHover).not.toContain("display: block");
+    expect(axisHover).not.toContain('size === "sm"');
+
+    const optionHover = await hover(current, source, 'primary: "flex"');
+    expect(optionHover).toContain('/* intent === "primary" */');
+    expect(optionHover).toContain("display: flex");
+    expect(optionHover).not.toContain("display: inline");
+    expect(optionHover).not.toContain("display: block");
+
+    // Scoped hover on compoundVariants entry.
+    const compoundHover = await hover(current, source, 'intent: ["primary"');
+    expect(compoundHover).toContain(
+      '/* (intent === "primary" || intent === "secondary") && size === "lg" */',
+    );
+    expect(compoundHover).toContain("display: grid");
+    expect(compoundHover).not.toContain("display: block");
+
+    // Slotted recipe comments use `[slot]` notation and scoped slot hover works.
+    const wholeCard = await hover(current, source, 'style.recipe(""');
+    expect(wholeCard).toContain("/* [root] */");
+    expect(wholeCard).toContain("/* [icon] */");
+    expect(wholeCard).toContain("/* [root] compact === true */");
+    expect(wholeCard).toContain("/* [root, icon] compact === true */");
+
+    const iconSlotHover = await hover(current, source, 'icon: "inline"');
+    expect(iconSlotHover).toContain("/* [icon] */");
+    expect(iconSlotHover).toContain("display: inline");
+    expect(iconSlotHover).not.toContain("display: block");
+
+    // Recipe call static filtering (`defaultVariants` + static args + matching compounds).
+    const primaryHover = await hover(current, source, 'button({ intent: "primary" })');
+    expect(primaryHover).toContain("display: block");
+    expect(primaryHover).toContain('/* intent === "primary" */');
+    expect(primaryHover).toContain('/* size === "sm" */');
+    expect(primaryHover).not.toContain('intent === "secondary"');
+    expect(primaryHover).not.toContain('size === "lg"');
+    expect(primaryHover).not.toContain("display: grid");
+    expect(await hover(current, source, "primaryCall,")).toBe(primaryHover);
+
+    const largeHover = await hover(current, source, 'button({ intent: "primary", size: "lg" })');
+    expect(largeHover).toContain("display: block");
+    expect(largeHover).toContain('/* intent === "primary" */');
+    expect(largeHover).toContain('/* size === "lg" */');
+    expect(largeHover).toContain("display: grid");
+    expect(largeHover).not.toContain('size === "sm"');
+  } finally {
+    await current.close();
+  }
+});
+
+test("conditional preview comments simplify negations and invert top-level comparisons", async () => {
+  const source = `import {style} from "stillwind/react";
+declare const a: boolean;
+declare const b: boolean;
+declare const c: boolean;
+declare const d: boolean;
+declare const x: number;
+declare const y: number;
+const s = style(
+  !a ? "block" : "flex",
+  !!a && "inline",
+  !(a && b) ? "grid" : "hidden",
+  x === y ? "opacity-10" : "opacity-20",
+  x == y ? "opacity-30" : "opacity-40",
+  x < y ? "opacity-50" : "opacity-60",
+  a && b ? "opacity-70" : "opacity-80",
+  (a === b && c === d) ? "opacity-90" : "opacity-100",
+  (a === b) === c ? "opacity-5" : "opacity-15",
+);
+console.log(s);`;
+  const current = await project(
+    source,
+    {},
+    `
+@utility flex { display: flex; }
+@utility hidden { display: none; }
+@utility inline { display: inline; }
+@utility grid { display: grid; }`,
+  );
+  try {
+    const whole = await hover(current, source, "style(");
+    expect(whole).toContain("/* !a */\n& {\n  display: block;");
+    expect(whole).toContain("/* a */\n& {\n  display: flex;");
+    expect(whole).toContain("/* a */\n& {\n  display: inline;");
+    expect(whole).toContain("/* !(a && b) */\n& {\n  display: grid;");
+    expect(whole).toContain("/* a && b */\n& {\n  display: none;");
+    expect(whole).toContain("/* x === y */\n& {\n  opacity: .1;");
+    expect(whole).toContain("/* x !== y */\n& {\n  opacity: .2;");
+    expect(whole).toContain("/* x == y */\n& {\n  opacity: .3;");
+    expect(whole).toContain("/* x != y */\n& {\n  opacity: .4;");
+    expect(whole).toContain("/* x < y */\n& {\n  opacity: .5;");
+    expect(whole).toContain("/* x >= y */\n& {\n  opacity: .6;");
+    expect(whole).toContain("/* a && b */\n& {\n  opacity: .7;");
+    expect(whole).toContain("/* !(a && b) */\n& {\n  opacity: .8;");
+    expect(whole).toContain("/* a === b && c === d */\n& {\n  opacity: .9;");
+    expect(whole).toContain("/* !(a === b && c === d) */\n& {\n  opacity: 1;");
+    expect(whole).toContain("/* (a === b) === c */\n& {\n  opacity: .05;");
+    expect(whole).toContain("/* (a === b) !== c */\n& {\n  opacity: .15;");
   } finally {
     await current.close();
   }

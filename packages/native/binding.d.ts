@@ -1300,6 +1300,38 @@ export interface NativeEditorLintEdit {
   replacement: string
 }
 
+/** Static recipe structure exposed on a `style.recipe()` site. */
+export interface NativeEditorRecipe {
+  /** Default option key for each axis declared in `defaultVariants`. */
+  defaultVariants: Array<NativeEditorRecipeDefault>
+  /** Compiled recipe values with their identities and variant conditions. */
+  values: Array<NativeEditorRecipeValue>
+}
+
+/** One variant axis condition on a recipe value. */
+export interface NativeEditorRecipeCondition {
+  /** Variant axis name. */
+  axis: string
+  /** Matching option keys. */
+  values: Array<string>
+}
+
+/** One `defaultVariants` entry of a recipe. */
+export interface NativeEditorRecipeDefault {
+  /** Variant axis name. */
+  axis: string
+  /** Default option key. */
+  value: string
+}
+
+/** One compiled value of a recipe with its variant conditions. */
+export interface NativeEditorRecipeValue {
+  /** Identity of the value's compiled style site. */
+  identity: NativeIdentity
+  /** Variant axis conditions that select this value. */
+  conditions: Array<NativeEditorRecipeCondition>
+}
+
 /** Generated output associated with an original module occurrence. */
 export interface NativeEditorSite {
   /** Inclusive UTF-8 byte boundary in the original source. */
@@ -1337,6 +1369,8 @@ export interface NativeEditorSite {
    * Distinct source occurrences can contain the same expression text.
    */
   runtimeNames: Array<string>
+  /** Static recipe structure for filtering previews at recipe call sites. */
+  recipe?: NativeEditorRecipe
 }
 
 /** The source object addressed by a preview. */

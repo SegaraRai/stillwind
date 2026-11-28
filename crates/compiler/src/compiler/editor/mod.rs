@@ -20,7 +20,7 @@ mod names;
 mod resources;
 mod runtime;
 
-pub use capture::{EditorSite, EditorSiteKind, ModuleEditor};
+pub use capture::{EditorRecipe, EditorRecipeValue, EditorSite, EditorSiteKind, ModuleEditor};
 
 pub(crate) use names::reserve_preview_names;
 pub(crate) use resources::preview_resource_urls;

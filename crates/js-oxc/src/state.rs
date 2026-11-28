@@ -13,15 +13,15 @@ use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use lean_string::{LeanStr, ToLeanStr};
-use oxc::ast::ast::ModuleExportName;
+use oxc::ast::ast::{BinaryOperator, Expression, ModuleExportName, UnaryOperator};
 use oxc::semantic::{Scoping, SymbolId};
-use oxc::span::Span as OxcSpan;
+use oxc::span::{GetSpan, Span as OxcSpan};
 
 use stillwind_diagnostics::{CompileError, LintFinding};
 use stillwind_ir::{
-    CssCall, ForwardCall, FrameworkSpec, KeyframesDefinition, MediaCall, OutputFormat, RecipeCall,
-    RecipeReplacement, RecipeValueRole, RefDefinition, StoredVariantDefinition, StyleCall,
-    ViewTransitionDefinition,
+    ConditionalLabel, CssCall, ForwardCall, FrameworkSpec, KeyframesDefinition, MediaCall,
+    OutputFormat, RecipeCall, RecipeReplacement, RecipeValueRole, RefDefinition,
+    StoredVariantDefinition, StyleCall, ViewTransitionDefinition,
 };
 use stillwind_semantic::{
     AssetKind, AssetMetadata, AssetRecord, CheckedValue, DeclarationKey, ExportedValue, IdentityId,
@@ -84,6 +84,8 @@ pub(crate) struct MacroExtractor<'a> {
     pub(crate) media_calls: Vec<MediaCall>,
     /// `style.css()` calls in source order.
     pub(crate) css_calls: Vec<CssCall>,
+    /// Pre-formatted truthy and falsy display text for conditional test expressions.
+    pub(crate) conditional_labels: Vec<stillwind_ir::ConditionalLabel>,
     /// Allows boolean literals as empty contributions while parsing recipe values.
     pub(crate) in_recipe: bool,
     /// Diagnostics raised during extraction, in visit order.
@@ -171,6 +173,7 @@ impl<'a> MacroExtractor<'a> {
             recipe_calls: Vec::new(),
             media_calls: Vec::new(),
             css_calls: Vec::new(),
+            conditional_labels: Vec::new(),
             in_recipe: false,
             diagnostics: Vec::new(),
             lint_findings: Vec::new(),
@@ -351,6 +354,55 @@ impl<'a> MacroExtractor<'a> {
         });
     }
 
+    /// Records normalized truthy and top-level negated display text for a conditional
+    /// test expression using its parsed AST.
+    pub(crate) fn record_conditional_label(&mut self, expression: &Expression<'a>) {
+        let span = self.source_span(expression.span());
+        if self
+            .conditional_labels
+            .iter()
+            .any(|label| label.span == span)
+        {
+            return;
+        }
+        let slice = |node_span: OxcSpan| {
+            let start = node_span.start as usize;
+            let end = node_span.end as usize;
+            self.source.text().get(start..end).unwrap_or("").trim()
+        };
+        let truthy = format_condition(expression, false, &slice);
+        let falsy = format_condition(expression, true, &slice);
+        if !truthy.is_empty() && !falsy.is_empty() {
+            self.conditional_labels.push(ConditionalLabel {
+                span,
+                truthy: truthy.into(),
+                falsy: falsy.into(),
+            });
+        }
+    }
+
+    /// Moves the extracted module collections into a [`stillwind_ir::ModuleIr`].
+    pub(crate) fn take_module_ir(
+        &mut self,
+        imports: stillwind_ir::ModuleImports,
+        ordering_uses: Vec<stillwind_ir::OrderingUse>,
+    ) -> stillwind_ir::ModuleIr {
+        stillwind_ir::ModuleIr {
+            imports,
+            style_calls: std::mem::take(&mut self.style_calls),
+            recipe_calls: std::mem::take(&mut self.recipe_calls),
+            media_calls: std::mem::take(&mut self.media_calls),
+            css_calls: std::mem::take(&mut self.css_calls),
+            ref_definitions: std::mem::take(&mut self.ref_definitions),
+            keyframes_declarations: std::mem::take(&mut self.keyframes_declarations),
+            view_transition_declarations: std::mem::take(&mut self.view_transition_declarations),
+            stored_variants: std::mem::take(&mut self.stored_variants),
+            conditional_labels: std::mem::take(&mut self.conditional_labels),
+            forward_calls: std::mem::take(&mut self.forward_calls),
+            ordering_uses,
+        }
+    }
+
     /// Returns the exported name of a module export name node.
     ///
     /// String-literal export names are supported, so `export { x as "y-z" }` keeps the
@@ -364,4 +416,78 @@ impl<'a> MacroExtractor<'a> {
             }
         }
     }
+}
+
+/// Strips outer parentheses and leading `!` operators, toggling `negated`, then formats
+/// the expression with top-level comparison inversion when `negated` is true.
+fn format_condition<'a>(
+    mut expr: &'a Expression<'a>,
+    mut negated: bool,
+    slice: &impl Fn(OxcSpan) -> &'a str,
+) -> String {
+    loop {
+        match expr {
+            Expression::ParenthesizedExpression(paren) => {
+                expr = &paren.expression;
+            }
+            Expression::UnaryExpression(unary) if unary.operator == UnaryOperator::LogicalNot => {
+                negated = !negated;
+                expr = &unary.argument;
+            }
+            _ => {
+                break;
+            }
+        }
+    }
+    if !negated {
+        return slice(expr.span()).to_string();
+    }
+    if let Expression::BinaryExpression(binary) = expr
+        && let Some(inverted) = invert_comparison(binary.operator)
+    {
+        return format!(
+            "{} {inverted} {}",
+            slice(binary.left.span()),
+            slice(binary.right.span())
+        );
+    }
+    let text = slice(expr.span());
+    if needs_not_parens(expr) {
+        format!("!({text})")
+    } else {
+        format!("!{text}")
+    }
+}
+
+/// Returns the inverted JavaScript comparison operator, or `None` for non-comparisons.
+const fn invert_comparison(operator: BinaryOperator) -> Option<&'static str> {
+    match operator {
+        BinaryOperator::StrictEquality => Some("!=="),
+        BinaryOperator::StrictInequality => Some("==="),
+        BinaryOperator::Equality => Some("!="),
+        BinaryOperator::Inequality => Some("=="),
+        BinaryOperator::LessThan => Some(">="),
+        BinaryOperator::LessEqualThan => Some(">"),
+        BinaryOperator::GreaterThan => Some("<="),
+        BinaryOperator::GreaterEqualThan => Some("<"),
+        _ => None,
+    }
+}
+
+/// Reports whether `expr` requires parentheses when prefixed with `!`.
+const fn needs_not_parens(expr: &Expression<'_>) -> bool {
+    matches!(
+        expr,
+        Expression::LogicalExpression(_)
+            | Expression::ConditionalExpression(_)
+            | Expression::BinaryExpression(_)
+            | Expression::AssignmentExpression(_)
+            | Expression::SequenceExpression(_)
+            | Expression::YieldExpression(_)
+            | Expression::AwaitExpression(_)
+            | Expression::ArrowFunctionExpression(_)
+            | Expression::TSAsExpression(_)
+            | Expression::TSSatisfiesExpression(_)
+            | Expression::UnaryExpression(_)
+    )
 }

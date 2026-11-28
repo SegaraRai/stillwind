@@ -54,6 +54,7 @@ impl<'a> MacroExtractor<'a> {
                 if expression.operator == LogicalOperator::And =>
             {
                 let test = self.source_span(expression.left.span());
+                self.record_conditional_label(&expression.left);
                 let consequent = self.class_expression_sequence(&expression.right);
                 Some(ClassExpression::Conditional {
                     test,
@@ -62,6 +63,7 @@ impl<'a> MacroExtractor<'a> {
             }
             Expression::ConditionalExpression(expression) => {
                 let test = self.source_span(expression.test.span());
+                self.record_conditional_label(&expression.test);
                 let consequent = self.class_expression_sequence(&expression.consequent);
                 let alternate = self.class_expression_sequence(&expression.alternate);
                 Some(ClassExpression::Conditional {

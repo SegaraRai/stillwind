@@ -13,7 +13,8 @@ use stillwind_diagnostics::{
     CompileDiagnostic, CompileError, LintFinding, LintSettings, SourceFailureContext,
 };
 use stillwind_ir::{
-    AssetReference, ClassExpression, CustomPropertyEntry, GroupEntry, StyleCall, StyleInput,
+    AssetReference, ClassExpression, ConditionalLabel, CustomPropertyEntry, GroupEntry, StyleCall,
+    StyleInput,
 };
 use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::{ModuleId, SourceError, SourceFile, Span};
@@ -119,6 +120,8 @@ impl<'a> CallEmitter<'a> {
             parts: Vec::new(),
             pending_region: None,
             units: ClassUnits::new(
+                inputs.source,
+                inputs.conditional_labels,
                 inputs.module_id,
                 inputs.options,
                 inputs.identifiers,
@@ -562,6 +565,8 @@ pub(in crate::compiler) struct CallEmitterInputs<'a> {
     /// A present value replaces generated element selectors with `&` and captures or
     /// replays transition slots. Ref markers use the names supplied by `identifiers`.
     pub(in crate::compiler) preview: Option<&'a mut PreviewSlots>,
+    /// Pre-formatted truthy and falsy display text for conditional test expressions.
+    pub(in crate::compiler) conditional_labels: &'a [ConditionalLabel],
     /// Original buffer used to slice user expressions.
     pub(in crate::compiler) source: &'a SourceFile,
     /// Compiler identity of the source module.

@@ -374,29 +374,48 @@ export class SourceQueries {
         const range = this.#index.range(source, node);
         return preview && range ? this.#formatExpressionPreview(preview, range) : undefined;
       }
+      if (ts.isCallExpression(node)) {
+        const recipeCall = this.#recipeCallPreview(source, node);
+        const range = this.#index.range(source, node);
+        if (recipeCall && range) {
+          return this.#formatExpressionPreview(recipeCall, range);
+        }
+        break;
+      }
       if (!reference) {
         const asset = this.#index.asset(source, node);
         let preview = asset && this.#index.previews.previewIdentity(asset.identity);
         if (!preview) {
           const init = this.#index.initializer(source, node);
           if (init) {
-            const initSite = this.#index.previewSite(init.source, init.node);
-            if (initSite) {
-              preview = this.#index.previews.preview(initSite.native);
-            } else {
-              const initRange = this.#index.range(init.source, init.node);
-              const variantSite =
-                initRange &&
-                this.#index.previews
-                  .sites(init.source)
-                  .find(
-                    (site) =>
-                      site.native.kind === "variant" &&
-                      initRange[0] <= site.start &&
-                      site.end <= initRange[1],
-                  );
-              preview = variantSite && this.#index.previews.preview(variantSite.native);
+            if (ts.isCallExpression(init.node)) {
+              preview = this.#recipeCallPreview(init.source, init.node);
             }
+            if (!preview) {
+              const initSite = this.#index.previewSite(init.source, init.node);
+              if (initSite) {
+                preview = this.#index.previews.preview(initSite.native);
+              } else {
+                const initRange = this.#index.range(init.source, init.node);
+                const variantSite =
+                  initRange &&
+                  this.#index.previews
+                    .sites(init.source)
+                    .find(
+                      (site) =>
+                        site.native.kind === "variant" &&
+                        initRange[0] <= site.start &&
+                        site.end <= initRange[1],
+                    );
+                preview = variantSite && this.#index.previews.preview(variantSite.native);
+              }
+            }
+          }
+        }
+        if (!preview) {
+          const subtree = this.#subtreePreview(source, node);
+          if (subtree) {
+            return this.#formatExpressionPreview(subtree.preview, subtree.range);
           }
         }
         const range = this.#index.range(source, node);
@@ -407,14 +426,210 @@ export class SourceQueries {
           };
         }
       }
-      if (ts.isCallExpression(node)) {
-        break;
-      }
       node = node.parent;
     }
     return reference
       ? this.#formatExpressionPreview(reference.preview, reference.range)
       : undefined;
+  }
+
+  /**
+   * Filters a `recipe({ ... })` call to the values selected by its static arguments and
+   * `defaultVariants`. Dynamic axes retain all their options; a spread or non-literal
+   * argument falls back to the complete recipe preview.
+   *
+   * @param source - Prepared source containing `node`.
+   * @param node - Call expression that may invoke a `style.recipe()` factory.
+   * @returns Assembled preview for matching recipe values, or undefined if `node` is not a
+   * recipe call.
+   */
+  #recipeCallPreview(
+    source: PreparedSource,
+    node: ts.CallExpression,
+  ): GeneratedPreview | undefined {
+    const init = this.#index.initializer(source, node.expression);
+    const initSite = init && this.#index.previewSite(init.source, init.node);
+    const recipe = initSite?.native.recipe;
+    if (!recipe) {
+      return undefined;
+    }
+
+    const arg = node.arguments[0];
+    const selected = new Map<string, string | undefined>();
+    const dynamic = new Set<string>();
+    if (arg && !(ts.isIdentifier(arg) && arg.text === "undefined")) {
+      if (!ts.isObjectLiteralExpression(arg)) {
+        return this.#index.previews.preview(initSite.native);
+      }
+      for (const property of arg.properties) {
+        if (ts.isSpreadAssignment(property)) {
+          return this.#index.previews.preview(initSite.native);
+        }
+        if (ts.isShorthandPropertyAssignment(property)) {
+          dynamic.add(property.name.text);
+          continue;
+        }
+        if (!ts.isPropertyAssignment(property) || ts.isComputedPropertyName(property.name)) {
+          return this.#index.previews.preview(initSite.native);
+        }
+        const axis = ts.isStringLiteralLike(property.name)
+          ? property.name.text
+          : ts.isNumericLiteral(property.name) || ts.isIdentifier(property.name)
+            ? property.name.text
+            : undefined;
+        if (!axis) {
+          return this.#index.previews.preview(initSite.native);
+        }
+        const option = this.#staticRecipeOption(property.initializer);
+        if (!option) {
+          dynamic.add(axis);
+        } else {
+          selected.set(axis, option.value);
+        }
+      }
+    }
+
+    for (const { axis, value } of recipe.defaultVariants) {
+      if (!selected.has(axis) && !dynamic.has(axis)) {
+        selected.set(axis, value);
+      }
+    }
+
+    const matching = recipe.values
+      .filter((entry) =>
+        entry.conditions.every(({ axis, values }) => {
+          if (dynamic.has(axis)) {
+            return true;
+          }
+          const chosen = selected.get(axis);
+          return chosen !== undefined && values.includes(chosen);
+        }),
+      )
+      .map((entry) => entry.identity);
+
+    return this.#index.previews.previewIdentities(matching);
+  }
+
+  /**
+   * Decodes a static recipe option literal (`string`, `boolean`, `number`, `null`, or
+   * `undefined`), or returns `undefined` for runtime expressions.
+   *
+   * @param expr - Initializer expression of a recipe call option.
+   * @returns Normalized option key wrapped in an object (`value: undefined` for nullish
+   * literals), or `undefined` when the expression is dynamic.
+   */
+  #staticRecipeOption(expr: ts.Expression):
+    | {
+        value: string | undefined;
+      }
+    | undefined {
+    const inner = ts.isParenthesizedExpression(expr) ? expr.expression : expr;
+    if (ts.isStringLiteralLike(inner)) {
+      return {
+        value: inner.text,
+      };
+    }
+    if (ts.isNumericLiteral(inner)) {
+      return {
+        value: String(Number(inner.text)),
+      };
+    }
+    if (inner.kind === ts.SyntaxKind.TrueKeyword) {
+      return {
+        value: "true",
+      };
+    }
+    if (inner.kind === ts.SyntaxKind.FalseKeyword) {
+      return {
+        value: "false",
+      };
+    }
+    if (
+      inner.kind === ts.SyntaxKind.NullKeyword ||
+      (ts.isIdentifier(inner) && inner.text === "undefined")
+    ) {
+      return {
+        value: undefined,
+      };
+    }
+    return undefined;
+  }
+
+  /**
+   * Assembles a scoped preview for a compound sub-expression inside a style or keyframes
+   * call (such as `active && [...]`, `active ? a : b`, `{ "hover:": [...] }`, or a
+   * keyframe frame property) by combining the captured input and use sites it contains.
+   *
+   * @param source - Prepared source containing `node`.
+   * @param node - Candidate AST node during ancestor traversal.
+   * @returns Combined preview and original UTF-16 range, or undefined when `node` is not a
+   * compound sub-expression with captured inner sites.
+   */
+  #subtreePreview(
+    source: PreparedSource,
+    node: ts.Node,
+  ): { preview: GeneratedPreview; range: readonly [number, number] } | undefined {
+    if (
+      !(
+        ts.isBinaryExpression(node) ||
+        ts.isConditionalExpression(node) ||
+        ts.isElementAccessExpression(node) ||
+        ts.isArrayLiteralExpression(node) ||
+        ts.isObjectLiteralExpression(node) ||
+        ts.isPropertyAssignment(node)
+      )
+    ) {
+      return undefined;
+    }
+    if (
+      ts.isCallExpression(node.parent) &&
+      node.parent.arguments.length === 1 &&
+      node.parent.arguments[0] === node &&
+      this.#index.previewSite(source, node.parent)
+    ) {
+      return undefined;
+    }
+    const range = this.#index.range(source, node);
+    if (!range) {
+      return undefined;
+    }
+    const inner = this.#index.previews
+      .sites(source)
+      .filter(
+        (site) =>
+          (site.native.kind === "input" || site.native.kind === "use") &&
+          range[0] <= site.start &&
+          site.end <= range[1],
+      )
+      .sort((a, b) => a.start - b.start || a.end - b.end);
+    if (!inner.length) {
+      return undefined;
+    }
+    const parts: string[] = [];
+    const runtimeNames = new Set<string>();
+    for (const site of inner) {
+      const preview = this.#index.previews.preview(site.native);
+      if (!preview) {
+        continue;
+      }
+      if (preview.css) {
+        parts.push(preview.css);
+      }
+      for (const name of preview.runtimeNames) {
+        runtimeNames.add(name);
+      }
+    }
+    const css = [...new Set(parts)].join("\n");
+    if (!css) {
+      return undefined;
+    }
+    return {
+      preview: {
+        css,
+        runtimeNames: [...runtimeNames],
+      },
+      range,
+    };
   }
 
   /**

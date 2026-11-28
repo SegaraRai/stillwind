@@ -8,9 +8,65 @@ use crate::normalize_scopes;
 /// At-rule name (with leading `@`) used for preview slot placeholders.
 pub const PREVIEW_SLOT_RULE: &str = "@stillwind-preview-slot";
 
+/// At-rule name (with leading `@`) used for rule-leading preview comments.
+pub const PREVIEW_COMMENT_RULE: &str = "@stillwind-preview-comment";
+
 /// Sentinel at-rule placed where utility declarations or rules belong in a variant
 /// preview. [`format_css`] replaces each occurrence with `/* … */` after formatting.
 pub const PREVIEW_SLOT: &str = "@stillwind-preview-slot;";
+
+/// Maximum visible character count of a preview comment before truncation.
+const MAX_PREVIEW_COMMENT_CHARS: usize = 80;
+
+/// Encodes `label` as a [`PREVIEW_COMMENT_RULE`] statement that [`format_css`] prints as
+/// a rule-leading `/* ... */` comment.
+///
+/// Whitespace runs (including line breaks) collapse to a single space, `*/` is broken
+/// with a zero-width space so the comment cannot terminate early, and labels longer than
+/// 80 characters are truncated with an ellipsis. Returns an empty string when `label`
+/// contains only whitespace.
+#[must_use]
+pub fn preview_comment_at_rule(label: &str) -> LeanString {
+    let mut normalized = String::with_capacity(label.len());
+    let mut pending_space = false;
+    for ch in label.chars() {
+        if ch.is_whitespace() {
+            pending_space = !normalized.is_empty();
+        } else {
+            if pending_space {
+                normalized.push(' ');
+                pending_space = false;
+            }
+            normalized.push(ch);
+        }
+    }
+    if normalized.is_empty() {
+        return LeanString::new();
+    }
+    let sanitized = normalized.replace("*/", "*\u{200B}/");
+    let text = if sanitized.chars().count() > MAX_PREVIEW_COMMENT_CHARS {
+        let mut cut: String = sanitized
+            .chars()
+            .take(MAX_PREVIEW_COMMENT_CHARS - 1)
+            .collect();
+        cut.push('…');
+        cut
+    } else {
+        sanitized
+    };
+    let mut output = LeanString::with_capacity(PREVIEW_COMMENT_RULE.len() + text.len() + 5);
+    output.push_str(PREVIEW_COMMENT_RULE);
+    output.push_str(" \"");
+    for ch in text.chars() {
+        match ch {
+            '\\' => output.push_str("\\\\"),
+            '"' => output.push_str("\\\""),
+            other => output.push(other),
+        }
+    }
+    output.push_str("\";");
+    output
+}
 
 /// CSS could not be parsed or printed for display.
 #[derive(Debug, thiserror::Error)]
@@ -40,19 +96,26 @@ pub fn format_css(css: &str) -> Result<LeanString, CssFormatError> {
         .to_css(PrinterOptions::default())
         .map_err(|error| CssFormatError::Print(error.to_lean_str()))?
         .code;
-    Ok(replace_preview_slots(&formatted))
+    Ok(replace_preview_sentinels(&formatted))
 }
 
-/// Replaces [`PREVIEW_SLOT`] lines with `/* … */` (or `/* <prelude>: … */` when the
-/// sentinel carries a condition prelude) and removes any blank line that Lightning CSS
-/// inserts between a preceding declaration and the sentinel at-rule.
-fn replace_preview_slots(css: &str) -> LeanString {
-    if !css.contains(PREVIEW_SLOT_RULE) {
+/// Replaces [`PREVIEW_SLOT`] lines with `/* … */` (or `/* <prelude>: … */`) and
+/// [`PREVIEW_COMMENT_RULE`] lines with `/* <text> */`, removing blank lines inserted by
+/// Lightning CSS around them.
+fn replace_preview_sentinels(css: &str) -> LeanString {
+    if !css.contains(PREVIEW_SLOT_RULE) && !css.contains(PREVIEW_COMMENT_RULE) {
         return css.into();
     }
     let mut output = LeanString::with_capacity(css.len());
     let mut lines = css.split_inclusive('\n').peekable();
+    let mut skip_blank = false;
     while let Some(line) = lines.next() {
+        if skip_blank {
+            skip_blank = false;
+            if line.trim().is_empty() {
+                continue;
+            }
+        }
         if line.trim().is_empty()
             && output.ends_with(";\n")
             && lines
@@ -71,11 +134,46 @@ fn replace_preview_slots(css: &str) -> LeanString {
             output.push_str(indent);
             output.push_str(&comment);
             output.push_str(newline);
+        } else if let Some(comment) = preview_comment_line(trimmed) {
+            let indent = &body[..body.len() - trimmed.len()];
+            output.push_str(indent);
+            output.push_str(&comment);
+            output.push_str(newline);
+            skip_blank = true;
         } else {
             output.push_str(line);
         }
     }
     output
+}
+
+/// Returns the `/* ... */` comment for a trimmed [`PREVIEW_COMMENT_RULE`] line, or
+/// `None` for any other line.
+fn preview_comment_line(trimmed: &str) -> Option<LeanString> {
+    let rest = trimmed
+        .strip_prefix(PREVIEW_COMMENT_RULE)?
+        .strip_prefix(' ')?
+        .strip_suffix(';')?
+        .trim();
+    let inner = rest
+        .strip_prefix('"')
+        .and_then(|value| value.strip_suffix('"'))
+        .or_else(|| {
+            rest.strip_prefix('\'')
+                .and_then(|value| value.strip_suffix('\''))
+        })?;
+    let mut text = String::with_capacity(inner.len());
+    let mut chars = inner.chars();
+    while let Some(ch) = chars.next() {
+        if ch == '\\'
+            && let Some(escaped) = chars.next()
+        {
+            text.push(escaped);
+        } else {
+            text.push(ch);
+        }
+    }
+    Some(format!("/* {text} */").into())
 }
 
 /// Returns the placeholder comment for a trimmed [`PREVIEW_SLOT`] line, or `None` for
@@ -169,5 +267,19 @@ mod tests {
             .unwrap(),
             "&:before {\n  content: var(--tw-content);\n  /* if(style(--foo)): … */\n}\n"
         );
+    }
+
+    #[test]
+    fn formats_preview_comments_and_sanitizes_text() {
+        let css = format!(
+            "{}&{{padding:1rem;}}{}&{{color:red;}}",
+            preview_comment_at_rule("active"),
+            preview_comment_at_rule("intent === \"primary\" && /* x */\n  size === \"lg\"")
+        );
+        assert_eq!(
+            format_css(&css).unwrap(),
+            "/* active */\n& {\n  padding: 1rem;\n}\n\n/* intent === \"primary\" && /* x *\u{200B}/ size === \"lg\" */\n& {\n  color: red;\n}\n"
+        );
+        assert_eq!(preview_comment_at_rule("   \n\t  "), "");
     }
 }

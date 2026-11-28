@@ -74,9 +74,9 @@ pub use compiled_module::{
     ModuleTransformError,
 };
 pub use compiler::{
-    CompileResult, Compiler, CssContribution, EditorSite, EditorSiteKind, GeneratedClass,
-    GeneratedSymbol, GeneratedSymbolKind, GuardStep, ModuleEditor, StylesheetLint, SymbolOrigin,
-    lint_stylesheets,
+    CompileResult, Compiler, CssContribution, EditorRecipe, EditorRecipeValue, EditorSite,
+    EditorSiteKind, GeneratedClass, GeneratedSymbol, GeneratedSymbolKind, GuardStep, ModuleEditor,
+    StylesheetLint, SymbolOrigin, lint_stylesheets,
 };
 pub use identifiers::{
     AnchorName, AnchorNameRequest, ClassContext, ClassName, ConditionContext, ConditionHelperName,

@@ -10,10 +10,12 @@ use std::fmt::Write as _;
 
 use lean_string::{LeanStr, LeanString, ToLeanStr, ToLeanString};
 
+use stillwind_css::preview_comment_at_rule;
 use stillwind_design_system::{ThemeIndex, UtilityImportance, UtilityOrder, VariantContext};
 use stillwind_diagnostics::CompileDiagnostic;
+use stillwind_ir::ConditionalLabel;
 use stillwind_semantic::DeclarationKey;
-use stillwind_source::{JoinText, ModuleId, Span};
+use stillwind_source::{JoinText, ModuleId, SourceFile, Span};
 
 use super::RuleBoundaries;
 use super::fragment::Emitted;
@@ -155,6 +157,10 @@ pub(super) struct BaseUnit {
 
 /// Per-call class allocation and deferred stylesheet output.
 pub(super) struct ClassUnits<'a> {
+    /// Original source buffer used to format JavaScript condition comments in previews.
+    source: &'a SourceFile,
+    /// Pre-formatted truthy and falsy display text for conditional test expressions.
+    conditional_labels: &'a [ConditionalLabel],
     /// Compiler identity included in class hashes and symbol provenance.
     module_id: &'a ModuleId,
     /// Generation settings for canonical class inputs.
@@ -200,6 +206,8 @@ impl<'a> ClassUnits<'a> {
     /// generated element selectors with `&` and supplies slot capture or replay state.
     #[allow(clippy::too_many_arguments)] // One borrow per compilation-wide destination.
     pub(super) fn new(
+        source: &'a SourceFile,
+        conditional_labels: &'a [ConditionalLabel],
         module_id: &'a ModuleId,
         options: &'a CompilerOptions,
         identifiers: &'a IdentifierContext,
@@ -212,6 +220,8 @@ impl<'a> ClassUnits<'a> {
         emitted_utility_classes: &'a mut BTreeSet<(LeanStr, LeanStr)>,
     ) -> Self {
         Self {
+            source,
+            conditional_labels,
             module_id,
             options,
             identifiers,
@@ -295,7 +305,20 @@ impl<'a> ClassUnits<'a> {
                 &mut contribution.utilities,
                 false,
             )?;
-            let (name, rules) = self.name_unit(&branch, &contribution.utilities)?;
+            let (name, mut rules) = self.name_unit(&branch, &contribution.utilities)?;
+            if self.preview.is_some()
+                && !guard.is_empty()
+                && let Some(first) = rules.iter_mut().find(|rule| !rule.css.is_empty())
+            {
+                let comment = preview_comment_at_rule(&format_guard_path(
+                    self.source,
+                    self.conditional_labels,
+                    guard,
+                ));
+                if !comment.is_empty() {
+                    first.css = format_args!("{comment}{}", first.css).to_lean_str();
+                }
+            }
             names.push(name.clone());
             self.view_transition_classes.push(unit);
             self.classes.push((
@@ -632,4 +655,135 @@ impl<'a> ClassUnits<'a> {
         };
         Ok(self.identifiers.view_transition_slot(&context)?.property())
     }
+}
+
+/// Formats a guard path into a concise JavaScript boolean condition for preview comments.
+fn format_guard_path(
+    source: &SourceFile,
+    labels: &[ConditionalLabel],
+    guards: &[GuardStep],
+) -> LeanString {
+    let parts: Vec<LeanString> = guards
+        .iter()
+        .filter_map(|step| format_guard_step(source, labels, step, guards.len() > 1))
+        .collect();
+    parts.join(" && ").to_lean_string()
+}
+
+/// Formats one [`GuardStep`] as a JavaScript condition expression.
+fn format_guard_step(
+    source: &SourceFile,
+    labels: &[ConditionalLabel],
+    step: &GuardStep,
+    compound: bool,
+) -> Option<LeanString> {
+    if step.key.is_none()
+        && let Some(label) = labels.iter().find(|label| label.span == step.test)
+    {
+        let text = if step.when_true {
+            label.truthy.as_str()
+        } else {
+            label.falsy.as_str()
+        };
+        if !text.is_empty() {
+            return Some(if compound && needs_and_parens(text) {
+                format_args!("({text})").to_lean_string()
+            } else {
+                text.to_lean_string()
+            });
+        }
+    }
+    let raw = source.slice(step.test).ok()?.trim();
+    if raw.is_empty() {
+        return None;
+    }
+    if let Some(key) = &step.key {
+        let key_literal = serde_json::Value::String(key.as_str().into()).to_lean_string();
+        let lhs = if needs_parens(raw) {
+            format_args!("({raw})").to_lean_string()
+        } else {
+            raw.to_lean_string()
+        };
+        return Some(format_args!("{lhs} === {key_literal}").to_lean_string());
+    }
+    if step.when_true {
+        return Some(if compound && needs_and_parens(raw) {
+            format_args!("({raw})").to_lean_string()
+        } else {
+            raw.to_lean_string()
+        });
+    }
+    if needs_parens(raw) {
+        Some(format_args!("!({raw})").to_lean_string())
+    } else {
+        Some(format_args!("!{raw}").to_lean_string())
+    }
+}
+
+/// Reports whether `expr` needs parentheses when negated or placed on the left of `===`.
+fn needs_parens(expr: &str) -> bool {
+    let mut depth = 0usize;
+    let mut quote: Option<char> = None;
+    let mut escaped = false;
+    for ch in expr.chars() {
+        if escaped {
+            escaped = false;
+            continue;
+        }
+        if let Some(q) = quote {
+            if ch == '\\' {
+                escaped = true;
+            } else if ch == q {
+                quote = None;
+            }
+            continue;
+        }
+        match ch {
+            '\'' | '"' | '`' => quote = Some(ch),
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => depth = depth.saturating_sub(1),
+            c if depth == 0
+                && (c.is_whitespace()
+                    || matches!(
+                        c,
+                        '?' | ':' | ',' | '=' | '|' | '&' | '<' | '>' | '+' | '-' | '*' | '/' | '%'
+                    )) =>
+            {
+                return true;
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
+/// Reports whether `expr` needs parentheses when joined with `&&`.
+fn needs_and_parens(expr: &str) -> bool {
+    let mut depth = 0usize;
+    let mut quote: Option<char> = None;
+    let mut escaped = false;
+    let mut chars = expr.chars().peekable();
+    while let Some(ch) = chars.next() {
+        if escaped {
+            escaped = false;
+            continue;
+        }
+        if let Some(q) = quote {
+            if ch == '\\' {
+                escaped = true;
+            } else if ch == q {
+                quote = None;
+            }
+            continue;
+        }
+        match ch {
+            '\'' | '"' | '`' => quote = Some(ch),
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => depth = depth.saturating_sub(1),
+            '?' | ',' if depth == 0 => return true,
+            '|' if depth == 0 && chars.peek() == Some(&'|') => return true,
+            _ => {}
+        }
+    }
+    false
 }

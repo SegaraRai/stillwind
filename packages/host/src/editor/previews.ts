@@ -164,6 +164,38 @@ export class GeneratedPreviews {
   }
 
   /**
+   * Assembles previews for a sequence of declaration identities in their supplied order,
+   * deduplicating CSS parts and runtime expressions.
+   *
+   * @param identities - Declaration identities to combine.
+   * @returns Combined preview, or undefined if no identity produces CSS.
+   */
+  previewIdentities(identities: readonly NativeIdentity[]): GeneratedPreview | undefined {
+    const parts: string[] = [];
+    const runtimeNames = new Set<string>();
+    for (const identity of identities) {
+      const preview = this.previewIdentity(identity);
+      if (!preview) {
+        continue;
+      }
+      if (preview.css) {
+        parts.push(preview.css);
+      }
+      for (const name of preview.runtimeNames) {
+        runtimeNames.add(name);
+      }
+    }
+    const css = [...new Set(parts)].join("\n");
+    if (!css) {
+      return undefined;
+    }
+    return {
+      css,
+      runtimeNames: [...runtimeNames],
+    };
+  }
+
+  /**
    * Assembles `site` and its dependencies from this capture batch. Composed styles precede
    * the site's CSS, and global definitions follow it. Each dependency identity is visited once.
    * Identical CSS parts and runtime expression text are deduplicated in traversal order.

@@ -11,12 +11,13 @@ use std::sync::Arc;
 
 use lean_string::{LeanStr, LeanString, ToLeanString};
 
-use stillwind_css::PREVIEW_SLOT;
+use stillwind_css::{PREVIEW_SLOT, preview_comment_at_rule};
 use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_diagnostics::LintSettings;
 use stillwind_ir::{
     CssCall, KeyframesBody, KeyframesDefinition, MediaCall, ModuleAnalysis, RecipeCall,
-    RefDefinition, StoredVariantDefinition, StyleCall, StyleVariant, ViewTransitionDefinition,
+    RecipeValueRole, RefDefinition, StoredVariantDefinition, StyleCall, StyleVariant,
+    ViewTransitionDefinition,
 };
 use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::{Fingerprint, ModuleId, Span};
@@ -93,6 +94,29 @@ pub struct EditorSite {
     /// Authored expressions that supply view-transition naming keys at runtime, in
     /// source order. Repeated occurrences can contain the same expression text.
     pub runtime_names: Vec<LeanStr>,
+    /// Static recipe metadata for filtering previews at `recipe({ ... })` call sites.
+    /// Present only on a complete `style.recipe()` factory site.
+    pub recipe: Option<EditorRecipe>,
+}
+
+/// Static recipe structure retained on a `style.recipe()` site for filtering call-site
+/// previews.
+#[derive(Clone, Debug)]
+pub struct EditorRecipe {
+    /// Default option key for each axis declared in `defaultVariants`, in authored order.
+    pub default_variants: Vec<(LeanStr, LeanStr)>,
+    /// Compiled recipe values with their declaration identities and variant conditions,
+    /// in source order.
+    pub values: Vec<EditorRecipeValue>,
+}
+
+/// One compiled value of a recipe paired with the variant axis conditions that select it.
+#[derive(Clone, Debug)]
+pub struct EditorRecipeValue {
+    /// Declaration identity of the value's compiled `StyleCall` site.
+    pub identity: IdentityId,
+    /// Variant axis conditions that select this value. Empty for unconditional values.
+    pub conditions: Vec<(LeanStr, Vec<LeanStr>)>,
 }
 
 /// Enclosing IR retained for an occurrence or a replacement literal.
@@ -265,6 +289,7 @@ impl ModuleEditor {
             css: css.unwrap_or_default().into(),
             dependencies: Vec::new(),
             runtime_names: Vec::new(),
+            recipe: None,
         });
     }
 
@@ -290,6 +315,7 @@ impl ModuleEditor {
             css: css.unwrap_or_default().into(),
             dependencies: Vec::new(),
             runtime_names: Vec::new(),
+            recipe: None,
         });
     }
 
@@ -309,11 +335,12 @@ impl ModuleEditor {
             css: literal.unwrap_or_default().into(),
             dependencies: Vec::new(),
             runtime_names: Vec::new(),
+            recipe: None,
         });
     }
 
-    /// Records a `style.recipe()` factory call whose dependencies assemble all of its
-    /// compiled value sites.
+    /// Records a `style.recipe()` factory call and each of its scoped configuration
+    /// regions (`slots`, variant axes, variant options, and compound entries).
     fn add_recipe(&mut self, recipe: &RecipeCall) {
         let valid = !recipe.empty
             && !self
@@ -326,24 +353,47 @@ impl ModuleEditor {
                         && label.span.start < recipe.span.end
                         && recipe.span.start < label.span.end
                 });
-        let dependencies = if valid {
-            recipe
-                .values
-                .iter()
-                .map(|value| {
-                    IdentityId::new(
-                        AssetKind::Style,
-                        self.module.module_id.clone(),
-                        value.key.clone(),
-                        "",
-                    )
-                })
-                .collect::<BTreeSet<_>>()
-                .into_iter()
-                .collect()
-        } else {
-            Vec::new()
+        let value_id = |value: &StyleCall| {
+            IdentityId::new(
+                AssetKind::Style,
+                self.module.module_id.clone(),
+                value.key.clone(),
+                "",
+            )
         };
+        let mut dependencies = Vec::new();
+        let mut seen = BTreeSet::new();
+        let mut recipe_values = Vec::new();
+        if valid {
+            for value in &recipe.values {
+                let id = value_id(value);
+                if seen.insert(id.clone()) {
+                    dependencies.push(id.clone());
+                }
+                let conditions = recipe
+                    .roles
+                    .iter()
+                    .find(|role| role.span == value.span)
+                    .map_or_default(|role| {
+                        role.conditions
+                            .iter()
+                            .map(|cond| (cond.axis.clone(), cond.values.clone()))
+                            .collect()
+                    });
+                recipe_values.push(EditorRecipeValue {
+                    identity: id,
+                    conditions,
+                });
+            }
+        }
+        let editor_recipe = valid.then(|| EditorRecipe {
+            default_variants: recipe
+                .default_variants
+                .iter()
+                .map(|default| (default.axis.clone(), default.value.clone()))
+                .collect(),
+            values: recipe_values,
+        });
         self.sites.push(EditorSite {
             span: recipe.span,
             kind: EditorSiteKind::Style,
@@ -354,7 +404,42 @@ impl ModuleEditor {
             css: LeanStr::new(),
             dependencies,
             runtime_names: Vec::new(),
+            recipe: editor_recipe,
         });
+        if valid {
+            let mut scope_spans = BTreeSet::new();
+            for scope in &recipe.preview_scopes {
+                if scope.span == recipe.span
+                    || !scope_spans.insert((scope.span.start.0, scope.span.end.0))
+                {
+                    continue;
+                }
+                let mut scope_deps = Vec::new();
+                let mut scope_seen = BTreeSet::new();
+                for span in &scope.values {
+                    if let Some(value) = recipe.values.iter().find(|value| value.span == *span) {
+                        let id = value_id(value);
+                        if scope_seen.insert(id.clone()) {
+                            scope_deps.push(id);
+                        }
+                    }
+                }
+                if !scope_deps.is_empty() {
+                    self.sites.push(EditorSite {
+                        span: scope.span,
+                        kind: EditorSiteKind::Style,
+                        identity: None,
+                        context: None,
+                        enclosing_variant: false,
+                        valid: true,
+                        css: LeanStr::new(),
+                        dependencies: scope_deps,
+                        runtime_names: Vec::new(),
+                        recipe: None,
+                    });
+                }
+            }
+        }
     }
 
     /// Records a complete definition and an isolated plan for each frame and condition
@@ -528,6 +613,7 @@ impl ModuleEditor {
                     css: css.unwrap_or_default().into(),
                     dependencies: Vec::new(),
                     runtime_names: Vec::new(),
+                    recipe: None,
                 });
             }
         }
@@ -642,6 +728,7 @@ impl ModuleEditor {
             css: (css).into(),
             dependencies,
             runtime_names,
+            recipe: None,
         });
         if context.is_some() {
             self.plans.push((span, plan));
@@ -743,6 +830,7 @@ impl ModuleEditor {
                 };
                 run(CallEmitterInputs {
                     preview: Some(slots),
+                    conditional_labels: &self.module.ir.conditional_labels,
                     source: &self.module.source,
                     module_id: &self.module.module_id,
                     options: &self.options,
@@ -799,10 +887,71 @@ impl ModuleEditor {
             })
             .collect::<Result<LeanString, _>>()
             .ok()?;
-        Some((
-            preview_resource_urls(css, &self.snapshot),
-            dependencies.into_iter().collect(),
-        ))
+        let mut css = preview_resource_urls(css, &self.snapshot);
+        if !css.is_empty()
+            && let EditorPlan::Call(call) = plan
+            && let Some(comment) = self.recipe_role_comment(call.span)
+        {
+            css = format_args!("{comment}{css}").to_lean_string();
+        }
+        Some((css, dependencies.into_iter().collect()))
+    }
+
+    /// Returns a [`preview_comment_at_rule`] describing the slot and variant conditions of
+    /// the recipe value at `span`, or `None` when `span` is not a recipe value or is an
+    /// unconditional base value of a non-slotted recipe.
+    fn recipe_role_comment(&self, span: Span) -> Option<LeanString> {
+        let recipe = self
+            .module
+            .ir
+            .recipe_calls
+            .iter()
+            .find(|factory| factory.values.iter().any(|value| value.span == span))?;
+        let role = recipe.roles.iter().find(|role| role.span == span)?;
+        let label = format_recipe_role(recipe, role);
+        let comment = preview_comment_at_rule(&label);
+        (!comment.is_empty()).then_some(comment)
+    }
+}
+
+/// Formats a recipe value's slot names and variant conditions for a rule-leading comment.
+fn format_recipe_role(recipe: &RecipeCall, role: &RecipeValueRole) -> LeanString {
+    let slot_prefix = if recipe.has_slots && !role.slots.is_empty() {
+        Some(format_args!("[{}]", role.slots.join(", ")).to_lean_string())
+    } else {
+        None
+    };
+    let multi_axis = role.conditions.len() > 1;
+    let cond_parts: Vec<LeanString> = role
+        .conditions
+        .iter()
+        .filter(|cond| !cond.values.is_empty())
+        .map(|cond| {
+            let exprs: Vec<LeanString> = cond
+                .values
+                .iter()
+                .map(|val| {
+                    let lit = if val == "true" || val == "false" {
+                        val.as_str().to_lean_string()
+                    } else {
+                        serde_json::Value::String(val.as_str().into()).to_lean_string()
+                    };
+                    format_args!("{} === {lit}", cond.axis).to_lean_string()
+                })
+                .collect();
+            if exprs.len() > 1 && multi_axis {
+                format_args!("({})", exprs.join(" || ")).to_lean_string()
+            } else {
+                exprs.join(" || ").to_lean_string()
+            }
+        })
+        .collect();
+    let cond_suffix = (!cond_parts.is_empty()).then(|| cond_parts.join(" && ").to_lean_string());
+    match (slot_prefix, cond_suffix) {
+        (Some(slots), Some(cond)) => format_args!("{slots} {cond}").to_lean_string(),
+        (Some(slots), None) => slots,
+        (None, Some(cond)) => cond,
+        (None, None) => LeanString::new(),
     }
 }
 

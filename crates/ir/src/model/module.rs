@@ -50,6 +50,22 @@ pub struct ModuleIr {
     /// In source order. Each entry is a `style.when()` declaration.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub stored_variants: Vec<StoredVariantDefinition>,
+    /// Pre-formatted truthy and falsy display text for conditional test expressions,
+    /// derived by the source frontend from its parsed AST.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub conditional_labels: Vec<ConditionalLabel>,
+}
+
+/// Pre-formatted truthy and falsy preview labels for a conditional test expression.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConditionalLabel {
+    /// Span of the test expression in the original source.
+    pub span: Span,
+    /// Normalized truthy display text (for example `!!a` simplified to `a`).
+    pub truthy: LeanStr,
+    /// Top-level negated display text (for example `a === b` inverted to `a !== b`).
+    pub falsy: LeanStr,
 }
 
 impl ModuleIr {
@@ -80,6 +96,7 @@ impl ModuleIr {
             keyframes_declarations: Vec::new(),
             view_transition_declarations: Vec::new(),
             stored_variants: Vec::new(),
+            conditional_labels: Vec::new(),
         }
     }
 }
@@ -107,6 +124,16 @@ pub struct RecipeCall {
     /// whose role is missing takes part in no layer comparison.
     #[serde(default)]
     pub roles: Vec<RecipeValueRole>,
+    /// Whether the recipe declares a `slots` configuration object.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub has_slots: bool,
+    /// Default option keys declared in `defaultVariants`, in authored order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub default_variants: Vec<RecipeDefaultVariant>,
+    /// Scoped configuration spans (slot entries, variant axes, variant options, and
+    /// compound entries) paired with their owned value spans, for targeted previews.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub preview_scopes: Vec<RecipePreviewScope>,
 }
 
 /// The slots that one recipe value styles, and whether the value adds to their base
@@ -122,6 +149,41 @@ pub struct RecipeValueRole {
     /// top of the base values of its slots. False for a base value, which is the first
     /// argument or an entry of `slots`.
     pub overlay: bool,
+    /// Variant axis conditions that select this value, in authored order. Empty for
+    /// `base`, `slots`, and unconditional `compoundSlots`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub conditions: Vec<RecipeCondition>,
+}
+
+/// One variant axis constraint on a recipe value.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecipeCondition {
+    /// Variant axis name, such as `intent` or `size`.
+    pub axis: LeanStr,
+    /// Matching option keys in authored order.
+    pub values: Vec<LeanStr>,
+}
+
+/// One axis default declared in a recipe's `defaultVariants`.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecipeDefaultVariant {
+    /// Variant axis name.
+    pub axis: LeanStr,
+    /// Default option key.
+    pub value: LeanStr,
+}
+
+/// A recipe configuration span mapped to the value spans it owns, for targeted hover
+/// previews.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecipePreviewScope {
+    /// Span of the configuration property or compound entry in the original source.
+    pub span: Span,
+    /// Value spans from [`RecipeCall::values`] included in this scope, in source order.
+    pub values: Vec<Span>,
 }
 
 /// One configuration expression or entry replaced during recipe validation.

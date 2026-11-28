@@ -96,6 +96,7 @@ impl<'a> MacroExtractor<'a> {
             Expression::ConditionalExpression(conditional) => {
                 let mut consequent = Vec::new();
                 let mut alternate = Vec::new();
+                self.record_conditional_label(&conditional.test);
                 self.collect_style_expression(&conditional.consequent, &mut consequent);
                 self.collect_style_expression(&conditional.alternate, &mut alternate);
                 inputs.push(StyleInput::Conditional {
@@ -109,6 +110,7 @@ impl<'a> MacroExtractor<'a> {
             }
             Expression::LogicalExpression(logical) if logical.operator == LogicalOperator::And => {
                 let mut consequent = Vec::new();
+                self.record_conditional_label(&logical.left);
                 self.collect_style_expression(&logical.right, &mut consequent);
                 inputs.push(StyleInput::Conditional {
                     test: self.source_span(logical.left.span()),

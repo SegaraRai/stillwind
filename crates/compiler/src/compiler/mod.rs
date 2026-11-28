@@ -63,7 +63,7 @@ mod utilities;
 mod variants;
 
 pub use api::Compiler;
-pub use editor::{EditorSite, EditorSiteKind, ModuleEditor};
+pub use editor::{EditorRecipe, EditorRecipeValue, EditorSite, EditorSiteKind, ModuleEditor};
 pub use output::{CompileResult, CssContribution};
 pub use props::{GeneratedClass, GuardStep};
 pub use stylesheet::{StylesheetLint, lint_stylesheets};

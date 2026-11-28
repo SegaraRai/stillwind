@@ -2,7 +2,9 @@
 
 use lean_string::{LeanStr, ToLeanStr};
 
-use stillwind_css::{CssNode, CssNodeKind, PREVIEW_SLOT_RULE, parse_structure};
+use stillwind_css::{
+    CssNode, CssNodeKind, PREVIEW_COMMENT_RULE, PREVIEW_SLOT_RULE, parse_structure,
+};
 
 /// Returns a short summary of the generated CSS `css` of one selected completion.
 ///
@@ -32,7 +34,8 @@ pub fn completion_detail(css: &str) -> Option<LeanStr> {
                 }
                 CssNodeKind::AtRule { name, .. }
                     if matches!(name.as_str(), "property" | "apply")
-                        || PREVIEW_SLOT_RULE.strip_prefix('@') == Some(name.as_str()) =>
+                        || PREVIEW_SLOT_RULE.strip_prefix('@') == Some(name.as_str())
+                        || PREVIEW_COMMENT_RULE.strip_prefix('@') == Some(name.as_str()) =>
                 {
                     continue;
                 }

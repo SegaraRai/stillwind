@@ -8,7 +8,7 @@ use std::rc::Rc;
 use napi::Env;
 use napi_derive::napi;
 
-use stillwind_compiler::{EditorSiteKind, ModuleEditor};
+use stillwind_compiler::{EditorRecipe, EditorSiteKind, ModuleEditor};
 
 use crate::editor::NativeCandidateContext;
 use crate::naming::NativeNaming;
@@ -80,6 +80,78 @@ pub struct NativeEditorSite {
     /// Distinct source occurrences can contain the same expression text.
     #[napi(ts_type = "Array<string>")]
     pub runtime_names: Vec<NativeText>,
+    /// Static recipe structure for filtering previews at recipe call sites.
+    pub recipe: Option<NativeEditorRecipe>,
+}
+
+/// Static recipe structure exposed on a `style.recipe()` site.
+#[napi(object, object_from_js = false)]
+pub struct NativeEditorRecipe {
+    /// Default option key for each axis declared in `defaultVariants`.
+    pub default_variants: Vec<NativeEditorRecipeDefault>,
+    /// Compiled recipe values with their identities and variant conditions.
+    pub values: Vec<NativeEditorRecipeValue>,
+}
+
+/// One `defaultVariants` entry of a recipe.
+#[napi(object, object_from_js = false)]
+pub struct NativeEditorRecipeDefault {
+    /// Variant axis name.
+    #[napi(ts_type = "string")]
+    pub axis: NativeText,
+    /// Default option key.
+    #[napi(ts_type = "string")]
+    pub value: NativeText,
+}
+
+/// One compiled value of a recipe with its variant conditions.
+#[napi(object, object_from_js = false)]
+pub struct NativeEditorRecipeValue {
+    /// Identity of the value's compiled style site.
+    pub identity: NativeIdentity,
+    /// Variant axis conditions that select this value.
+    pub conditions: Vec<NativeEditorRecipeCondition>,
+}
+
+/// One variant axis condition on a recipe value.
+#[napi(object, object_from_js = false)]
+pub struct NativeEditorRecipeCondition {
+    /// Variant axis name.
+    #[napi(ts_type = "string")]
+    pub axis: NativeText,
+    /// Matching option keys.
+    #[napi(ts_type = "Array<string>")]
+    pub values: Vec<NativeText>,
+}
+
+impl From<&EditorRecipe> for NativeEditorRecipe {
+    fn from(recipe: &EditorRecipe) -> Self {
+        Self {
+            default_variants: recipe
+                .default_variants
+                .iter()
+                .map(|(axis, value)| NativeEditorRecipeDefault {
+                    axis: axis.clone().into(),
+                    value: value.clone().into(),
+                })
+                .collect(),
+            values: recipe
+                .values
+                .iter()
+                .map(|value| NativeEditorRecipeValue {
+                    identity: value.identity.clone().into(),
+                    conditions: value
+                        .conditions
+                        .iter()
+                        .map(|(axis, values)| NativeEditorRecipeCondition {
+                            axis: axis.clone().into(),
+                            values: values.iter().cloned().map(Into::into).collect(),
+                        })
+                        .collect(),
+                })
+                .collect(),
+        }
+    }
 }
 
 /// Captured input plans and previews that remain valid after the session changes.
@@ -138,6 +210,7 @@ impl NativeModuleEditor {
                 css: (site.css.clone()).into(),
                 dependencies: site.dependencies.iter().cloned().map(Into::into).collect(),
                 runtime_names: site.runtime_names.iter().cloned().map(Into::into).collect(),
+                recipe: site.recipe.as_ref().map(Into::into),
             })
             .collect()
     }
