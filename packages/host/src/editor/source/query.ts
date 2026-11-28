@@ -358,7 +358,7 @@ export class SourceQueries {
       | undefined;
     while (node) {
       const site = this.#index.previewSite(source, node);
-      if (site) {
+      if (site && (!reference || site.native.kind === "use")) {
         const preview = this.#index.previews.preview(site.native);
         const range = this.#index.range(source, node);
         return preview && range
@@ -372,7 +372,29 @@ export class SourceQueries {
       }
       if (!reference) {
         const asset = this.#index.asset(source, node);
-        const preview = asset && this.#index.previews.previewIdentity(asset.identity);
+        let preview = asset && this.#index.previews.previewIdentity(asset.identity);
+        if (!preview) {
+          const init = this.#index.initializer(source, node);
+          if (init) {
+            const initSite = this.#index.previewSite(init.source, init.node);
+            if (initSite) {
+              preview = this.#index.previews.preview(initSite.native);
+            } else {
+              const initRange = this.#index.range(init.source, init.node);
+              const variantSite =
+                initRange &&
+                this.#index.previews
+                  .sites(init.source)
+                  .find(
+                    (site) =>
+                      site.native.kind === "variant" &&
+                      initRange[0] <= site.start &&
+                      site.end <= initRange[1],
+                  );
+              preview = variantSite && this.#index.previews.preview(variantSite.native);
+            }
+          }
+        }
         const range = this.#index.range(source, node);
         if (preview && range) {
           reference = {

@@ -189,9 +189,7 @@ Sources: [ref types](../packages/core/src/macro/refs.ts),
 `style.when()` stores a variant sequence or alternatives. These parts are not
 designed or built yet:
 
-- Editors: hover over a use should show the expanded sequence, string arguments
-  should complete variants as keys do, and go to definition should reach the
-  declaration.
+- Editors: go to definition should reach the declaration.
 - Recipes: recipe values reject computed keys, so they reject stored variants. Accepting a
   stored variant without a ref there is possible but has low priority, because few
   use cases need it.

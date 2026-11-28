@@ -384,6 +384,46 @@ list.at(box);`;
   }
 });
 
+test("stored variants, refs, media calls, and recipes preview on calls and variable references", async () => {
+  const source = `import {style} from "stillwind/react";
+const panel = style.ref("panel");
+const stored = style.when("hover:", "custom-media:");
+const refStored = style.when(panel("hover:"));
+const mq = style.media("md:", "custom-media:");
+const button = style.recipe("block", { variants: { dim: { true: "opacity-50" } } });
+const attached = style(panel, { [stored]: "block", [refStored]: "opacity-100" });
+console.log(mq, button, attached);`;
+  const current = await project(source);
+  try {
+    const refDecl = await hover(current, source, "style.ref");
+    expect(refDecl).toContain("&:where(.__ref_panel)");
+    expect(refDecl).toContain("/* … */");
+    expect(await hover(current, source, "panel, {")).toBe(refDecl);
+
+    const storedDecl = await hover(current, source, "style.when");
+    expect(storedDecl).toContain("&:hover");
+    expect(storedDecl).toContain("@media print");
+    expect(storedDecl).toContain("/* … */");
+    expect(await hover(current, source, "stored]:")).toBe(storedDecl);
+
+    const refStoredHover = await hover(current, source, "refStored]:");
+    expect(refStoredHover).toContain("&:is(:where(.__ref_panel):hover *)");
+    expect(refStoredHover).toContain("/* … */");
+
+    const mediaCall = await hover(current, source, "style.media");
+    expect(mediaCall).toContain("@media (width >= 40rem /* 640px */), print");
+    expect(mediaCall).toContain("/* … */");
+    expect(await hover(current, source, "mq,")).toBe(mediaCall);
+
+    const recipeCall = await hover(current, source, "style.recipe");
+    expect(recipeCall).toContain("display: block");
+    expect(recipeCall).toContain("opacity: .5");
+    expect(await hover(current, source, "button,")).toBe(recipeCall);
+  } finally {
+    await current.close();
+  }
+});
+
 test("imported definitions, composed styles, and finite uses contribute their actual CSS", async () => {
   const source = `import {style} from "stillwind/react"; import {first, second, base} from "./assets";
 declare const flag:boolean;

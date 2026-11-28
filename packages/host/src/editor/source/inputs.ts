@@ -276,6 +276,20 @@ export class SourceIndex {
   }
 
   /**
+   * Follows a stable variable or import reference to its initializer expression.
+   *
+   * @param source - Prepared source whose checker AST contains `node`.
+   * @param node - Reference expression to resolve.
+   * @returns The declaring source and initializer expression, or undefined when unresolved.
+   */
+  initializer(
+    source: PreparedSource,
+    node: ts.Node,
+  ): { source: PreparedSource; node: ts.Expression } | undefined {
+    return this.#bindings.initializer(source, node);
+  }
+
+  /**
    * Recognizes a call of an imported Stillwind style producer or of one of its methods,
    * such as `style()` or `style.when()`.
    *

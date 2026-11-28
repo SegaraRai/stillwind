@@ -381,3 +381,19 @@ test("directive and slot completions resolve to documentation without generated 
     ).toContain(expected);
   }
 });
+
+test("hovering a @stillwind-require-properties argument shows its @property registration", () => {
+  const loader = new NativeDesignSystemLoader();
+  const text = `@stillwind-property --sw-gap { syntax: "<length>"; inherits: false; initial-value: 1rem; }
+@utility spaced { @stillwind-require-properties --sw-gap; gap: var(--sw-gap); }`;
+  loader.provide(0, "theme.css", text);
+  const editor = new StylesheetEditor("theme.css", text, [], loader.editorQuery());
+  const hover = editor.query("theme.css", {
+    kind: "hover",
+    offset: text.indexOf("--sw-gap;") + 2,
+  })?.hover;
+  expect(hover?.css).toContain("@property --sw-gap");
+  expect(hover?.css).toContain('syntax: "<length>"');
+  expect(hover?.css).toContain("initial-value: 1rem /* 16px */");
+  expect(hover?.documentation).toContain("Registered custom property");
+});

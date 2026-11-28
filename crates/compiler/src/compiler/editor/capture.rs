@@ -11,11 +11,12 @@ use std::sync::Arc;
 
 use lean_string::{LeanStr, LeanString, ToLeanString};
 
+use stillwind_css::PREVIEW_SLOT;
 use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_diagnostics::LintSettings;
 use stillwind_ir::{
-    CssCall, KeyframesBody, KeyframesDefinition, ModuleAnalysis, StyleCall, StyleVariant,
-    ViewTransitionDefinition,
+    CssCall, KeyframesBody, KeyframesDefinition, MediaCall, ModuleAnalysis, RecipeCall,
+    RefDefinition, StoredVariantDefinition, StyleCall, StyleVariant, ViewTransitionDefinition,
 };
 use stillwind_semantic::{AssetKind, IdentityId};
 use stillwind_source::{Fingerprint, ModuleId, Span};
@@ -25,16 +26,17 @@ use super::super::conditionals::lower;
 use super::super::css_call::{CssOutput, css_call_text};
 use super::super::definitions::{emit_keyframes_definition, emit_view_transition_definition};
 use super::super::emission::{CallEmitter, CallEmitterInputs};
+use super::super::media::media_query;
 use super::super::style_variants::StyleVariantPlan;
 use super::super::stylesheet::render_authored_variant_preview_path;
-use super::super::symbols::named_identity;
+use super::super::symbols::{named_identity, ref_context};
 use super::input::{
     collect_bases, has_enclosing_variant, identity_wrappers, input_plans, replace_text,
 };
 use super::resources::preview_resource_urls;
 use super::runtime::collect_runtime_names;
 use crate::compiler::rewrite_generated_css;
-use crate::identifiers::{IdentifierContext, PreviewNames};
+use crate::identifiers::{DeclarationContext, IdentifierContext, PreviewNames};
 use crate::{CandidateContext, CompilerOptions, CssContribution, Identifiers};
 
 /// The source object addressed by a generated preview.
@@ -171,6 +173,12 @@ impl ModuleEditor {
             slots: BTreeMap::new(),
             names,
         };
+        for definition in &module.ir.ref_definitions {
+            editor.add_ref(definition);
+        }
+        for definition in &module.ir.stored_variants {
+            editor.add_stored_variant(definition);
+        }
         for definition in &module.ir.keyframes_declarations {
             editor.add_keyframes(definition);
         }
@@ -179,6 +187,12 @@ impl ModuleEditor {
         }
         for call in module.ir.style_inputs() {
             editor.add_call(call);
+        }
+        for recipe in &module.ir.recipe_calls {
+            editor.add_recipe(recipe);
+        }
+        for call in &module.ir.media_calls {
+            editor.add_media(call);
         }
         for call in &module.ir.css_calls {
             editor.add_css(call);
@@ -211,6 +225,131 @@ impl ModuleEditor {
     /// Returns the original module identity shared by all captured source ranges.
     pub fn module_id(&self) -> &ModuleId {
         &self.module.module_id
+    }
+
+    /// Records a `style.ref()` declaration with its preview marker selector.
+    fn add_ref(&mut self, definition: &RefDefinition) {
+        let context = self
+            .identifiers
+            .context(self.options.hash_length)
+            .with_preview_names(Rc::clone(&self.names));
+        let info = ref_context(definition, None);
+        let css = context
+            .ref_marker_name(&DeclarationContext {
+                module: info.module,
+                key: info.key,
+                binding: info.binding,
+                label: info.label,
+            })
+            .ok()
+            .map(|marker| {
+                format_args!("&:where({}){{{PREVIEW_SLOT}}}", marker.selector()).to_lean_string()
+            });
+        self.sites.push(EditorSite {
+            span: definition.call_span,
+            kind: EditorSiteKind::Variant,
+            identity: Some(named_identity(
+                &self.module.module_id,
+                AssetKind::Ref,
+                &definition.binding,
+                &definition.key,
+            )),
+            context: None,
+            enclosing_variant: false,
+            valid: css.is_some(),
+            css: css.unwrap_or_default().into(),
+            dependencies: Vec::new(),
+            runtime_names: Vec::new(),
+        });
+    }
+
+    /// Records a `style.when()` stored variant declaration with its expanded wrappers.
+    fn add_stored_variant(&mut self, definition: &StoredVariantDefinition) {
+        let css = definition
+            .variants
+            .as_deref()
+            .filter(|variants| !variants.is_empty())
+            .and_then(|variants| self.render_variants(variants));
+        self.sites.push(EditorSite {
+            span: definition.call_span,
+            kind: EditorSiteKind::Variant,
+            identity: Some(named_identity(
+                &self.module.module_id,
+                AssetKind::StoredVariant,
+                &definition.binding,
+                &definition.key,
+            )),
+            context: None,
+            enclosing_variant: false,
+            valid: css.is_some(),
+            css: css.unwrap_or_default().into(),
+            dependencies: Vec::new(),
+            runtime_names: Vec::new(),
+        });
+    }
+
+    /// Records a `style.media()` call with its combined media query list.
+    fn add_media(&mut self, call: &MediaCall) {
+        let mut findings = Vec::new();
+        let query = media_query(call, self.snapshot.theme(), &mut findings);
+        let css = (findings.is_empty() && !call.arguments.is_empty())
+            .then(|| format_args!("@media {query}{{{PREVIEW_SLOT}}}").to_lean_string());
+        self.sites.push(EditorSite {
+            span: call.span,
+            kind: EditorSiteKind::Variant,
+            identity: None,
+            context: None,
+            enclosing_variant: false,
+            valid: css.is_some(),
+            css: css.unwrap_or_default().into(),
+            dependencies: Vec::new(),
+            runtime_names: Vec::new(),
+        });
+    }
+
+    /// Records a `style.recipe()` factory call whose dependencies assemble all of its
+    /// compiled value sites.
+    fn add_recipe(&mut self, recipe: &RecipeCall) {
+        let valid = !recipe.empty
+            && !self
+                .module
+                .diagnostics
+                .iter()
+                .flat_map(|error| &error.labels)
+                .any(|label| {
+                    label.span.file == recipe.span.file
+                        && label.span.start < recipe.span.end
+                        && recipe.span.start < label.span.end
+                });
+        let dependencies = if valid {
+            recipe
+                .values
+                .iter()
+                .map(|value| {
+                    IdentityId::new(
+                        AssetKind::Style,
+                        self.module.module_id.clone(),
+                        value.key.clone(),
+                        "",
+                    )
+                })
+                .collect::<BTreeSet<_>>()
+                .into_iter()
+                .collect()
+        } else {
+            Vec::new()
+        };
+        self.sites.push(EditorSite {
+            span: recipe.span,
+            kind: EditorSiteKind::Style,
+            identity: None,
+            context: None,
+            enclosing_variant: false,
+            valid,
+            css: LeanStr::new(),
+            dependencies,
+            runtime_names: Vec::new(),
+        });
     }
 
     /// Records a complete definition and an isolated plan for each frame and condition
@@ -373,7 +512,7 @@ impl ModuleEditor {
             };
             // A stored variant that a call uses several times yields the same wrapper.
             if spans.insert((span.start.0, span.end.0)) {
-                let css = self.render_variant(wrapper);
+                let css = self.render_variants(std::slice::from_ref(wrapper));
                 self.sites.push(EditorSite {
                     span,
                     kind: EditorSiteKind::Variant,
@@ -389,23 +528,18 @@ impl ModuleEditor {
         }
     }
 
-    /// Renders the selectors and conditions of one ref or container `wrapper` around an
-    /// empty rule or block, with the batch's display names. Returns `None` when the
-    /// wrapper does not resolve, for example because its variant text cannot test the
-    /// referenced element, or when conditional lowering fails.
-    fn render_variant(&self, wrapper: &StyleVariant) -> Option<LeanString> {
+    /// Renders the selectors and conditions of `wrappers` around a preview placeholder,
+    /// with the batch's display names. Returns `None` when the wrappers do not resolve,
+    /// for example because variant text cannot test a referenced element, or when
+    /// conditional lowering fails.
+    fn render_variants(&self, wrappers: &[StyleVariant]) -> Option<LeanString> {
         let context = self
             .identifiers
             .context(self.options.hash_length)
             .with_preview_names(Rc::clone(&self.names));
         let theme = self.snapshot.theme();
-        let plans = StyleVariantPlan::resolve(
-            &context,
-            std::slice::from_ref(wrapper),
-            theme,
-            &mut Vec::new(),
-            &mut Vec::new(),
-        )?;
+        let plans =
+            StyleVariantPlan::resolve(&context, wrappers, theme, &mut Vec::new(), &mut Vec::new())?;
         let mut css = LeanString::new();
         for plan in &plans {
             for path in plan.applications() {

@@ -267,6 +267,67 @@ export class SourceBindings {
   }
 
   /**
+   * Follows a stable identifier or namespace-import reference to its final initializer
+   * expression across the captured source graph. Mutated bindings and cyclic aliases stop
+   * resolution.
+   *
+   * @param source - Prepared source whose checker AST contains `node`.
+   * @param node - Reference expression to resolve.
+   * @returns The declaring source and initializer expression, or undefined when `node` does
+   * not reference a stable variable initializer.
+   */
+  initializer(
+    source: PreparedSource,
+    node: ts.Node,
+  ): { source: PreparedSource; node: ts.Expression } | undefined {
+    const seen = new Set<ts.Symbol>();
+    let currentSource = source;
+    let current: ts.Node = node;
+    let resolved: { source: PreparedSource; node: ts.Expression } | undefined;
+    for (;;) {
+      while (
+        ts.isParenthesizedExpression(current) ||
+        ts.isAsExpression(current) ||
+        ts.isSatisfiesExpression(current) ||
+        ts.isNonNullExpression(current)
+      ) {
+        current = current.expression;
+      }
+      if (ts.isPropertyAccessExpression(current) && ts.isIdentifier(current.expression)) {
+        const receiver = this.#checker.getSymbolAtLocation(current.expression);
+        if (!receiver?.declarations?.some(ts.isNamespaceImport)) {
+          return resolved;
+        }
+      } else if (!ts.isIdentifier(current)) {
+        return resolved;
+      }
+      let symbol = this.#checker.getSymbolAtLocation(current);
+      if (!symbol || this.#mutated.has(symbol) || seen.has(symbol)) {
+        return resolved;
+      }
+      seen.add(symbol);
+      if (symbol.flags & ts.SymbolFlags.Alias) {
+        symbol = this.#checker.getAliasedSymbol(symbol);
+        if (this.#mutated.has(symbol) || seen.has(symbol)) {
+          return resolved;
+        }
+        seen.add(symbol);
+      }
+      const declaration = symbol.valueDeclaration;
+      if (!declaration || !ts.isVariableDeclaration(declaration) || !declaration.initializer) {
+        return resolved;
+      }
+      const owner = this.files.get(declaration.getSourceFile().fileName)?.source;
+      if (!owner) {
+        return resolved;
+      }
+      currentSource = owner;
+      current = declaration.initializer;
+      resolved = { source: currentSource, node: declaration.initializer };
+    }
+  }
+
+  /**
    * Returns the comments that contain `swlint-*` directives in `source`'s original buffer.
    *
    * @param source - Prepared source of this index.

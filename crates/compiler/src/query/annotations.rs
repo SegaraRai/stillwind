@@ -19,7 +19,9 @@ use std::ops::Range;
 use cssparser::{ParseError, Parser, Token};
 use lean_string::{LeanString, ToLeanString};
 
-use stillwind_css::{color_hex, evaluate_numeric, split_once_top_level};
+use stillwind_css::{
+    ColorScheme, color_hex, evaluate_numeric, select_color_scheme, split_once_top_level,
+};
 
 use super::{DesignSystemQuery, QueryContext};
 
@@ -259,7 +261,14 @@ impl Annotator<'_> {
                     let text = &value[start..end];
                     let comment = match name.as_str() {
                         "var" if self.annotations.theme_values => self.variable(text),
-                        "calc" if self.annotations.theme_values => self.calculation(text),
+                        "calc"
+                            if self.annotations.theme_values
+                                || self.annotations.pixel_equivalents =>
+                        {
+                            self.calculation(text)
+                        }
+                        "color-mix" => self.color_mix(text),
+                        "light-dark" => self.color_light_dark(text),
                         name if COLOR_FUNCTIONS.contains(&name) => self.color_literal(text),
                         _ => None,
                     };
@@ -319,7 +328,14 @@ impl Annotator<'_> {
     /// converted to pixels, and only the pixel result is described. Pixel equivalents
     /// must be enabled for this conversion.
     fn calculation(&self, text: &str) -> Option<LeanString> {
-        let inlined = self.query.resolve_theme_values(text)?;
+        let inlined = if self.annotations.theme_values {
+            self.query.resolve_theme_values(text)?
+        } else {
+            if text.to_ascii_lowercase().contains("var(") || !has_rem(text) {
+                return None;
+            }
+            text.into()
+        };
         if let Some((number, unit)) = evaluate_numeric(&inlined) {
             let mut description = quantity(number, &unit).standalone();
             self.join_pixels(&mut description, number, &unit);
@@ -339,13 +355,70 @@ impl Annotator<'_> {
 
     /// Returns the hexadecimal equivalent of a literal color function.
     fn color_literal(&self, text: &str) -> Option<LeanString> {
+        let (approximate, hex) = self.color_equivalent(text, true)?;
+        Some(if approximate {
+            format_args!("≈ {hex}").to_lean_string()
+        } else {
+            hex
+        })
+    }
+
+    /// Resolves any theme references in a `color-mix()` expression and returns its
+    /// hexadecimal equivalent (or `light-dark()` pair).
+    fn color_mix(&self, text: &str) -> Option<LeanString> {
+        self.annotations.color_equivalents?;
+        let resolved = self.query.resolve_theme_values(text)?;
+        let (approximate, hex) = self.color_equivalent(&resolved, true)?;
+        Some(if approximate {
+            format_args!("≈ {hex}").to_lean_string()
+        } else {
+            hex
+        })
+    }
+
+    /// Resolves a literal `light-dark()` expression and returns its hexadecimal pair
+    /// when at least one branch is not already written as hex.
+    fn color_light_dark(&self, text: &str) -> Option<LeanString> {
+        self.annotations.color_equivalents?;
+        let resolved = self.query.resolve_theme_values(text)?;
+        let (approximate, hex) = self.color_equivalent(&resolved, false)?;
+        Some(if approximate {
+            format_args!("≈ {hex}").to_lean_string()
+        } else {
+            hex
+        })
+    }
+
+    /// Converts a resolved CSS color (including `light-dark()`) to its hexadecimal sRGB
+    /// display string and reports whether gamut mapping approximated it. When
+    /// `allow_hex_input` is false, inputs already written in hexadecimal form return
+    /// `None` to avoid redundant comments.
+    fn color_equivalent(&self, value: &str, allow_hex_input: bool) -> Option<(bool, LeanString)> {
         let policy = self.annotations.color_equivalents?;
-        let color = color_hex(text)?;
-        match (color.in_gamut, policy) {
-            (true, _) => Some(color.hex),
-            (false, ColorEquivalents::Approximate) => {
-                Some(format_args!("≈ {}", color.hex).to_lean_string())
+        let light = select_color_scheme(value, ColorScheme::Light);
+        let dark = select_color_scheme(value, ColorScheme::Dark);
+        if light != value || dark != value {
+            if !allow_hex_input && is_hex_color(&light) && is_hex_color(&dark) {
+                return None;
             }
+            let light = color_hex(&light)?;
+            let dark = color_hex(&dark)?;
+            let in_gamut = light.in_gamut && dark.in_gamut;
+            if !in_gamut && policy == ColorEquivalents::Exact {
+                return None;
+            }
+            return Some((
+                !in_gamut,
+                format_args!("light-dark({}, {})", light.hex, dark.hex).to_lean_string(),
+            ));
+        }
+        if !allow_hex_input && is_hex_color(value) {
+            return None;
+        }
+        let color = color_hex(value)?;
+        match (color.in_gamut, policy) {
+            (true, _) => Some((false, color.hex)),
+            (false, ColorEquivalents::Approximate) => Some((true, color.hex)),
             (false, ColorEquivalents::Exact) => None,
         }
     }
@@ -366,12 +439,8 @@ impl Annotator<'_> {
             join(description, pixels.approximate, &pixels.text);
             return;
         }
-        if let Some(policy) = self.annotations.color_equivalents
-            && let Some(color) = color_hex(value)
-            && !is_hex_color(value)
-            && (color.in_gamut || policy == ColorEquivalents::Approximate)
-        {
-            join(description, !color.in_gamut, &color.hex);
+        if let Some((approximate, hex)) = self.color_equivalent(value, false) {
+            join(description, approximate, &hex);
         }
     }
 }
@@ -410,7 +479,21 @@ fn media_dimensions(
                     comments.push((end, pixels.standalone()));
                 }
             }
-            Token::Function(_) | Token::ParenthesisBlock | Token::SquareBracketBlock => {
+            Token::Function(name) => {
+                let is_calc = name.eq_ignore_ascii_case("calc");
+                let mut nested = Vec::new();
+                let _ = parser.parse_nested_block(|nested_parser| {
+                    media_dimensions(nested_parser, prelude, depth + 1, &mut nested);
+                    Ok::<_, ParseError<()>>(())
+                });
+                let end = parser.position().byte_index();
+                if is_calc && let Some(comment) = media_calculation(&prelude[start..end]) {
+                    comments.push((end, comment));
+                } else {
+                    comments.extend(nested);
+                }
+            }
+            Token::ParenthesisBlock | Token::SquareBracketBlock => {
                 let _ = parser.parse_nested_block(|nested| {
                     media_dimensions(nested, prelude, depth + 1, comments);
                     Ok::<_, ParseError<()>>(())
@@ -419,6 +502,41 @@ fn media_dimensions(
             _ => {}
         }
     }
+}
+
+/// Evaluates a `calc()` expression in a media or container prelude to pixels using
+/// [`MEDIA_ROOT_FONT_SIZE`] for `rem` and `em` dimensions. Returns `None` when the
+/// expression contains no `rem`/`em` dimensions or cannot reduce to a single `px` value.
+fn media_calculation(text: &str) -> Option<LeanString> {
+    let mut tokens = Vec::new();
+    numeric_tokens(&mut Parser::new(text), 0, &mut tokens);
+    let mut replaced = text.to_lean_string();
+    let mut changed = false;
+    for token in tokens.into_iter().rev() {
+        let slice = &text[token.range.clone()];
+        let unit = &slice[slice.len() - token.suffix..];
+        if unit.eq_ignore_ascii_case("rem") || unit.eq_ignore_ascii_case("em") {
+            let number = number_before_suffix(slice, token.suffix)?;
+            replaced.replace_range(
+                token.range,
+                &format_args!("{}px", number * MEDIA_ROOT_FONT_SIZE).to_lean_string(),
+            );
+            changed = true;
+        }
+    }
+    if !changed {
+        return None;
+    }
+    let (number, unit) = evaluate_numeric(&replaced)?;
+    unit.eq_ignore_ascii_case("px")
+        .then(|| quantity(number, "px").standalone())
+}
+
+/// Reports whether `value` contains at least one `rem` dimension token.
+fn has_rem(value: &str) -> bool {
+    let mut tokens = Vec::new();
+    numeric_tokens(&mut Parser::new(value), 0, &mut tokens);
+    tokens.iter().any(|token| token.rem)
 }
 
 /// A number, percentage, or dimension token found by [`numeric_tokens`].
@@ -695,6 +813,39 @@ mod tests {
         assert_eq!(
             css,
             "@container card (width >= 20rem /* 320px */) {\n  & {\n    --data: {a: 1rem /* 16px */};\n    --gap: 1rem /* 16px */;\n  }\n}\n"
+        );
+    }
+
+    #[test]
+    fn color_mix_light_dark_and_calc_edge_cases_receive_annotations() {
+        let theme = format!(
+            "{THEME} @theme {{ --color-surface: light-dark(oklch(63.7% .237 25.331), oklch(72.3% .219 149.579)); --color-hex-pair: light-dark(#202b35, #e4edff); }}"
+        );
+        let source = css_source(FileId(1), &theme).unwrap();
+        let snapshot = DesignSystemSnapshot::from_source(
+            &source,
+            CssSourceName::from("theme.css"),
+            DesignSystemOptions::default(),
+        )
+        .unwrap();
+        let q = DesignSystemQuery::new(snapshot, CompilerOptions::default());
+
+        assert_eq!(
+            q.annotate_preview(
+                "& {\n  background-color: color-mix(in oklab, var(--color-brand) 50%, transparent);\n  color: var(--color-surface);\n  border-color: var(--color-hex-pair);\n  accent-color: light-dark(oklch(63.7% .237 25.331), rgb(0 0 255));\n}\n@media (width >= calc(40rem - 1px)) {\n  & {\n    display: flex;\n  }\n}\n",
+                PreviewAnnotations::default(),
+            ),
+            "& {\n  background-color: color-mix(in oklab, var(--color-brand) 50%, transparent) /* #fb2c3680 */;\n  color: var(--color-surface) /* light-dark(oklch(63.7% 0.237 25.331), oklch(72.3% 0.219 149.579)) ≈ light-dark(#fb2c36, #00c758) */;\n  border-color: var(--color-hex-pair) /* light-dark(#202b35, #e4edff) */;\n  accent-color: light-dark(oklch(63.7% .237 25.331), rgb(0 0 255)) /* light-dark(#fb2c36, #0000ff) */;\n}\n@media (width >= calc(40rem - 1px) /* 639px */) {\n  & {\n    display: flex;\n  }\n}\n"
+        );
+
+        let pixels_only = PreviewAnnotations {
+            theme_values: false,
+            pixel_equivalents: true,
+            color_equivalents: None,
+        };
+        assert_eq!(
+            q.annotate_preview("& {\n  margin: calc(2rem + 4px);\n}\n", pixels_only),
+            "& {\n  margin: calc(2rem + 4px) /* 36px */;\n}\n"
         );
     }
 }

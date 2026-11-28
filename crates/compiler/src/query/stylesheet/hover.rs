@@ -94,14 +94,10 @@ impl DesignSystemQuery {
                 )
             }
             Kind::DirectiveArgument { directive, .. } => {
-                let Some(directive) = DIRECTIVES.iter().find(|item| item.name == directive) else {
+                let Some(pair) = self.directive_argument_hover(directive, written) else {
                     return Ok(None);
                 };
-                (
-                    "".into(),
-                    format_args!("{}\n\n{}", directive.detail(), directive.description)
-                        .to_lean_str(),
-                )
+                pair
             }
             Kind::Apply => {
                 let Some(css) = self.preview_candidate(written, CandidateContext::Utility)? else {
@@ -156,5 +152,33 @@ impl DesignSystemQuery {
             css,
             documentation,
         }))
+    }
+
+    /// Describes a directive argument, showing the registered `@property` rule for
+    /// `@stillwind-require-properties` when the argument names a known registration.
+    fn directive_argument_hover(
+        &self,
+        directive: &str,
+        written: &str,
+    ) -> Option<(LeanStr, LeanStr)> {
+        if directive == "stillwind-require-properties"
+            && let Some(property) = self
+                .context
+                .design_system
+                .theme()
+                .properties()
+                .iter()
+                .find(|property| property.name == written)
+        {
+            return Some((
+                format_args!("@property {} {{\n{}\n}}", property.name, property.body).to_lean_str(),
+                "Registered custom property required by this utility definition.".into(),
+            ));
+        }
+        let directive = DIRECTIVES.iter().find(|item| item.name == directive)?;
+        Some((
+            "".into(),
+            format_args!("{}\n\n{}", directive.detail(), directive.description).to_lean_str(),
+        ))
     }
 }
