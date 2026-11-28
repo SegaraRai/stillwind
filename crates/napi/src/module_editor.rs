@@ -31,6 +31,9 @@ pub enum NativeEditorSiteKind {
     /// Serialized as `variant` for the text of a ref condition or a ref container
     /// query. Its CSS contains only the selectors and conditions of the variant.
     Variant,
+    /// Serialized as `media` for a `style.media()` call. Its `css` field carries the
+    /// lowered JavaScript string literal.
+    Media,
 }
 
 impl From<EditorSiteKind> for NativeEditorSiteKind {
@@ -42,6 +45,7 @@ impl From<EditorSiteKind> for NativeEditorSiteKind {
             EditorSiteKind::Input => Self::Input,
             EditorSiteKind::Stylesheet => Self::Stylesheet,
             EditorSiteKind::Variant => Self::Variant,
+            EditorSiteKind::Media => Self::Media,
         }
     }
 }

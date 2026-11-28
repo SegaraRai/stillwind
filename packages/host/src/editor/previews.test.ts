@@ -410,10 +410,22 @@ console.log(mq, button, attached);`;
     expect(refStoredHover).toContain("&:is(:where(.__ref_panel):hover *)");
     expect(refStoredHover).toContain("/* … */");
 
-    const mediaCall = await hover(current, source, "style.media");
-    expect(mediaCall).toContain("@media (width >= 40rem /* 640px */), print");
-    expect(mediaCall).toContain("/* … */");
-    expect(await hover(current, source, "mq,")).toBe(mediaCall);
+    const mediaCall = (
+      await current.query(entry, {
+        kind: "hover",
+        offset: source.indexOf("style.media") + 1,
+      })
+    )?.hover;
+    expect(mediaCall?.css).toBe("");
+    expect(mediaCall?.documentation).toBe('```js\n"(width >= 40rem), print"\n```');
+    const mediaRef = (
+      await current.query(entry, {
+        kind: "hover",
+        offset: source.indexOf("mq,") + 1,
+      })
+    )?.hover;
+    expect(mediaRef?.css).toBe("");
+    expect(mediaRef?.documentation).toBe(mediaCall?.documentation);
 
     const recipeCall = await hover(current, source, "style.recipe");
     expect(recipeCall).toContain("display: block");

@@ -1340,7 +1340,7 @@ export interface NativeEditorSite {
 }
 
 /** The source object addressed by a preview. */
-export type NativeEditorSiteKind = 'style' | 'definition' | 'use' | 'input' | 'stylesheet' | 'variant'
+export type NativeEditorSiteKind = 'style' | 'definition' | 'use' | 'input' | 'stylesheet' | 'variant' | 'media'
 
 /**
  * Named entries preserve arbitrary export names, including `__proto__`.

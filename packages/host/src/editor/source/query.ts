@@ -161,7 +161,12 @@ export class SourceQueries {
     if (request.kind === "previews") {
       result.previews = this.#index.previews
         .sites(source)
-        .filter((site) => site.native.kind !== "input" && site.native.kind !== "variant")
+        .filter(
+          (site) =>
+            site.native.kind !== "input" &&
+            site.native.kind !== "variant" &&
+            site.native.kind !== "media",
+        )
         .flatMap((site) => {
           const preview = this.#index.previews.assemble(site.native);
           const range = {
@@ -169,7 +174,13 @@ export class SourceQueries {
             end: site.end,
           };
           if (!preview) {
-            return [{ ...range, css: "", valid: false }];
+            return [
+              {
+                ...range,
+                css: "",
+                valid: false,
+              },
+            ];
           }
           return [
             {
@@ -361,14 +372,7 @@ export class SourceQueries {
       if (site && (!reference || site.native.kind === "use")) {
         const preview = this.#index.previews.preview(site.native);
         const range = this.#index.range(source, node);
-        return preview && range
-          ? {
-              start: range[0],
-              end: range[1],
-              css: this.#query.formatCss(preview.css, this.#annotations),
-              ...(preview.runtimeNames.length ? { runtimeNames: preview.runtimeNames } : {}),
-            }
-          : undefined;
+        return preview && range ? this.#formatExpressionPreview(preview, range) : undefined;
       }
       if (!reference) {
         const asset = this.#index.asset(source, node);
@@ -409,17 +413,36 @@ export class SourceQueries {
       node = node.parent;
     }
     return reference
-      ? {
-          start: reference.range[0],
-          end: reference.range[1],
-          css: this.#query.formatCss(reference.preview.css, this.#annotations),
-          ...(reference.preview.runtimeNames.length
-            ? {
-                runtimeNames: reference.preview.runtimeNames,
-              }
-            : {}),
-        }
+      ? this.#formatExpressionPreview(reference.preview, reference.range)
       : undefined;
+  }
+
+  /**
+   * Formats a resolved expression preview into an editor hover payload.
+   *
+   * @param preview - Assembled CSS or lowered JavaScript preview.
+   * @param range - Inclusive start and exclusive end in original UTF-16 coordinates.
+   * @returns Hover payload for CSS or JavaScript output.
+   * @throws If the native formatter rejects the CSS preview.
+   */
+  #formatExpressionPreview(
+    preview: GeneratedPreview,
+    range: readonly [number, number],
+  ): NonNullable<EditorResult["hover"]> {
+    if (preview.js) {
+      return {
+        start: range[0],
+        end: range[1],
+        css: "",
+        documentation: `\`\`\`js\n${preview.js}\n\`\`\``,
+      };
+    }
+    return {
+      start: range[0],
+      end: range[1],
+      css: this.#query.formatCss(preview.css, this.#annotations),
+      ...(preview.runtimeNames.length ? { runtimeNames: preview.runtimeNames } : {}),
+    };
   }
 
   /**

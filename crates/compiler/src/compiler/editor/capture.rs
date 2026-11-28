@@ -36,6 +36,7 @@ use super::input::{
 use super::resources::preview_resource_urls;
 use super::runtime::collect_runtime_names;
 use crate::compiler::rewrite_generated_css;
+use crate::generated::js_string;
 use crate::identifiers::{DeclarationContext, IdentifierContext, PreviewNames};
 use crate::{CandidateContext, CompilerOptions, CssContribution, Identifiers};
 
@@ -58,6 +59,9 @@ pub enum EditorSiteKind {
     /// text, or the whole call when a ref is called without arguments, or the container
     /// query text.
     Variant,
+    /// A `style.media()` call. Its preview is the JavaScript string literal that the
+    /// call lowers to.
+    Media,
 }
 
 /// CSS and dependencies contributed by one original source occurrence.
@@ -80,8 +84,9 @@ pub struct EditorSite {
     /// site.
     pub valid: bool,
     /// Generated CSS with element subjects represented by `&` and other generated names
-    /// replaced by readable identifiers. Empty on failure or when the site contributes
-    /// no CSS.
+    /// replaced by readable identifiers, or the lowered JavaScript string literal for
+    /// [`EditorSiteKind::Media`]. Empty on failure or when the site contributes no
+    /// output.
     pub css: LeanStr,
     /// Required styles and global definitions, sorted and deduplicated by identity.
     pub dependencies: Vec<IdentityId>,
@@ -288,20 +293,20 @@ impl ModuleEditor {
         });
     }
 
-    /// Records a `style.media()` call with its combined media query list.
+    /// Records a `style.media()` call with the JavaScript string literal it lowers to.
     fn add_media(&mut self, call: &MediaCall) {
         let mut findings = Vec::new();
         let query = media_query(call, self.snapshot.theme(), &mut findings);
-        let css = (findings.is_empty() && !call.arguments.is_empty())
-            .then(|| format_args!("@media {query}{{{PREVIEW_SLOT}}}").to_lean_string());
+        let literal =
+            (findings.is_empty() && !call.arguments.is_empty()).then(|| js_string(&query));
         self.sites.push(EditorSite {
             span: call.span,
-            kind: EditorSiteKind::Variant,
+            kind: EditorSiteKind::Media,
             identity: None,
             context: None,
             enclosing_variant: false,
-            valid: css.is_some(),
-            css: css.unwrap_or_default().into(),
+            valid: literal.is_some(),
+            css: literal.unwrap_or_default().into(),
             dependencies: Vec::new(),
             runtime_names: Vec::new(),
         });

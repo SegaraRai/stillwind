@@ -29,10 +29,12 @@ export interface PreviewSite {
   readonly end: number;
 }
 
-/** CSS for a captured occurrence and any runtime expressions that supply view-transition names. */
+/** Output for a captured occurrence and any runtime expressions that supply view-transition names. */
 export interface GeneratedPreview {
   /** CSS for the occurrence and its required styles and global definitions. */
   css: string;
+  /** Lowered JavaScript string literal for a `style.media()` call. */
+  js?: string;
   /** Authored runtime key expressions, deduplicated in dependency traversal order. */
   runtimeNames: string[];
 }
@@ -173,7 +175,7 @@ export class GeneratedPreviews {
    */
   preview(site: CapturedEditorSite): GeneratedPreview | undefined {
     const preview = this.assemble(site);
-    return preview?.css ? preview : undefined;
+    return preview && (preview.css || preview.js) ? preview : undefined;
   }
 
   /**
@@ -184,6 +186,16 @@ export class GeneratedPreviews {
    * or undefined if any required site is missing or invalid.
    */
   assemble(site: CapturedEditorSite): GeneratedPreview | undefined {
+    if (site.kind === "media") {
+      return site.valid && site.css
+        ? {
+            css: "",
+            js: site.css,
+            runtimeNames: [],
+          }
+        : undefined;
+    }
+
     const parts: string[] = [];
     const runtimeNames = new Set<string>();
     const seen = new Set<string>();
