@@ -17,18 +17,20 @@ use cssparser::Token;
 use lean_string::{LeanStr, LeanString, ToLeanString};
 
 use stillwind_css::{
-    CssBanner, CssNode, CssNodeKind, PREVIEW_SLOT, fold_nested_host_conditions,
+    CssBanner, CssNode, CssNodeKind, PREVIEW_SLOT, PREVIEW_SLOT_RULE, fold_nested_host_conditions,
     hoist_pseudo_element_conditions, normalize_scopes, parse_structure, selector_selects_host,
     split_top_level, whitespace_separated_ranges,
 };
 use stillwind_design_system::{
-    ThemeIndex, VariantApplication, VariantContext, compare_variant_sequences, resolve_variant,
+    RuntimeCondition, ThemeIndex, VariantApplication, VariantContext, compare_variant_sequences,
+    resolve_variant,
 };
 use stillwind_diagnostics::CompileDiagnostic;
 use stillwind_syntax::{Variant, parse_candidate};
 
 use super::super::conditionals::guard;
 use super::super::rule_boundaries::protect;
+use super::super::style_variants::expand_prefix;
 use super::super::utilities::{
     assemble_nested_declarations, order_utilities, prepend_missing_declarations,
     resolve_utility_targets,
@@ -402,8 +404,12 @@ pub(crate) fn expand_authored_variant(
 
 /// Expands `prelude` for a variant preview without a utility body.
 ///
-/// Paths that already introduce a selector wrap an empty block, while paths that consist
-/// only of at-rules wrap an empty `& {}` rule where declarations would belong.
+/// Paths that already introduce a selector or scope wrap a preview slot, while paths
+/// made solely of at-rules or runtime conditions wrap `&` around the slot. Runtime
+/// conditions are rendered as `if(...)` preludes on the slot and rejected when
+/// `use_css_if` does not support them. When `expand_alternatives` is true, `or(...)`
+/// alternatives are expanded into separate preview branches; any unsupported branch
+/// causes the preview to be empty.
 ///
 /// # Errors
 ///
@@ -412,39 +418,60 @@ pub(crate) fn expand_authored_variant_preview(
     prelude: &str,
     theme: &ThemeIndex,
     identifiers: &IdentifierContext,
+    use_css_if: bool,
+    expand_alternatives: bool,
 ) -> Result<LeanString, CompileDiagnostic> {
     let mut output = LeanString::new();
     for sequence in variant_sequences(prelude) {
-        let Some(applications) = parse_variant_sequence(&prelude[sequence]).and_then(|variants| {
-            variants
-                .iter()
-                .map(|variant| resolve_variant(variant, theme).ok())
-                .collect::<Option<Vec<_>>>()
-        }) else {
-            continue;
-        };
-        let mut paths = vec![Vec::new()];
-        for application in applications {
-            let alternatives = match application {
-                VariantApplication::Compound(applications) => applications,
-                application => vec![application],
+        let written = &prelude[sequence];
+        let expanded = if expand_alternatives {
+            let Ok(prefixes) = expand_prefix(&format_args!("{written}:").to_lean_string(), theme)
+            else {
+                return Ok(LeanString::new());
             };
-            paths = paths
-                .into_iter()
-                .flat_map(|path| {
-                    alternatives.iter().cloned().map(move |application| {
-                        let mut path = path.clone();
-                        path.push(application);
-                        path
-                    })
+            prefixes
+        } else {
+            vec![format_args!("{written}:").to_lean_string()]
+        };
+        for prefix in expanded {
+            let Some(applications) =
+                parse_variant_sequence(prefix.trim_end_matches(':')).and_then(|variants| {
+                    variants
+                        .iter()
+                        .map(|variant| resolve_variant(variant, theme).ok())
+                        .collect::<Option<Vec<_>>>()
                 })
-                .collect();
-        }
-        for applications in &paths {
-            output.push_str(&render_authored_variant_preview_path(
-                applications,
-                identifiers,
-            )?);
+            else {
+                if expand_alternatives {
+                    return Ok(LeanString::new());
+                }
+                continue;
+            };
+            let mut paths = vec![Vec::new()];
+            for application in applications {
+                let alternatives = match application {
+                    VariantApplication::Compound(applications) => applications,
+                    application => vec![application],
+                };
+                paths = paths
+                    .into_iter()
+                    .flat_map(|path| {
+                        alternatives.iter().cloned().map(move |application| {
+                            let mut path = path.clone();
+                            path.push(application);
+                            path
+                        })
+                    })
+                    .collect();
+            }
+            for applications in &paths {
+                let Some(rendered) =
+                    render_authored_variant_preview_path(applications, identifiers, use_css_if)?
+                else {
+                    return Ok(LeanString::new());
+                };
+                output.push_str(&rendered);
+            }
         }
     }
     Ok(output)
@@ -507,10 +534,13 @@ pub(in crate::compiler) fn render_authored_variant_path(
         .collect()
 }
 
-/// Wraps an empty preview body in every application of one variant path.
+/// Wraps a preview placeholder in every application of one variant path.
 ///
-/// Paths that introduce a selector wrap an empty block; paths made solely of at-rules
-/// wrap `&{}` so the preview shows where element declarations belong.
+/// Paths that introduce a selector or scope wrap the placeholder directly; paths made
+/// solely of at-rules or runtime conditions wrap `&` around it. Runtime conditions are
+/// encoded on the placeholder so formatting renders `/* if(...): … */` without emitting
+/// internal rule-boundary markers. Returns `Ok(None)` when a runtime condition requires
+/// native CSS `if()` and `use_css_if` is false.
 ///
 /// # Errors
 ///
@@ -518,21 +548,55 @@ pub(in crate::compiler) fn render_authored_variant_path(
 pub(in crate::compiler) fn render_authored_variant_preview_path(
     applications: &[VariantApplication],
     identifiers: &IdentifierContext,
-) -> Result<LeanString, CompileDiagnostic> {
-    variant_paths(applications)
-        .iter()
-        .map(|path| {
-            let body = if path_has_selector(path) {
-                PREVIEW_SLOT.to_lean_string()
-            } else {
-                format_args!("&{{{PREVIEW_SLOT}}}").to_lean_string()
-            };
-            render_authored_variant_steps(&body, path, identifiers)
-        })
-        .collect()
+    use_css_if: bool,
+) -> Result<Option<LeanString>, CompileDiagnostic> {
+    let mut output = LeanString::new();
+    for path in variant_paths(applications) {
+        let Some(slot) = preview_slot_for_path(&path, use_css_if) else {
+            return Ok(None);
+        };
+        let steps: Vec<_> = path
+            .into_iter()
+            .filter(|step| !matches!(step, VariantStep::Conditional(_)))
+            .collect();
+        let body = if path_has_selector(&steps) {
+            slot
+        } else {
+            format_args!("&{{{slot}}}").to_lean_string()
+        };
+        output.push_str(&render_authored_variant_steps(&body, &steps, identifiers)?);
+    }
+    Ok(Some(output))
 }
 
-/// Reports whether any step in `path` emits a CSS selector rule.
+/// Builds the preview placeholder for `path`, encoding any runtime conditions in
+/// authored order, or returns `None` when a condition is unsupported under `use_css_if`.
+fn preview_slot_for_path(path: &[VariantStep<'_>], use_css_if: bool) -> Option<LeanString> {
+    let mut queries = Vec::new();
+    for step in path {
+        if let VariantStep::Conditional(raw) = *step {
+            let condition = RuntimeCondition::parse(raw)?;
+            if !use_css_if && (condition.negated || condition.value.is_some()) {
+                return None;
+            }
+            let prefix = if condition.negated { "not " } else { "" };
+            let query = match condition.value {
+                Some(value) => {
+                    format_args!("{prefix}style({}: {value})", condition.name).to_lean_string()
+                }
+                None => format_args!("{prefix}style({})", condition.name).to_lean_string(),
+            };
+            queries.push(query);
+        }
+    }
+    if queries.is_empty() {
+        Some(PREVIEW_SLOT.to_lean_string())
+    } else {
+        Some(format_args!("{PREVIEW_SLOT_RULE} if({});", queries.join(" and ")).to_lean_string())
+    }
+}
+
+/// Reports whether any step in `path` emits a CSS selector or scope rule.
 fn path_has_selector(path: &[VariantStep<'_>]) -> bool {
     path.iter().any(|step| {
         matches!(
@@ -544,6 +608,7 @@ fn path_has_selector(path: &[VariantStep<'_>]) -> bool {
                 | VariantStep::SelectorRule { .. }
                 | VariantStep::SelectorMedia { .. }
                 | VariantStep::SelectorMediaRule { .. }
+                | VariantStep::Scope(_)
         )
     })
 }

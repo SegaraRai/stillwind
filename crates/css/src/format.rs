@@ -5,6 +5,9 @@ use lightningcss::stylesheet::{ParserOptions, PrinterOptions, StyleSheet};
 
 use crate::normalize_scopes;
 
+/// At-rule name (with leading `@`) used for preview slot placeholders.
+pub const PREVIEW_SLOT_RULE: &str = "@stillwind-preview-slot";
+
 /// Sentinel at-rule placed where utility declarations or rules belong in a variant
 /// preview. [`format_css`] replaces each occurrence with `/* … */` after formatting.
 pub const PREVIEW_SLOT: &str = "@stillwind-preview-slot;";
@@ -40,10 +43,11 @@ pub fn format_css(css: &str) -> Result<LeanString, CssFormatError> {
     Ok(replace_preview_slots(&formatted))
 }
 
-/// Replaces [`PREVIEW_SLOT`] lines with `/* … */` and removes any blank line that
-/// Lightning CSS inserts between a preceding declaration and the sentinel at-rule.
+/// Replaces [`PREVIEW_SLOT`] lines with `/* … */` (or `/* <prelude>: … */` when the
+/// sentinel carries a condition prelude) and removes any blank line that Lightning CSS
+/// inserts between a preceding declaration and the sentinel at-rule.
 fn replace_preview_slots(css: &str) -> LeanString {
-    if !css.contains(PREVIEW_SLOT) {
+    if !css.contains(PREVIEW_SLOT_RULE) {
         return css.into();
     }
     let mut output = LeanString::with_capacity(css.len());
@@ -51,21 +55,45 @@ fn replace_preview_slots(css: &str) -> LeanString {
     while let Some(line) = lines.next() {
         if line.trim().is_empty()
             && output.ends_with(";\n")
-            && lines.peek().is_some_and(|next| next.trim() == PREVIEW_SLOT)
+            && lines
+                .peek()
+                .is_some_and(|next| preview_slot_comment(next.trim()).is_some())
         {
             continue;
         }
-        if let Some(prefix) = line.strip_suffix("@stillwind-preview-slot;\n") {
-            output.push_str(prefix);
-            output.push_str("/* … */\n");
-        } else if let Some(prefix) = line.strip_suffix(PREVIEW_SLOT) {
-            output.push_str(prefix);
-            output.push_str("/* … */");
+        let (body, newline) = match line.strip_suffix('\n') {
+            Some(body) => (body, "\n"),
+            None => (line, ""),
+        };
+        let trimmed = body.trim_start();
+        if let Some(comment) = preview_slot_comment(trimmed) {
+            let indent = &body[..body.len() - trimmed.len()];
+            output.push_str(indent);
+            output.push_str(&comment);
+            output.push_str(newline);
         } else {
             output.push_str(line);
         }
     }
     output
+}
+
+/// Returns the placeholder comment for a trimmed [`PREVIEW_SLOT`] line, or `None` for
+/// any other line.
+fn preview_slot_comment(trimmed: &str) -> Option<LeanString> {
+    if trimmed == PREVIEW_SLOT {
+        return Some("/* … */".into());
+    }
+    let prelude = trimmed
+        .strip_prefix(PREVIEW_SLOT_RULE)?
+        .strip_prefix(' ')?
+        .strip_suffix(';')?
+        .trim();
+    if prelude.is_empty() {
+        Some("/* … */".into())
+    } else {
+        Some(format!("/* {prelude}: … */").into())
+    }
 }
 
 #[cfg(test)]
@@ -129,6 +157,17 @@ mod tests {
             ))
             .unwrap(),
             "@media (prefers-color-scheme: dark) {\n  & {\n    /* … */\n  }\n}\n"
+        );
+        assert_eq!(
+            format_css("&{@stillwind-preview-slot if(style(--foo));}").unwrap(),
+            "& {\n  /* if(style(--foo)): … */\n}\n"
+        );
+        assert_eq!(
+            format_css(
+                "&::before{content:var(--tw-content);@stillwind-preview-slot if(style(--foo));}"
+            )
+            .unwrap(),
+            "&:before {\n  content: var(--tw-content);\n  /* if(style(--foo)): … */\n}\n"
         );
     }
 }

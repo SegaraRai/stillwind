@@ -87,7 +87,10 @@ pub(in crate::compiler) fn expand_candidate(
 /// # Errors
 ///
 /// Returns the failures that [`expand_candidate`] describes.
-fn expand_prefix(raw: &str, theme: &ThemeIndex) -> Result<Vec<LeanString>, UtilityFailure> {
+pub(crate) fn expand_prefix(
+    raw: &str,
+    theme: &ThemeIndex,
+) -> Result<Vec<LeanString>, UtilityFailure> {
     let Some(variants) = parse_variant_prefix(raw) else {
         return Ok(vec![raw.to_lean_string()]);
     };

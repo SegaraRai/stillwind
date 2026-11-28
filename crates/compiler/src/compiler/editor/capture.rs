@@ -548,7 +548,10 @@ impl ModuleEditor {
         let mut css = LeanString::new();
         for plan in &plans {
             for path in plan.applications() {
-                css.push_str(&render_authored_variant_preview_path(path, &context).ok()?);
+                css.push_str(
+                    &render_authored_variant_preview_path(path, &context, self.options.use_css_if)
+                        .ok()??,
+                );
             }
         }
         let lowered = lower(&css, self.options.use_css_if, &context).ok()?;

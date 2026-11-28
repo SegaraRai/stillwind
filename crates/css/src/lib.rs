@@ -84,7 +84,7 @@ pub use declarations::{
     important_declarations, parse_declaration_list,
 };
 pub use emission::{CssRule, Declaration, optimize_rules, stylesheet_fragments};
-pub use format::{CssFormatError, PREVIEW_SLOT, format_css};
+pub use format::{CssFormatError, PREVIEW_SLOT, PREVIEW_SLOT_RULE, format_css};
 pub use functions::{CssFunctionMatch, find_css_functions};
 pub use lists::{split_once_top_level, split_top_level, whitespace_separated_ranges};
 pub use math::{MAX_VALUE_NESTING, evaluate_numeric, fold_calc_expressions, format_numeric_zero};

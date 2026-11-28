@@ -19,8 +19,8 @@ use super::resolution::candidate_identifiers;
 use crate::CssContribution;
 use crate::compiler::{
     condition_paths, emit_document_style, emit_view_transition_utilities,
-    expand_authored_variant_preview, media_argument_query, resolve_frame, resolve_options,
-    wrap_conditions,
+    expand_authored_variant_preview, expand_prefix, media_argument_query, resolve_frame,
+    resolve_options, wrap_conditions,
 };
 
 /// The syntax and emission contract of an editor input.
@@ -251,6 +251,8 @@ impl DesignSystemQuery {
                 candidate.trim_end_matches(':'),
                 theme,
                 &candidate_identifiers(true),
+                self.context.options.use_css_if,
+                true,
             )
             .ok()
             .filter(|css| !css.is_empty())?;
@@ -263,17 +265,23 @@ impl DesignSystemQuery {
                     .into()
             });
         }
-        // Only the parsed variants contribute to the preview. The required utility
-        // suffix is discarded without resolving it.
-        let text = format_args!("{}:utility", candidate.trim_end_matches(':')).to_lean_string();
-        let parsed = parse_candidate(&text)?;
-        let paths = condition_paths(&parsed.variants, theme)?;
-        Some(
-            paths
-                .iter()
-                .map(|path| wrap_conditions(PREVIEW_SLOT, path))
-                .collect(),
+        let prefixes = expand_prefix(
+            &format_args!("{}:", candidate.trim_end_matches(':')).to_lean_string(),
+            theme,
         )
+        .ok()?;
+        let mut output = LeanString::new();
+        for prefix in prefixes {
+            // Only the parsed variants contribute to the preview. The required utility
+            // suffix is discarded without resolving it.
+            let text = format_args!("{prefix}utility").to_lean_string();
+            let parsed = parse_candidate(&text)?;
+            let paths = condition_paths(&parsed.variants, theme)?;
+            for path in &paths {
+                output.push_str(&wrap_conditions(PREVIEW_SLOT, path));
+            }
+        }
+        (!output.is_empty()).then(|| output.into())
     }
 
     /// Checks decoded `text` under its role. Ordinary utilities require failure-free
@@ -310,14 +318,10 @@ impl DesignSystemQuery {
             return media_argument_query(text, self.context.design_system.theme()).is_some();
         }
 
-        // The candidate grammar requires a utility suffix. Validation below resolves
-        // only its variants.
-        let Some(candidate) = parse_candidate(&format_args!("{text}:utility").to_lean_string())
-        else {
+        let theme = self.context.design_system.theme();
+        let Ok(prefixes) = expand_prefix(&format_args!("{text}:").to_lean_string(), theme) else {
             return false;
         };
-
-        let theme = self.context.design_system.theme();
         if matches!(
             context,
             CandidateContext::Utility
@@ -325,22 +329,35 @@ impl DesignSystemQuery {
                 | CandidateContext::Document
                 | CandidateContext::AnchoredDocument
         ) {
-            let Some(applications) = candidate
-                .variants
-                .iter()
-                .map(|variant| resolve_variant(variant, theme).ok())
-                .collect::<Option<Vec<_>>>()
-            else {
-                return false;
-            };
-            return context != CandidateContext::Document
-                || !matches!(
-                    document_target(&applications),
-                    Err(DocumentTargetFailure::BeforeTarget(_))
-                );
+            return prefixes.iter().all(|prefix| {
+                // The candidate grammar requires a utility suffix. Validation below
+                // resolves only its variants.
+                let Some(candidate) =
+                    parse_candidate(&format_args!("{prefix}utility").to_lean_string())
+                else {
+                    return false;
+                };
+                let Some(applications) = candidate
+                    .variants
+                    .iter()
+                    .map(|variant| resolve_variant(variant, theme).ok())
+                    .collect::<Option<Vec<_>>>()
+                else {
+                    return false;
+                };
+                context != CandidateContext::Document
+                    || !matches!(
+                        document_target(&applications),
+                        Err(DocumentTargetFailure::BeforeTarget(_))
+                    )
+            });
         }
 
-        condition_paths(&candidate.variants, self.context.design_system.theme()).is_some()
+        prefixes.iter().all(|prefix| {
+            parse_candidate(&format_args!("{prefix}utility").to_lean_string())
+                .and_then(|candidate| condition_paths(&candidate.variants, theme))
+                .is_some()
+        })
     }
 }
 
@@ -416,5 +433,96 @@ mod tests {
                 .collect::<Vec<_>>();
             assert_eq!(labels, ["wide:"]);
         }
+    }
+
+    #[test]
+    fn conditional_alternative_and_scope_variant_previews_render_cleanly() {
+        let source = SourceFile::new(
+            FileId(1),
+            None,
+            None,
+            r"
+            @stillwind-variant if\(*\) (value: [if-condition]) { @stillwind-intrinsic builtin-if-variant; }
+            @stillwind-variant or\(*\) (value: [variant-list]) { @stillwind-intrinsic builtin-or-variant; }
+            @custom-variant hover (&:hover);
+            @custom-variant focus (&:focus);
+            @custom-variant before { &::before { content: var(--tw-content); @slot; } }
+            @custom-variant dark (@media (prefers-color-scheme: dark));
+            @custom-variant print (@media print);
+            ",
+        )
+        .unwrap();
+        let snapshot = DesignSystemSnapshot::from_source(
+            &source,
+            CssSourceName::from("theme.css"),
+            DesignSystemOptions::default(),
+        )
+        .unwrap();
+        let fallback = DesignSystemQuery::new(snapshot.clone(), CompilerOptions::default());
+        let native_if = DesignSystemQuery::new(
+            snapshot,
+            CompilerOptions {
+                use_css_if: true,
+                ..CompilerOptions::default()
+            },
+        );
+
+        let format = |query: &DesignSystemQuery, candidate: &str, context: CandidateContext| {
+            query
+                .preview_variant(candidate, context)
+                .map(|css| stillwind_css::format_css(&css).unwrap())
+        };
+
+        assert_eq!(
+            format(&fallback, "if(--foo):", CandidateContext::Utility).as_deref(),
+            Some("& {\n  /* if(style(--foo)): … */\n}\n")
+        );
+        assert_eq!(
+            format(&fallback, "hover:if(--foo):", CandidateContext::Utility).as_deref(),
+            Some("&:hover {\n  /* if(style(--foo)): … */\n}\n")
+        );
+        assert_eq!(
+            format(&fallback, "before:if(--foo):", CandidateContext::Utility).as_deref(),
+            Some("&:before {\n  content: var(--tw-content);\n  /* if(style(--foo)): … */\n}\n")
+        );
+        assert_eq!(
+            format(&fallback, "if(--foo):if(--bar):", CandidateContext::Utility).as_deref(),
+            Some("& {\n  /* if(style(--foo) and style(--bar)): … */\n}\n")
+        );
+        assert_eq!(
+            format(&fallback, "if(!--foo):", CandidateContext::Utility),
+            None
+        );
+        assert_eq!(
+            format(&fallback, "if(--theme:dark):", CandidateContext::Utility),
+            None
+        );
+        assert_eq!(
+            format(&native_if, "if(!--foo):", CandidateContext::Utility).as_deref(),
+            Some("& {\n  /* if(not style(--foo)): … */\n}\n")
+        );
+        assert_eq!(
+            format(&native_if, "if(--theme:dark):", CandidateContext::Utility).as_deref(),
+            Some("& {\n  /* if(style(--theme: dark)): … */\n}\n")
+        );
+        assert_eq!(
+            format(&fallback, "or(hover,focus):", CandidateContext::Utility).as_deref(),
+            Some("&:hover {\n  /* … */\n}\n\n&:focus {\n  /* … */\n}\n")
+        );
+        assert_eq!(
+            format(
+                &fallback,
+                "or(dark,print):",
+                CandidateContext::DefinitionVariants
+            )
+            .as_deref(),
+            Some(
+                "@media (prefers-color-scheme: dark) {\n  /* … */\n}\n\n@media print {\n  /* … */\n}\n"
+            )
+        );
+        assert_eq!(
+            format(&fallback, "[@scope(.a)]:", CandidateContext::Utility).as_deref(),
+            Some("@scope (.a) {\n  :where(:scope) {\n    /* … */\n  }\n}\n")
+        );
     }
 }

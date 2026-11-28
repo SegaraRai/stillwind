@@ -2,7 +2,7 @@
 
 use lean_string::{LeanStr, ToLeanStr};
 
-use stillwind_css::{CssNode, CssNodeKind, parse_structure};
+use stillwind_css::{CssNode, CssNodeKind, PREVIEW_SLOT_RULE, parse_structure};
 
 /// Returns a short summary of the generated CSS `css` of one selected completion.
 ///
@@ -31,15 +31,18 @@ pub fn completion_detail(css: &str) -> Option<LeanStr> {
                     }
                 }
                 CssNodeKind::AtRule { name, .. }
-                    if matches!(
-                        name.as_str(),
-                        "property" | "apply" | "stillwind-preview-slot"
-                    ) =>
+                    if matches!(name.as_str(), "property" | "apply")
+                        || PREVIEW_SLOT_RULE.strip_prefix('@') == Some(name.as_str()) =>
                 {
                     continue;
                 }
                 CssNodeKind::AtRule { name, prelude, .. } => {
-                    wrappers.push(format!("@{name} {}", &css[prelude.clone()]));
+                    let prelude = css[prelude.clone()].trim();
+                    if prelude.is_empty() {
+                        wrappers.push(format!("@{name}"));
+                    } else {
+                        wrappers.push(format!("@{name} {prelude}"));
+                    }
                 }
                 CssNodeKind::Declaration { property, value } => {
                     let property = &css[property.clone()];
@@ -102,6 +105,10 @@ mod tests {
                 "@property --color { syntax: '<color>'; inherits: false; initial-value: red; } & { --paint: red; }"
             ),
             Some("--paint: red;".into())
+        );
+        assert_eq!(
+            completion_detail("@starting-style { & { /* … */ } }"),
+            Some("@starting-style".into())
         );
     }
 }

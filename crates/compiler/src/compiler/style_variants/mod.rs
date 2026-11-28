@@ -29,6 +29,8 @@ mod plan;
 mod prefix;
 mod reference;
 
+pub(crate) use alternatives::expand_prefix;
+
 pub(in crate::compiler) use alternatives::{expand_candidate, expand_spanned_prefix};
 pub(in crate::compiler) use plan::StyleVariantPlan;
 pub(in crate::compiler) use prefix::{collect_variant_and_applications, parse_prefix};
