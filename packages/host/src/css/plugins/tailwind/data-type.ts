@@ -3,7 +3,7 @@
 // arbitrary value without a type hint, which is a different question from whether the value is
 // valid CSS for a property.
 
-import { splitTopLevel } from "./css.ts";
+import { segment } from "./segment.ts";
 
 const NAMED_COLORS = new Set([
   // CSS Level 1 colors
@@ -303,7 +303,7 @@ function isUrl(value: string): boolean {
 /* -------------------------------------------------------------------------- */
 
 function isLineWidth(value: string): boolean {
-  return splitTopLevel(value, " ").every(
+  return segment(value, " ").every(
     (value) =>
       isLength(value) ||
       isNumber(value) ||
@@ -321,7 +321,7 @@ const IS_GRADIENT_FN = /^(repeating-)?(conic|linear|radial)-gradient\(/;
 function isImage(value: string) {
   let count = 0;
 
-  for (const part of splitTopLevel(value, ",")) {
+  for (const part of segment(value, ",")) {
     if (part.startsWith("var(")) {
       continue;
     }
@@ -370,7 +370,7 @@ function isGenericName(value: string): boolean {
 function isFamilyName(value: string): boolean {
   let count = 0;
 
-  for (const part of splitTopLevel(value, ",")) {
+  for (const part of segment(value, ",")) {
     // If it starts with a digit, then it's not a family name
     const char = part.charCodeAt(0);
     if (char >= 48 && char <= 57) {
@@ -504,7 +504,7 @@ function isLength(value: string): boolean {
 function isBackgroundPosition(value: string): boolean {
   let count = 0;
 
-  for (const part of splitTopLevel(value, " ")) {
+  for (const part of segment(value, " ")) {
     if (
       part === "center" ||
       part === "top" ||
@@ -542,13 +542,13 @@ function isBackgroundPosition(value: string): boolean {
 function isBackgroundSize(value: string) {
   let count = 0;
 
-  for (const size of splitTopLevel(value, ",")) {
+  for (const size of segment(value, ",")) {
     if (size === "cover" || size === "contain") {
       count += 1;
       continue;
     }
 
-    const values = splitTopLevel(size, " ");
+    const values = segment(size, " ");
 
     // Sizes must have exactly one or two values
     if (values.length !== 1 && values.length !== 2) {

@@ -25,6 +25,6 @@ pub use candidates::{NativeCandidateContext, candidate_segments, decode_arbitrar
 pub use lint::NativeEditorLintEdit;
 pub use query::NativeEditorQuery;
 pub use stylesheet::{
-    NativeStylesheetPluginPath, completion_detail, editor_css_source, stylesheet_catalog_input,
-    stylesheet_plugin_paths,
+    NativeStylesheetPluginPath, completion_detail, custom_property_references, editor_css_source,
+    stylesheet_catalog_input, stylesheet_plugin_paths,
 };

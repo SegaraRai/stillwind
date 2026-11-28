@@ -86,13 +86,11 @@ pub fn plan_macro_import_removals(
                                 && use_.end <= edit.call_span.end
                                 && use_.start == reference.start
                                 && reference.end <= use_.end
-                        }) || source
-                            .slice(Span::new(
-                                reference.file,
-                                edit.call_span.start.0,
-                                reference.start.0,
-                            ))
-                            .is_ok_and(callee_prefix))
+                        }) || imports.leading_reads.iter().any(|read| {
+                            read.reference == *reference
+                                && read.call.file == edit.call_span.file
+                                && read.call.start == edit.call_span.start
+                        }))
                 }) {
                     return Err(CompileError::new(
                         CompileDiagnostic::UntransformedMacroReference {
@@ -122,28 +120,20 @@ pub fn plan_macro_import_removals(
         }
         // Keep delimiters and comments verbatim. Only named macro specifiers
         // and their list separators are removed; default/type bindings survive.
+        let local = |span: Span| {
+            (
+                (span.start.0 - import.span.start.0) as usize,
+                (span.end.0 - import.span.start.0) as usize,
+            )
+        };
         let mut ranges = Vec::new();
         for (index, specifier) in import.specifiers.iter().enumerate() {
             if !removable[index] {
                 continue;
             }
-            let start = (specifier.span.start.0 - import.span.start.0) as usize;
-            let end = (specifier.span.end.0 - import.span.start.0) as usize;
-            ranges.push((start, end));
-            let next_start = import
-                .specifiers
-                .get(index + 1)
-                .map_or(declaration.len(), |next| {
-                    (next.span.start.0 - import.span.start.0) as usize
-                });
-            if let Some(comma) = list_comma(&declaration[end..next_start]) {
-                ranges.push((end + comma, end + comma + 1));
-            } else if index > 0 {
-                let previous_end =
-                    (import.specifiers[index - 1].span.end.0 - import.span.start.0) as usize;
-                if let Some(comma) = list_comma(&declaration[previous_end..start]) {
-                    ranges.push((previous_end + comma, previous_end + comma + 1));
-                }
+            ranges.push(local(specifier.span));
+            if let Some(separator) = specifier.separator {
+                ranges.push(local(separator));
             }
         }
         ranges.sort_unstable();
@@ -163,76 +153,6 @@ pub fn plan_macro_import_removals(
         });
     }
     Ok(edits)
-}
-
-/// Byte offset of the comma joining two named specifiers inside `gap`.
-///
-/// Only commas outside comments and before the closing brace count. A `{` means the gap
-/// has already left the named-specifier list, so the search stops instead of matching a
-/// comma inside a nested clause.
-fn list_comma(gap: &str) -> Option<usize> {
-    let bytes = gap.as_bytes();
-    let mut index = 0;
-    let mut comma = None;
-    while index < bytes.len() {
-        match bytes[index] {
-            b',' => {
-                comma = Some(index);
-                index += 1;
-            }
-            b'{' => {
-                return None;
-            }
-            b'}' => {
-                return comma;
-            }
-            b'/' if bytes.get(index + 1) == Some(&b'*') => {
-                index += 2;
-                while index + 1 < bytes.len() && &bytes[index..index + 2] != b"*/" {
-                    index += 1;
-                }
-                index += 2;
-            }
-            b'/' if bytes.get(index + 1) == Some(&b'/') => {
-                while index < bytes.len() && bytes[index] != b'\n' && bytes[index] != b'\r' {
-                    index += 1;
-                }
-            }
-            _ => {
-                index += 1;
-            }
-        }
-    }
-    comma
-}
-
-/// True when `prefix` holds nothing but trivia up to the end of the callee reference.
-///
-/// The check accepts whitespace, comments, and an opening parenthesis, because none of
-/// those can themselves be a reference to the macro binding. Any other token means the
-/// replacement kept a read of the binding, so the import must stay.
-fn callee_prefix(mut prefix: &str) -> bool {
-    loop {
-        prefix = prefix.trim_start_matches(|ch: char| ch.is_whitespace() || ch == '\u{feff}');
-        if prefix.is_empty() {
-            return true;
-        }
-        if let Some(rest) = prefix.strip_prefix('(') {
-            prefix = rest;
-        } else if let Some(rest) = prefix.strip_prefix("/*") {
-            let Some(end) = rest.find("*/") else {
-                return false;
-            };
-            prefix = &rest[end + 2..];
-        } else if let Some(rest) = prefix.strip_prefix("//") {
-            let Some(end) = rest.find(['\n', '\r', '\u{2028}', '\u{2029}']) else {
-                return false;
-            };
-            prefix = &rest[end..];
-        } else {
-            return false;
-        }
-    }
 }
 
 #[cfg(test)]
@@ -341,6 +261,7 @@ mod tests {
             "type Theme, style",
             "type Theme, /* , */ style /* , */",
             "style /* , */, // ,\n type Theme",
+            "type Theme /* { } */, style // }\n",
             "style, style as other, type Theme",
             "type Theme, style, style as other",
         ] {

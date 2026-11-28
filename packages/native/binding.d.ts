@@ -790,6 +790,14 @@ export declare function compileSource(input: NativeCompileSourceInput, options?:
 export declare function completionDetail(source: string): string | null
 
 /**
+ * Returns every distinct `--name` ident or function name in the CSS `css`, in code
+ * point order. Names keep their authored spelling, including escapes. Names inside
+ * strings, comments, and URLs are not returned, and a function name such as
+ * `--spacing` in `--spacing(4)` is returned.
+ */
+export declare function customPropertyReferences(css: string): Array<string>
+
+/**
  * Returns the text inside an arbitrary value or modifier decoded as Tailwind decodes
  * it.
  *

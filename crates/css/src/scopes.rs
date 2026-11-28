@@ -111,18 +111,18 @@ impl ScopedCss {
     /// top-level `;` tokens, which start a rule that never ends.
     fn copy_lifted_gap(&mut self, css: &str, range: Range<usize>) {
         let mut start = range.start;
-        let mut index = range.start;
-        while index < range.end {
-            if css[index..range.end].starts_with("/*") {
-                index = css[index + 2..range.end]
-                    .find("*/")
-                    .map_or(range.end, |end| index + 2 + end + 2);
-            } else if css.as_bytes()[index] == b';' {
-                self.copy(css, start..index);
-                index += 1;
-                start = index;
-            } else {
-                index += 1;
+        let mut parser = Parser::new(&css[range.clone()]);
+        loop {
+            let offset = range.start + parser.position().byte_index();
+            match parser.next_including_whitespace_and_comments() {
+                Ok(Token::Semicolon) => {
+                    self.copy(css, start..offset);
+                    start = offset + 1;
+                }
+                Ok(_) => {}
+                Err(_) => {
+                    break;
+                }
             }
         }
         self.copy(css, start..range.end);

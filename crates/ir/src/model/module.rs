@@ -90,6 +90,7 @@ impl ModuleIr {
         Self {
             imports: ModuleImports {
                 consumed_uses: Vec::new(),
+                leading_reads: Vec::new(),
                 reserved_names: Vec::new(),
                 macros: Vec::new(),
                 module_css: Vec::new(),
@@ -285,6 +286,11 @@ pub struct ModuleImports {
     /// the reference to the macro binding starts at the same position.
     #[serde(default)]
     pub consumed_uses: Vec<Span>,
+    /// Calls whose first token is a read of a macro binding, as in `style(...)`,
+    /// `(style).ref(...)`, or `/* note */ style.when(...)`. Import removal accepts such
+    /// a read when a transformed call starts where the recorded call starts.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub leading_reads: Vec<LeadingRead>,
     /// Includes nested bindings and unresolved reads to avoid capturing user code.
     pub reserved_names: Vec<LeanStr>,
     /// Macro imports that code generation may remove once the call is lowered.
@@ -292,6 +298,16 @@ pub struct ModuleImports {
     /// Source-literal spans of explicit module CSS value imports.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub module_css: Vec<Span>,
+}
+
+/// A call expression whose first token reads a macro binding.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LeadingRead {
+    /// Span of the whole call, including parentheses and comments before the read.
+    pub call: Span,
+    /// Span of the identifier that reads the macro binding.
+    pub reference: Span,
 }
 
 /// One `import` statement that mentions the framework macro.
@@ -322,4 +338,9 @@ pub struct MacroImportSpecifier {
     pub has_unmapped_references: bool,
     /// Every read of `local`, in source order, excluding the import itself.
     pub references: Vec<Span>,
+    /// The `,` that removing this binding also removes: the comma after it in the same
+    /// list, or else the comma before it. `None` when no comma joins the binding to a
+    /// neighbor in its list, as for the only binding inside `{}`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub separator: Option<Span>,
 }

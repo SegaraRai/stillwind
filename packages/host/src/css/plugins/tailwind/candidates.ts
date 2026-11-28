@@ -1,8 +1,9 @@
 import { decodeArbitraryValue } from "@stillwind/native";
 import type { PluginAPI } from "tailwindcss/plugin";
 
-import { serializeCss, splitTopLevel, utilityBodies, withAlpha } from "./css.ts";
+import { serializeCss, utilityBodies, withAlpha } from "./css.ts";
 import { inferDataType, type DataType } from "./data-type.ts";
+import { isValidArbitrary, segment } from "./segment.ts";
 
 /** Options of one `matchUtilities()` call. */
 type MatchOptions = NonNullable<Parameters<PluginAPI["matchUtilities"]>[1]>;
@@ -159,16 +160,6 @@ type CandidatePart =
     };
 
 /**
- * Whether a decoded arbitrary value has no top-level `;` or `}`, which Tailwind rejects.
- *
- * @param value - Decoded value.
- * @returns Whether the value can be used.
- */
-function validArbitrary(value: string): boolean {
-  return splitTopLevel(value, ";").length === 1 && splitTopLevel(value, "}").length === 1;
-}
-
-/**
  * Parses the value part of a candidate as Tailwind's candidate parser does.
  *
  * @param text - Text after the root and its `-`, such as `4`, `[length:1px]`, or
@@ -179,9 +170,9 @@ function parseValue(text: string): CandidatePart | undefined {
   let inner: string;
   if (text.startsWith("(") && text.endsWith(")")) {
     // Tailwind rewrites `(type:--name)` to `[type:var(--name)]` before decoding.
-    const parts = splitTopLevel(text.slice(1, -1), ":");
+    const parts = segment(text.slice(1, -1), ":");
     const [dataType, variable] = parts.length === 2 ? parts : [null, parts.join(":")];
-    if (!variable.startsWith("--") || !validArbitrary(variable)) {
+    if (!variable.startsWith("--") || !isValidArbitrary(variable)) {
       return undefined;
     }
     inner = dataType === null ? `var(${variable})` : `${dataType}:var(${variable})`;
@@ -194,7 +185,7 @@ function parseValue(text: string): CandidatePart | undefined {
     };
   }
   let value = decodeArbitraryValue(inner);
-  if (!validArbitrary(value)) {
+  if (!isValidArbitrary(value)) {
     return undefined;
   }
   // A type hint consists of lowercase letters and hyphens before the first colon.
@@ -225,7 +216,7 @@ function parseValue(text: string): CandidatePart | undefined {
 function parseModifier(text: string): CandidatePart | undefined {
   if (text.startsWith("[") && text.endsWith("]")) {
     const value = decodeArbitraryValue(text.slice(1, -1));
-    return validArbitrary(value) && value.trim()
+    return isValidArbitrary(value) && value.trim()
       ? {
           kind: "arbitrary",
           value,
@@ -235,7 +226,7 @@ function parseModifier(text: string): CandidatePart | undefined {
   }
   if (text.startsWith("(") && text.endsWith(")")) {
     const variable = text.slice(1, -1);
-    return variable.startsWith("--") && validArbitrary(variable)
+    return variable.startsWith("--") && isValidArbitrary(variable)
       ? {
           kind: "arbitrary",
           value: decodeArbitraryValue(`var(${variable})`),
@@ -270,7 +261,7 @@ export function resolveUtility(
   if (!member(raw, name) || (negative && !options.supportsNegativeValues)) {
     return;
   }
-  const [stem, ...modifierParts] = splitTopLevel(raw, "/");
+  const [stem, ...modifierParts] = segment(raw, "/");
   if (modifierParts.length > 1) {
     return;
   }
@@ -392,7 +383,7 @@ export function resolveVariant(
   if (!member(candidate, name)) {
     return;
   }
-  const [stem, ...modifierParts] = splitTopLevel(candidate, "/");
+  const [stem, ...modifierParts] = segment(candidate, "/");
   if (modifierParts.length > 1) {
     return;
   }

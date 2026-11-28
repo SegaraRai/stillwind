@@ -41,6 +41,10 @@ impl ModuleIr {
         for span in &mut result.imports.consumed_uses {
             *span = map(*span)?;
         }
+        for read in &mut result.imports.leading_reads {
+            read.call = map(read.call)?;
+            read.reference = map(read.reference)?;
+        }
         for source in &mut result.imports.module_css {
             *source = map(*source)?;
         }
@@ -51,6 +55,9 @@ impl ModuleIr {
                 specifier.span = map(specifier.span)?;
                 for reference in &mut specifier.references {
                     *reference = map(*reference)?;
+                }
+                if let Some(separator) = &mut specifier.separator {
+                    *separator = map(*separator)?;
                 }
             }
         }

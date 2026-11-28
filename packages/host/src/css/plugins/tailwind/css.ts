@@ -1,5 +1,7 @@
 import type { NativePluginOption } from "@stillwind/native";
 
+import { segment } from "./segment.ts";
+
 /**
  * Serializes a plugin CSS object, as plugins pass it to Tailwind's API, while preserving
  * repeated declarations and nested rules.
@@ -286,7 +288,7 @@ export function utilityRules(
     } else if (selector.startsWith("@")) {
       utilityRules(body, register, global, [...wrappers, selector]);
     } else {
-      for (const branch of splitTopLevel(selector, ",").map((part) => part.trim())) {
+      for (const branch of segment(selector, ",").map((part) => part.trim())) {
         const classes = utilityClasses(branch);
         if (!classes.length) {
           throw new Error(`Tailwind plugin utility requires a class selector: ${selector}`);
@@ -410,8 +412,8 @@ export function utilityBodies(input: unknown, selector = "&", conditions: string
         result.push(...utilityBodies(value, selector, [...conditions, key]));
       } else {
         // Each target keeps one selector, because a utility body holds one selector block.
-        for (const parent of splitTopLevel(selector, ",").map((part) => part.trim())) {
-          for (const child of splitTopLevel(key, ",").map((part) => part.trim())) {
+        for (const parent of segment(selector, ",").map((part) => part.trim())) {
+          for (const child of segment(key, ",").map((part) => part.trim())) {
             result.push(
               ...utilityBodies(
                 value,
@@ -431,48 +433,6 @@ export function utilityBodies(input: unknown, selector = "&", conditions: string
 }
 
 /**
- * Splits text at a delimiter outside CSS strings, brackets, and function calls.
- *
- * @param value - Text to split. Escaped characters never delimit.
- * @param delimiter - One character, such as `,` or `/`.
- * @returns The parts without trimming, including empty ones. Text without the delimiter is one
- * part.
- */
-export function splitTopLevel(value: string, delimiter: string): string[] {
-  const parts: string[] = [];
-  let start = 0;
-  let depth = 0;
-  let quote = "";
-  for (let index = 0; index < value.length; index++) {
-    const char = value[index];
-    if (char === "\\") {
-      index++;
-      continue;
-    }
-    if (quote) {
-      if (char === quote) {
-        quote = "";
-      }
-      continue;
-    }
-    if (char === '"' || char === "'") {
-      quote = char;
-      continue;
-    }
-    if (char === "[" || char === "(") {
-      depth++;
-    } else if (char === "]" || char === ")") {
-      depth--;
-    } else if (depth === 0 && char === delimiter) {
-      parts.push(value.slice(start, index));
-      start = index + 1;
-    }
-  }
-  parts.push(value.slice(start));
-  return parts;
-}
-
-/**
  * Converts the declarations of a Tailwind `@plugin` options block into the values that
  * `plugin.withOptions()` factories receive.
  *
@@ -485,7 +445,7 @@ export function splitTopLevel(value: string, delimiter: string): string[] {
 export function pluginOptions(options: readonly NativePluginOption[]): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   for (const { name, value: text } of options) {
-    const entries = splitTopLevel(text, ",").map((part) => {
+    const entries = segment(text, ",").map((part) => {
       const value = part.trim();
       if (value === "true") {
         return true;

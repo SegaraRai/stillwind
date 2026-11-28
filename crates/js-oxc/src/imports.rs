@@ -10,20 +10,21 @@
 //! original source; reference lists are filled only for specifiers whose
 //! [`MacroImportSpecifier::is_macro`] flag is set.
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use lean_string::{LeanStr, ToLeanStr};
 use oxc::ast::ast::{
-    BindingIdentifier, ExportAllDeclaration, ExportFromDeclaration, Expression,
-    IdentifierReference, ImportDeclaration, ImportDeclarationSpecifier, ImportExpression,
-    ModuleExportName, Program, StringLiteral,
+    BindingIdentifier, CallExpression, ChainElement, Comment, ExportAllDeclaration,
+    ExportFromDeclaration, Expression, IdentifierReference, ImportDeclaration,
+    ImportDeclarationSpecifier, ImportExpression, ModuleExportName, Program, StringLiteral,
 };
 use oxc::ast_visit::{Visit, walk};
 use oxc::semantic::{Scoping, SymbolId};
 use oxc::span::{GetSpan, Span as OxcSpan};
 
 use stillwind_ir::{
-    MODULE_CSS_IMPORT, MacroImport, MacroImportSpecifier, ModuleImports, from_macro_import,
+    LeadingRead, MODULE_CSS_IMPORT, MacroImport, MacroImportSpecifier, ModuleImports,
+    from_macro_import,
 };
 use stillwind_source::{FileId, Span};
 
@@ -35,24 +36,35 @@ pub(crate) fn collect(program: &Program<'_>, scoping: &Scoping, file: FileId) ->
     let mut collector = Collector {
         scoping,
         file,
+        text: program.source_text,
+        comments: &program.comments,
         names: BTreeSet::new(),
         imports: Vec::new(),
         module_css: Vec::new(),
         references: HashMap::new(),
         symbols: Vec::new(),
+        leading_reads: Vec::new(),
     };
     collector.visit_program(program);
+    let mut macro_symbols = HashSet::new();
     for (import, symbols) in collector.imports.iter_mut().zip(collector.symbols) {
         for (specifier, symbol) in import.specifiers.iter_mut().zip(symbols) {
             if specifier.is_macro
                 && let Some(symbol) = symbol
             {
                 specifier.references = collector.references.remove(&symbol).unwrap_or_default();
+                macro_symbols.insert(symbol);
             }
         }
     }
+    let leading_reads = collector
+        .leading_reads
+        .into_iter()
+        .filter_map(|(read, symbol)| macro_symbols.contains(&symbol).then_some(read))
+        .collect();
     ModuleImports {
         consumed_uses: Vec::new(),
+        leading_reads,
         reserved_names: collector.names.into_iter().collect(),
         macros: collector.imports,
         module_css: collector.module_css,
@@ -76,6 +88,14 @@ struct Collector<'s> {
     symbols: Vec<Vec<Option<SymbolId>>>,
     /// Reference spans per symbol, used to fill macro specifier references.
     references: HashMap<SymbolId, Vec<Span>>,
+    /// Source text of the program, which Oxc spans address.
+    text: &'s str,
+    /// Comments of the program in source order, used to skip their text between
+    /// import specifiers.
+    comments: &'s [Comment],
+    /// Calls whose first token reads a resolved binding, with the symbol of that
+    /// binding. [`collect`] keeps the reads of macro bindings.
+    leading_reads: Vec<(LeadingRead, SymbolId)>,
 }
 
 impl Collector<'_> {
@@ -94,6 +114,77 @@ impl Collector<'_> {
         if is_value && source.value == MODULE_CSS_IMPORT {
             self.module_css.push(self.span(source.span));
         }
+    }
+
+    /// Returns the `,` that joins two bindings of one import list within `gap`.
+    ///
+    /// `gap` must lie between two adjacent specifiers, or between the last specifier
+    /// and the end of the declaration, so that it contains only punctuation, whitespace,
+    /// and comments. Commas inside comments do not count. A `{` means that the gap
+    /// leaves the named-specifier list, so the result is `None`. The search stops at
+    /// `}`, which closes the list.
+    fn list_comma(&self, gap: OxcSpan) -> Option<OxcSpan> {
+        let mut comma = None;
+        let mut offset = gap.start;
+        while offset < gap.end {
+            if let Some(comment) = self
+                .comments
+                .iter()
+                .find(|comment| comment.span.start <= offset && offset < comment.span.end)
+            {
+                offset = comment.span.end;
+                continue;
+            }
+            match self.text.as_bytes()[offset as usize] {
+                b',' => comma = Some(OxcSpan::new(offset, offset + 1)),
+                b'{' => return None,
+                b'}' => return comma,
+                _ => {}
+            }
+            offset += 1;
+        }
+        comma
+    }
+}
+
+/// Returns the identifier that is the first token of `expression`, looking through
+/// parentheses, member accesses, calls, tagged templates, TypeScript wrappers, and the
+/// left operands of operators.
+fn leading_identifier<'e, 'a>(
+    expression: &'e Expression<'a>,
+) -> Option<&'e IdentifierReference<'a>> {
+    match expression {
+        Expression::Identifier(identifier) => Some(identifier),
+        Expression::ParenthesizedExpression(expression) => {
+            leading_identifier(&expression.expression)
+        }
+        Expression::StaticMemberExpression(member) => leading_identifier(&member.object),
+        Expression::ComputedMemberExpression(member) => leading_identifier(&member.object),
+        Expression::PrivateFieldExpression(member) => leading_identifier(&member.object),
+        Expression::CallExpression(call) => leading_identifier(&call.callee),
+        Expression::TaggedTemplateExpression(tagged) => leading_identifier(&tagged.tag),
+        Expression::ChainExpression(chain) => match &chain.expression {
+            ChainElement::CallExpression(call) => leading_identifier(&call.callee),
+            ChainElement::TSNonNullExpression(expression) => {
+                leading_identifier(&expression.expression)
+            }
+            ChainElement::StaticMemberExpression(member) => leading_identifier(&member.object),
+            ChainElement::ComputedMemberExpression(member) => leading_identifier(&member.object),
+            ChainElement::PrivateFieldExpression(member) => leading_identifier(&member.object),
+        },
+        Expression::TSAsExpression(expression) => leading_identifier(&expression.expression),
+        Expression::TSSatisfiesExpression(expression) => leading_identifier(&expression.expression),
+        Expression::TSNonNullExpression(expression) => leading_identifier(&expression.expression),
+        Expression::TSInstantiationExpression(expression) => {
+            leading_identifier(&expression.expression)
+        }
+        Expression::BinaryExpression(expression) => leading_identifier(&expression.left),
+        Expression::LogicalExpression(expression) => leading_identifier(&expression.left),
+        Expression::ConditionalExpression(expression) => leading_identifier(&expression.test),
+        Expression::SequenceExpression(expression) => {
+            expression.expressions.first().and_then(leading_identifier)
+        }
+        _ => None,
     }
 }
 
@@ -164,8 +255,20 @@ impl<'a> Visit<'a> for Collector<'_> {
                     is_macro,
                     has_unmapped_references: false,
                     references: Vec::new(),
+                    separator: None,
                 });
                 symbols.push(local.symbol_id.get());
+            }
+            for index in 0..specifiers.len() {
+                let end = specifiers[index].span().end;
+                let next = specifiers
+                    .get(index + 1)
+                    .map_or(declaration.span.end, |next| next.span().start);
+                let separator = self.list_comma(OxcSpan::new(end, next)).or_else(|| {
+                    let previous = specifiers.get(index.checked_sub(1)?)?.span().end;
+                    self.list_comma(OxcSpan::new(previous, specifiers[index].span().start))
+                });
+                bindings[index].separator = separator.map(|comma| self.span(comma));
             }
             if bindings.iter().any(|binding| binding.is_macro) {
                 self.imports.push(MacroImport {
@@ -201,6 +304,23 @@ impl<'a> Visit<'a> for Collector<'_> {
     fn visit_export_all_declaration(&mut self, declaration: &ExportAllDeclaration<'a>) {
         self.record_module_css(&declaration.source, !declaration.export_kind.is_type());
         walk::walk_export_all_declaration(self, declaration);
+    }
+
+    /// Records a call whose first token reads a resolved binding.
+    fn visit_call_expression(&mut self, call: &CallExpression<'a>) {
+        if let Some(identifier) = leading_identifier(&call.callee)
+            && let Some(reference) = identifier.reference_id.get()
+            && let Some(symbol) = self.scoping.get_reference(reference).symbol_id()
+        {
+            self.leading_reads.push((
+                LeadingRead {
+                    call: self.span(call.span),
+                    reference: self.span(identifier.span),
+                },
+                symbol,
+            ));
+        }
+        walk::walk_call_expression(self, call);
     }
 
     /// Records a module-css literal in a dynamic `import()` whose source is a string

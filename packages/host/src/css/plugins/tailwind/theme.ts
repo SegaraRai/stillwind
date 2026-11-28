@@ -1,7 +1,12 @@
-import type { NativeLegacyThemeKey, NativeThemeToken } from "@stillwind/native";
+import {
+  customPropertyReferences,
+  type NativeLegacyThemeKey,
+  type NativeThemeToken,
+} from "@stillwind/native";
 import defaultTheme from "tailwindcss/defaultTheme";
 
-import { serializeCss, splitTopLevel, withAlpha } from "./css.ts";
+import { serializeCss, withAlpha } from "./css.ts";
+import { segment } from "./segment.ts";
 
 type Dictionary = Record<string, unknown>;
 
@@ -132,7 +137,7 @@ function themeableValues(theme: Dictionary): [string[], unknown][] {
  */
 export function toKeyPath(path: string): string[] {
   const keys: string[] = [];
-  for (const part of splitTopLevel(path, ".")) {
+  for (const part of segment(path, ".")) {
     let index = 0;
     for (;;) {
       const open = part.indexOf("[", index);
@@ -178,18 +183,16 @@ function read(value: unknown, path: readonly string[]): unknown {
 }
 
 /**
- * Whether a theme value is a `var()` reference to the variable that it would define.
+ * Whether a theme value refers to the variable that it would define.
  *
  * @param name - Variable name without the leading `--`, such as `color-primary`.
  * @param value - Configured value.
- * @returns Whether `value` contains `var(--name)` or `var(--name, ...)`, which makes a declaration
- * of `--name` a cycle.
+ * @returns Whether `value` refers to `--name`, as in `var(--name)`, `var(--x, var(--name))`, or
+ * `--name(4)`, which makes a declaration of `--name` a cycle. Names in strings, comments, and URLs
+ * do not count.
  */
 function selfReference(name: string, value: unknown): boolean {
-  return (
-    typeof value === "string" &&
-    [...value.matchAll(/var\(\s*--([^\s,)]+)\s*[,)]/g)].some((reference) => reference[1] === name)
-  );
+  return typeof value === "string" && customPropertyReferences(value).includes(`--${name}`);
 }
 
 /**

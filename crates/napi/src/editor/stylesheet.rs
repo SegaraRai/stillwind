@@ -166,6 +166,19 @@ pub fn completion_detail(source: String) -> Option<NativeText> {
     stillwind_compiler::completion_detail(&source).map(Into::into)
 }
 
+/// Returns every distinct `--name` ident or function name in the CSS `css`, in code
+/// point order. Names keep their authored spelling, including escapes. Names inside
+/// strings, comments, and URLs are not returned, and a function name such as
+/// `--spacing` in `--spacing(4)` is returned.
+#[napi]
+#[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
+pub fn custom_property_references(css: String) -> Vec<String> {
+    stillwind_css::custom_property_references(&css)
+        .into_iter()
+        .map(Into::into)
+        .collect()
+}
+
 /// Returns the text that a plugin catalog completes at the UTF-8 byte offset `offset`
 /// of the CSS `source`: the `@apply` candidate or applied `@variant` sequence before
 /// the cursor, without its variants. Returns null at other positions, including

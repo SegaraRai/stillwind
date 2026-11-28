@@ -15,14 +15,8 @@ import {
 } from "./candidates.ts";
 import { configurePlugin, darkModeVariant, resolveConfig } from "./configuration.ts";
 import { containerUtility } from "./container.ts";
-import {
-  cssString,
-  identifier,
-  selectorRules,
-  serializeCss,
-  splitTopLevel,
-  utilityRules,
-} from "./css.ts";
+import { cssString, identifier, selectorRules, serializeCss, utilityRules } from "./css.ts";
+import { segment } from "./segment.ts";
 import { PluginTheme, toKeyPath } from "./theme.ts";
 
 /** A static registration and the `@plugin` statement that registered it. */
@@ -453,7 +447,7 @@ export class TailwindRuntime {
          * @returns The key's index, or the number of keys for an arbitrary value.
          */
         const order = (candidate: typeof a) => {
-          const [stem] = splitTopLevel(candidate.name, "/");
+          const [stem] = segment(candidate.name, "/");
           const key =
             stem === registration.name ? "DEFAULT" : stem.slice(registration.name.length + 1);
           const index = keys.indexOf(key);

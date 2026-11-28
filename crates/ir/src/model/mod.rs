@@ -35,9 +35,9 @@ pub use expression::{
     RuleExpression, RuleExpressionError, RuleExpressionErrorKind, SelectEntry,
 };
 pub use module::{
-    ConditionalLabel, CssCall, CssInput, ForwardCall, MacroImport, MacroImportSpecifier, MediaCall,
-    ModuleImports, ModuleIr, OrderingUse, RecipeCall, RecipeCondition, RecipeDefaultVariant,
-    RecipePreviewScope, RecipeReplacement, RecipeValueRole,
+    ConditionalLabel, CssCall, CssInput, ForwardCall, LeadingRead, MacroImport,
+    MacroImportSpecifier, MediaCall, ModuleImports, ModuleIr, OrderingUse, RecipeCall,
+    RecipeCondition, RecipeDefaultVariant, RecipePreviewScope, RecipeReplacement, RecipeValueRole,
 };
 pub use style::{
     AnchorScope, ContainerType, RefCondition, RefProjection, StyleCall, StyleInput, StyleVariant,
