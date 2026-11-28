@@ -5,6 +5,7 @@
 
 use lean_string::{LeanStr, LeanString, ToLeanString};
 
+use stillwind_css::PREVIEW_SLOT;
 use stillwind_design_system::{
     DocumentTargetFailure, RegistryContext, UtilityResolutionError, document_target,
     resolve_variant,
@@ -256,15 +257,23 @@ impl DesignSystemQuery {
             return self.context.preview_declarations(&css);
         }
         if context == CandidateContext::MediaVariants {
-            return media_argument_query(candidate, theme)
-                .map(|query| format_args!("@media {query}{{}}").to_lean_string().into());
+            return media_argument_query(candidate, theme).map(|query| {
+                format_args!("@media {query}{{{PREVIEW_SLOT}}}")
+                    .to_lean_string()
+                    .into()
+            });
         }
         // Only the parsed variants contribute to the preview. The required utility
         // suffix is discarded without resolving it.
         let text = format_args!("{}:utility", candidate.trim_end_matches(':')).to_lean_string();
         let parsed = parse_candidate(&text)?;
         let paths = condition_paths(&parsed.variants, theme)?;
-        Some(paths.iter().map(|path| wrap_conditions("", path)).collect())
+        Some(
+            paths
+                .iter()
+                .map(|path| wrap_conditions(PREVIEW_SLOT, path))
+                .collect(),
+        )
     }
 
     /// Checks decoded `text` under its role. Ordinary utilities require failure-free
@@ -375,7 +384,7 @@ mod tests {
                     .preview_candidate("wide:", CandidateContext::DefinitionVariants)
                     .unwrap()
                     .as_deref(),
-                Some("@media (width >= 40rem){}")
+                Some("@media (width >= 40rem){@stillwind-preview-slot;}")
             );
             assert!(query.valid_input_variant("wide", CandidateContext::MediaVariants));
             assert!(!query.valid_input_variant("hovered", CandidateContext::MediaVariants));
@@ -385,7 +394,7 @@ mod tests {
                         .preview_candidate(argument, CandidateContext::MediaVariants)
                         .unwrap()
                         .as_deref(),
-                    Some("@media (width >= 40rem){}")
+                    Some("@media (width >= 40rem){@stillwind-preview-slot;}")
                 );
             }
             assert_eq!(

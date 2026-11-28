@@ -363,32 +363,12 @@ function exactVariants(query: CandidateQuery, input: string): CandidateMatch[] {
 }
 
 /**
- * Formats the CSS of a variant and marks each empty block where the utility declarations belong.
- * The comment is added after formatting, because `formatCss` removes comments from its input.
+ * Formats the CSS of a variant preview.
  *
  * @returns The CSS, or undefined when `preview` is not valid CSS.
  */
 function variantCss(query: CandidateQuery, preview: string): string | undefined {
-  const comment = "/* utility declarations */";
-  const lines = formatPreview(query, preview)?.split("\n");
-  if (!lines) {
-    return undefined;
-  }
-  const output: string[] = [];
-  for (let index = 0; index < lines.length; index++) {
-    const line = lines[index]!;
-    output.push(line);
-    if (line.endsWith("{")) {
-      const indent = Math.max(0, line.search(/\S/));
-      if (lines[index + 1]?.trim() === "}") {
-        output.push(`${" ".repeat(indent + 2)}${comment}`);
-      } else if (lines[index + 1]?.trim() === "" && lines[index + 2]?.trim() === "}") {
-        output.push(`${" ".repeat(indent + 2)}${comment}`);
-        index++;
-      }
-    }
-  }
-  return output.join("\n");
+  return formatPreview(query, preview);
 }
 
 /**

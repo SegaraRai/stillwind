@@ -167,18 +167,15 @@ test("marks where a variant places the utility declarations", () => {
   const { css, source } = lookupCandidates(query, "hover").matches[0]!;
   expect(source).toBe("variant");
   expect(css).toContain("@media (hover: hover)");
-  expect(css).toContain("@media (hover: hover) {\n    /* utility declarations */\n  }");
+  expect(css).toContain("@media (hover: hover) {\n    /* … */\n  }");
 });
 
 test("keeps the empty rule of a variant only when at-rules alone enclose it", () => {
   const css = (input: string) => lookupCandidates(query, input).matches[0]!.css.trimEnd();
-  expect(css("first")).toBe("&:first-child {\n  /* utility declarations */\n}");
-  expect(css("dark")).toBe(
-    "@media (prefers-color-scheme: dark) {\n  & {\n    /* utility declarations */\n  }\n}",
-  );
+  expect(css("first")).toBe("&:first-child {\n  /* … */\n}");
+  expect(css("dark")).toBe("@media (prefers-color-scheme: dark) {\n  & {\n    /* … */\n  }\n}");
   expect(css("not-hover")).toBe(
-    "&:not(:hover) {\n  /* utility declarations */\n}\n\n" +
-      "@media not (hover: hover) {\n  & {\n    /* utility declarations */\n  }\n}",
+    "&:not(:hover) {\n  /* … */\n}\n\n" + "@media not (hover: hover) {\n  & {\n    /* … */\n  }\n}",
   );
 });
 

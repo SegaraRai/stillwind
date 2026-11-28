@@ -5,6 +5,10 @@ use lightningcss::stylesheet::{ParserOptions, PrinterOptions, StyleSheet};
 
 use crate::normalize_scopes;
 
+/// Sentinel at-rule placed where utility declarations or rules belong in a variant
+/// preview. [`format_css`] replaces each occurrence with `/* … */` after formatting.
+pub const PREVIEW_SLOT: &str = "@stillwind-preview-slot;";
+
 /// CSS could not be parsed or printed for display.
 #[derive(Debug, thiserror::Error)]
 pub enum CssFormatError {
@@ -29,10 +33,39 @@ pub fn format_css(css: &str) -> Result<LeanString, CssFormatError> {
     let css = normalized.css.as_str();
     let stylesheet = StyleSheet::parse(css, ParserOptions::default())
         .map_err(|error| CssFormatError::Parse(error.to_lean_str()))?;
-    stylesheet
+    let formatted = stylesheet
         .to_css(PrinterOptions::default())
-        .map(|result| result.code.into())
-        .map_err(|error| CssFormatError::Print(error.to_lean_str()))
+        .map_err(|error| CssFormatError::Print(error.to_lean_str()))?
+        .code;
+    Ok(replace_preview_slots(&formatted))
+}
+
+/// Replaces [`PREVIEW_SLOT`] lines with `/* … */` and removes any blank line that
+/// Lightning CSS inserts between a preceding declaration and the sentinel at-rule.
+fn replace_preview_slots(css: &str) -> LeanString {
+    if !css.contains(PREVIEW_SLOT) {
+        return css.into();
+    }
+    let mut output = LeanString::with_capacity(css.len());
+    let mut lines = css.split_inclusive('\n').peekable();
+    while let Some(line) = lines.next() {
+        if line.trim().is_empty()
+            && output.ends_with(";\n")
+            && lines.peek().is_some_and(|next| next.trim() == PREVIEW_SLOT)
+        {
+            continue;
+        }
+        if let Some(prefix) = line.strip_suffix("@stillwind-preview-slot;\n") {
+            output.push_str(prefix);
+            output.push_str("/* … */\n");
+        } else if let Some(prefix) = line.strip_suffix(PREVIEW_SLOT) {
+            output.push_str(prefix);
+            output.push_str("/* … */");
+        } else {
+            output.push_str(line);
+        }
+    }
+    output
 }
 
 #[cfg(test)]
@@ -68,5 +101,34 @@ mod tests {
     #[test]
     fn rejects_invalid_css_without_discarding_declarations() {
         assert!(format_css("&{color red}").is_err());
+    }
+
+    #[test]
+    fn formats_preview_slot_as_ellipsis_comment() {
+        assert_eq!(
+            format_css(&format!("&:first-child{{{PREVIEW_SLOT}}}")).unwrap(),
+            "&:first-child {\n  /* … */\n}\n"
+        );
+        assert_eq!(
+            format_css(&format!(
+                "&:hover{{@media (hover: hover){{{PREVIEW_SLOT}}}}}"
+            ))
+            .unwrap(),
+            "&:hover {\n  @media (hover: hover) {\n    /* … */\n  }\n}\n"
+        );
+        assert_eq!(
+            format_css(&format!(
+                "&::before{{content:var(--tw-content);{PREVIEW_SLOT}}}"
+            ))
+            .unwrap(),
+            "&:before {\n  content: var(--tw-content);\n  /* … */\n}\n"
+        );
+        assert_eq!(
+            format_css(&format!(
+                "@media (prefers-color-scheme: dark){{&{{{PREVIEW_SLOT}}}}}"
+            ))
+            .unwrap(),
+            "@media (prefers-color-scheme: dark) {\n  & {\n    /* … */\n  }\n}\n"
+        );
     }
 }

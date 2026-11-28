@@ -17,9 +17,9 @@ use cssparser::Token;
 use lean_string::{LeanStr, LeanString, ToLeanString};
 
 use stillwind_css::{
-    CssBanner, CssNode, CssNodeKind, fold_nested_host_conditions, hoist_pseudo_element_conditions,
-    normalize_scopes, parse_structure, selector_selects_host, split_top_level,
-    whitespace_separated_ranges,
+    CssBanner, CssNode, CssNodeKind, PREVIEW_SLOT, fold_nested_host_conditions,
+    hoist_pseudo_element_conditions, normalize_scopes, parse_structure, selector_selects_host,
+    split_top_level, whitespace_separated_ranges,
 };
 use stillwind_design_system::{
     ThemeIndex, VariantApplication, VariantContext, compare_variant_sequences, resolve_variant,
@@ -522,8 +522,12 @@ pub(in crate::compiler) fn render_authored_variant_preview_path(
     variant_paths(applications)
         .iter()
         .map(|path| {
-            let body = if path_has_selector(path) { "" } else { "&{}" };
-            render_authored_variant_steps(body, path, identifiers)
+            let body = if path_has_selector(path) {
+                PREVIEW_SLOT.to_lean_string()
+            } else {
+                format_args!("&{{{PREVIEW_SLOT}}}").to_lean_string()
+            };
+            render_authored_variant_steps(&body, path, identifiers)
         })
         .collect()
 }

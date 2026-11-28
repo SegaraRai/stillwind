@@ -330,7 +330,7 @@ const next=style({[panel("")]:"block"});`;
   const current = await project(source);
   try {
     const condition = await hover(current, source, 'hover:")]');
-    expect(condition).toMatch(/&:is\(:where\(\.__ref_panel\):hover \*\) \{\s*\}/);
+    expect(condition).toMatch(/&:is\(:where\(\.__ref_panel\):hover \*\) \{\n  \/\* … \*\/\n\}/);
     expect(condition).not.toContain("& {");
     expect(condition).not.toContain("display");
     // The whole ref variant expression shares the preview of its variant text.

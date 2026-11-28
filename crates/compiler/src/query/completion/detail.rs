@@ -30,7 +30,12 @@ pub fn completion_detail(css: &str) -> Option<LeanStr> {
                         wrappers.push(selector.into());
                     }
                 }
-                CssNodeKind::AtRule { name, .. } if name == "property" || name == "apply" => {
+                CssNodeKind::AtRule { name, .. }
+                    if matches!(
+                        name.as_str(),
+                        "property" | "apply" | "stillwind-preview-slot"
+                    ) =>
+                {
                     continue;
                 }
                 CssNodeKind::AtRule { name, prelude, .. } => {
