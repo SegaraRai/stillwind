@@ -5,6 +5,10 @@
     - cli-info-command
     - diagnostics-and-inspect-clarity
     - project-analysis-hooks
+"@stillwind/analysis@0.13.0":
+  dir: packages/analysis
+  intents:
+    - parallel-project-analysis
 "@stillwind/analysis@0.7.0":
   dir: packages/analysis
   intents:
@@ -21,6 +25,19 @@
     - editor-integration-feedback
     - project-analysis-hooks
     - readable-diagnostics-output
+"@stillwind/cli@0.13.0":
+  dir: packages/cli
+  intents:
+    - canonical-utilities-theme-values
+    - css-variant-or
+    - hover-condition-and-recipe-previews
+    - hover-preview-coverage
+    - hover-preview-fixes
+    - ordering-checker-inputs
+    - parallel-project-analysis
+    - ref-marker-hover
+    - variant-preview-edge-cases
+    - variant-preview-placeholder
 "@stillwind/cli@0.2.0":
   dir: packages/cli
   intents:
@@ -105,6 +122,11 @@
   dir: packages/integration
   intents:
     - readable-diagnostics-output
+"@stillwind/integration@0.13.0":
+  dir: packages/integration
+  intents:
+    - unresolved-type-imports
+    - vite-dev-resource-urls
 "@stillwind/integration@0.5.0":
   dir: packages/integration
   intents:
@@ -163,6 +185,18 @@
   dir: packages/language-server
   intents:
     - editor-integration-feedback
+"@stillwind/language-server@0.13.0":
+  dir: packages/language-server
+  intents:
+    - css-variant-or
+    - hover-condition-and-recipe-previews
+    - hover-preview-coverage
+    - hover-preview-fixes
+    - precedence-aware-conditions
+    - ref-marker-hover
+    - stylesheet-catalog-input
+    - variant-preview-edge-cases
+    - variant-preview-placeholder
 "@stillwind/language-server@0.5.0":
   dir: packages/language-server
   intents:
@@ -188,6 +222,10 @@
     - real-boxes-boil
     - tidy-pears-sneeze
     - unparsed-spaces-drop
+"@stillwind/plugin-iconify@0.13.0":
+  dir: plugins/iconify
+  intents:
+    - dynamic-candidates-from-style-inputs
 "@stillwind/plugin-iconify@0.6.0":
   dir: plugins/iconify
   intents:
@@ -209,6 +247,10 @@
   dir: packages/vscode-extension
   intents:
     - editor-integration-feedback
+"@stillwind/vscode-extension@0.13.0":
+  dir: packages/vscode-extension
+  intents:
+    - canonical-utilities-theme-values
 "@stillwind/vscode-extension@0.2.0":
   dir: packages/vscode-extension
   intents:
@@ -289,6 +331,28 @@ stillwind@0.12.0:
     - diagnostics-and-inspect-clarity
     - project-analysis-hooks
     - readable-diagnostics-output
+stillwind@0.13.0:
+  dir: packages/core
+  intents:
+    - arrow-body-style-calls
+    - component-css-order
+    - converter-peer-docs
+    - css-ascii-case-insensitivity
+    - css-variant-or
+    - dynamic-candidates-from-style-inputs
+    - exclusive-utility-values
+    - inline-theme-var-references
+    - ordering-checker-inputs
+    - partial-utility-override
+    - precedence-aware-conditions
+    - recipe-slots
+    - relationship-variant-selector-lists
+    - shadow-variable-theme-values
+    - style-forward
+    - style-recipe
+    - tailwind-segment-port
+    - utility-class-selector
+    - vue-component-style-props
 stillwind@0.2.0:
   dir: packages/core
   intents:

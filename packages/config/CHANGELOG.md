@@ -1,5 +1,13 @@
 # @stillwind/config
 
+## 0.13.0
+
+### Patch Changes
+
+- Updated dependencies:
+  - @stillwind/native@0.13.0
+  - @stillwind/projection@0.13.0
+
 ## 0.12.0
 
 ### Minor Changes

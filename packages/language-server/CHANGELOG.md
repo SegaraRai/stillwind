@@ -1,5 +1,33 @@
 # @stillwind/language-server
 
+## 0.13.0
+
+### Minor Changes
+
+- CSS `@variant` rules now accept `or(...)` variant alternatives, such as `@variant md:or(hover,focus) { ... }`.
+
+### Patch Changes
+
+- Hover previews now annotate conditional utilities and recipe variants/slots with rule-leading comments, show scoped previews when hovering recipe slots, variant axes, variant options, compound entries, and style sub-expressions, and filter `recipe({ ... })` call previews by static arguments and `defaultVariants`.
+
+- Hover previews now annotate `color-mix()` and `light-dark()` color equivalents, evaluate `calc()` with `rem` dimensions when `themeValues` is disabled and inside `@media` / `@container` preludes, display registered `@property` definitions on `@stillwind-require-properties` arguments, preview `style.when()`, `style.ref()`, and `style.recipe()` calls and their variable references, and display the resolved JavaScript string literal for `style.media()` calls and references.
+
+- Hover previews in the language server now omit redundant empty `& {}` rules inside selector variants, trim trailing blank lines from CSS code blocks, annotate active theme declarations hovered in stylesheets, omit redundant hexadecimal comments on shorthand hex theme tokens, omit marker-class notes under enclosing variants, and avoid treating unrelated `.at()` and `.in()` calls as ref variants.
+
+- Hover previews now parenthesize conditions by JavaScript operator precedence, so a condition such as `/[)(]/.test(value)` or `a ?? b` is shown correctly. Type checking also accepts producer calls whose argument list ends with a comment, such as `style.ref(value // note,` followed by a new line.
+
+- Show marker documentation instead of a variant CSS block when hovering `style.ref()` declarations and ref marker references.
+
+- Plugin catalog completions in stylesheets now find the `@apply` candidate or `@variant` sequence at the cursor from the CSS structure, so quotes or `;` inside an arbitrary value such as `content-['a;b']` no longer cut the candidate short, and text in comments and strings no longer triggers plugin lookups.
+
+- Fix hover and completion previews for `if(...)`, `or(...)`, and `@scope` variants, and remove trailing spaces in `@starting-style` completion details.
+
+- Variant hover and completion previews now mark where utility declarations or nested rules are inserted with `/* … */`.
+
+- Updated dependencies:
+  - @stillwind/analysis@0.13.0
+  - @stillwind/native@0.13.0
+
 ## 0.12.0
 
 ### Patch Changes
