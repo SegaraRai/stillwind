@@ -1,5 +1,18 @@
 # @stillwind/analysis
 
+## 0.13.0
+
+### Minor Changes
+
+- `stillwind lint`, `fmt`, and `check` now analyze the projects of a configuration in parallel worker processes, so a configuration that lists several projects, such as a monorepo root, finishes sooner. Projects that share a target file are still analyzed together in one process. `lint`, `format`, and `check` in `@stillwind/analysis` accept a `concurrency` option that sets the maximum number of worker processes. By default, the maximum is half of the available parallelism.
+
+### Patch Changes
+
+- Updated dependencies:
+  - @stillwind/config@0.13.0
+  - @stillwind/host@0.13.0
+  - @stillwind/native@0.13.0
+
 ## 0.12.0
 
 ### Minor Changes

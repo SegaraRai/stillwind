@@ -1,5 +1,19 @@
 # @stillwind/integration
 
+## 0.13.0
+
+### Patch Changes
+
+- The Vite integration no longer stops a build when an import that Stillwind reads for type facts does not resolve. For example, a Svelte component with `import type { HTMLAttributes } from "svelte/elements"` now builds without an alias, although `svelte/elements` exports that path only under the `types` condition.
+
+- Vite development servers now load fonts, images, and other files that the stylesheet references from a directory whose name contains `@`, `+`, or `:`, such as a scoped package like `@fontsource-variable/geist`. Before this fix, the development CSS referred to these files by URLs that Vite did not serve, so the page received an HTML response instead of the file. Production builds were not affected.
+
+- Updated dependencies:
+  - @stillwind/config@0.13.0
+  - @stillwind/host@0.13.0
+  - @stillwind/native@0.13.0
+  - stillwind@0.13.0
+
 ## 0.12.0
 
 ### Patch Changes

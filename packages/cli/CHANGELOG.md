@@ -1,5 +1,38 @@
 # @stillwind/cli
 
+## 0.13.0
+
+### Minor Changes
+
+- CSS `@variant` rules now accept `or(...)` variant alternatives, such as `@variant md:or(hover,focus) { ... }`.
+
+- `stillwind lint`, `fmt`, and `check` now analyze the projects of a configuration in parallel worker processes, so a configuration that lists several projects, such as a monorepo root, finishes sooner. Projects that share a target file are still analyzed together in one process. `lint`, `format`, and `check` in `@stillwind/analysis` accept a `concurrency` option that sets the maximum number of worker processes. By default, the maximum is half of the available parallelism.
+
+### Patch Changes
+
+- `prefer-canonical-utilities` no longer suggests a replacement that matches only for the current theme values. For example, it no longer suggests `rounded-md` for `rounded-[min(var(--radius-md),10px)]`, because the two differ when `--radius-md` is larger than `10px`.
+
+  It also no longer uses the built-in value of `--radius` for a theme value that refers to `var(--radius)`, because the generated CSS does not declare that value. For example, with `--radius-lg: var(--radius)` in `@theme inline` and `--radius` declared in `:root`, it no longer suggests `rounded-lg` for `rounded-[4px]`.
+
+- Hover previews now annotate conditional utilities and recipe variants/slots with rule-leading comments, show scoped previews when hovering recipe slots, variant axes, variant options, compound entries, and style sub-expressions, and filter `recipe({ ... })` call previews by static arguments and `defaultVariants`.
+
+- Hover previews now annotate `color-mix()` and `light-dark()` color equivalents, evaluate `calc()` with `rem` dimensions when `themeValues` is disabled and inside `@media` / `@container` preludes, display registered `@property` definitions on `@stillwind-require-properties` arguments, preview `style.when()`, `style.ref()`, and `style.recipe()` calls and their variable references, and display the resolved JavaScript string literal for `style.media()` calls and references.
+
+- Hover previews in the language server now omit redundant empty `& {}` rules inside selector variants, trim trailing blank lines from CSS code blocks, annotate active theme declarations hovered in stylesheets, omit redundant hexadecimal comments on shorthand hex theme tokens, omit marker-class notes under enclosing variants, and avoid treating unrelated `.at()` and `.in()` calls as ref variants.
+
+- Analysis no longer prepares the TypeScript checker again each time CSS ordering reads a module that the analyzed files do not import for type information. `stillwind lint`, `fmt`, and `check` and the editor finish sooner in projects whose components are imported through other modules.
+
+- Show marker documentation instead of a variant CSS block when hovering `style.ref()` declarations and ref marker references.
+
+- Fix hover and completion previews for `if(...)`, `or(...)`, and `@scope` variants, and remove trailing spaces in `@starting-style` completion details.
+
+- Variant hover and completion previews now mark where utility declarations or nested rules are inserted with `/* … */`.
+
+- Updated dependencies:
+  - @stillwind/analysis@0.13.0
+  - @stillwind/language-server@0.13.0
+  - @stillwind/native@0.13.0
+
 ## 0.12.0
 
 ### Minor Changes

@@ -1,5 +1,60 @@
 # stillwind
 
+## 0.13.0
+
+### Minor Changes
+
+- When a file imports and uses a value from another file, such as a component, the CSS of the file that declares the value now comes first. A style that `src/App.tsx` passes to a component therefore wins over the component's own utilities, whether the style is written in the element's props, stored in a variable, or passed to a child element as with `asChild`. Previously, files without a base relationship were ordered by path, so such a style could lose to a component in `src/components/`. Imports through re-exporting files and through files without `style()` calls order files in the same way. The new `cyclic-style-order` lint rule reports files that import values from each other, so that both orders cannot hold.
+
+- CSS `@variant` rules now accept `or(...)` variant alternatives, such as `@variant md:or(hover,focus) { ... }`.
+
+- `@utility` and `@stillwind-utility` accept the `(exclusive)` header descriptor. For a named value, the first `(exclusive)` definition of a name whose `--value()` accepts the value decides the theme namespace or other source, and other `(exclusive)` definitions apply only when they read the value from the same source.
+
+  Built-in utilities that read a value from several sources now resolve a named value as Tailwind CSS does. For example, when `@theme` defines both `--shadow-plain` and `--color-plain`, `shadow-plain` sets only the shadow, and `text-plain` sets only the color. This applies to `shadow-*`, `inset-shadow-*`, `drop-shadow-*`, `text-shadow-*`, `text-*`, `decoration-*`, `ring-*`, `inset-ring-*`, `outline-*`, and the `border-*` utilities. Previously, such a utility set the declarations of every matching namespace. When a color token has a number as its name, such as `--color-2`, `border-2`, `ring-2`, `inset-ring-2`, and `outline-2` now set only the color, and `decoration-2` sets only the thickness.
+
+  In the compiler's utility order, `outline-<number>`, `ring-<number>`, and `inset-ring-<number>` now follow the color utilities of the same root, and `decoration-<number>` now precedes them. `stillwind lint --fix` updates class lists that `prefer-sorted-utilities` reports.
+
+- The new `partial-utility-override` lint rule reports a utility that overrides another utility of the same family but leaves some of its properties in place, such as `text-[0.8rem]` over `text-sm`, which keeps the line height of `text-sm`. tailwind-merge removes the whole overridden utility, so code migrated from `cn()` can look different. The rule checks utilities added to a base with `style(base, ...)`, utilities under a JavaScript condition, and variant options and compound values of `style.recipe()`.
+
+  `conflicting-utilities` no longer reports a utility under a JavaScript condition that is written after the other utility, as in `style("p-2", wide && "p-4")`, because the conditional utility overrides the other one when the condition is true, as the code shows.
+
+- `style.recipe()` accepts `slots` and `compoundSlots` in the format of tailwind-variants. With `slots`, the factory returns one function for each slot, such as `const { base, icon } = card({ size })`, and each function returns props for that element. Option values and compound `class` values can set styles for several slots with an object such as `{ base: "p-2", icon: "size-3" }`. A slot function accepts its own classes, option values for that slot only, and a `style.forward()` value.
+
+- `style.forward()` passes the class and style props that a component receives to the `style()` call of its element, as in `style("rounded p-4", style.forward({ className, style }))`. The forwarded classes come after the component's classes, and the forwarded inline style and custom properties replace the component's ones. A `style.recipe()` factory takes a `style.forward()` value as its second argument. The React, Preact, Solid, Qwik, Vue, Svelte, and Astro entrypoints provide it.
+
+- `style.cva()` is now `style.recipe()`. The configuration and the returned factory do not change. Replace each `style.cva(` call with `style.recipe(`. The lint rules `invalid-cva-config` and `invalid-cva-input` are now `invalid-recipe-config` and `invalid-recipe-input`, so rename them in your lint configuration too. The old names are no longer accepted.
+
+- The new `utility-class-selector` lint rule reports variant selectors that test the `class` attribute for a utility name, such as `[&_svg:not([class*='size-'])]:size-4` in shadcn/ui components or `[&.border-b]:pb-6`. Stillwind writes generated class names, so these tests do not see the utilities of an element, and a default such as the icon size replaces the size that the element sets. For the default-size form, the automatic fix gives the rule zero specificity with `:where()`, such as `[:where(&_svg)]:size-4` or `[:where(&>svg)]:size-8` for `*:[svg:not([class*=size-])]:size-8`, so a class on the element that sets the same property wins.
+
+### Patch Changes
+
+- A `style()` call that is the body of an arrow function, such as `(className) => style("p-4", { class: className })` or Vue's `computed(() => style("p-4"))`, now compiles to valid JavaScript. Previously, the compiled object literal was read as a block, so the build failed.
+
+- The integration guide now lists the converter packages that Vue, Svelte, and Astro components need, such as `svelte2tsx` for Svelte. Package managers do not install these optional peer dependencies automatically.
+
+- Standard CSS keywords, function names, and at-rule names in arbitrary values and authored CSS now match ASCII case-insensitively, while custom `--` identifiers and function names remain case-sensitive. For example, values such as `INITIAL`, `AUTO`, `CALC(1PX + 2px)`, `VAR(--space)`, `LIGHT-DARK(red, blue)`, and `@PROPERTY` rules are now recognized as standard CSS syntax.
+
+- Plugin utilities, such as Iconify icons, are now defined for the candidates that style inputs use, instead of for candidate-like text anywhere in a module. An icon is no longer reported as `unknown-utility` when the same file contains a quote inside a regular expression literal, such as `/["']/`. Comments and unrelated strings no longer make the plugin define utilities.
+
+- The generated CSS now declares a value from a `@theme inline` block when the CSS refers to it with `var()`, as Tailwind CSS does. For example, `rounded-[min(var(--radius-md),12px)]` with `--radius-md` in `@theme inline` now gets `--radius-md` in the theme layer, instead of an undefined variable and a border radius of `0`. Values from a `@theme reference` block are never declared.
+
+- Analysis no longer prepares the TypeScript checker again each time CSS ordering reads a module that the analyzed files do not import for type information. `stillwind lint`, `fmt`, and `check` and the editor finish sooner in projects whose components are imported through other modules.
+
+- Hover previews now parenthesize conditions by JavaScript operator precedence, so a condition such as `/[)(]/.test(value)` or `a ?? b` is shown correctly. Type checking also accepts producer calls whose argument list ends with a comment, such as `style.ref(value // note,` followed by a new line.
+
+- Relationship variants such as `group-*` now apply each selector of a custom variant that lists several selectors. For example, with shadcn/ui's `@custom-variant data-disabled` that lists two `:where()` selectors, `group-data-disabled/checkbox:opacity-50` styles the descendants of `.group/checkbox` in both cases, and `repeated-nesting-selector` no longer reports it.
+
+- `shadow-*`, `inset-shadow-*`, `drop-shadow-*`, and `text-shadow-*` utilities now use a theme value that is one `var()` reference as the shadow. For example, with `--shadow-surface: var(--surface-shadow)` in `@theme`, `shadow-surface` sets `--tw-shadow: var(--surface-shadow)`. Previously, when the theme also had `--color-surface`, the utility set only the shadow color, and the element had no shadow.
+
+- Tailwind CSS plugins now split selectors, candidate modifiers, and arbitrary values, and reject invalid arbitrary values, by the same rules as Tailwind CSS. For example, a `,` inside `{}` no longer splits a value, and an arbitrary value with an unbalanced `)` or `]` is rejected. A theme value that refers to its own variable through `--name(...)` or a nested `var()` fallback is now also kept out of the generated variable declarations.
+
+- Vue templates can now pass `style()` to a component element, as in `<Button v-bind="style('p-4')">` or `<Button :class="style('p-4').class">`. Previously, the build failed with SW31009.
+
+- Updated dependencies:
+  - @stillwind/config@0.13.0
+  - @stillwind/native@0.13.0
+  - @stillwind/projection@0.13.0
+
 ## 0.12.0
 
 ### Minor Changes

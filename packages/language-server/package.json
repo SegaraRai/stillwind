@@ -1,6 +1,6 @@
 {
   "name": "@stillwind/language-server",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "description": "Stillwind Language Server Protocol handlers with Node and browser transports",
   "keywords": [
     "language-server",

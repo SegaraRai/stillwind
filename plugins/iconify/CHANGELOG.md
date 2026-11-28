@@ -1,5 +1,14 @@
 # @stillwind/plugin-iconify
 
+## 0.13.0
+
+### Patch Changes
+
+- Plugin utilities, such as Iconify icons, are now defined for the candidates that style inputs use, instead of for candidate-like text anywhere in a module. An icon is no longer reported as `unknown-utility` when the same file contains a quote inside a regular expression literal, such as `/["']/`. Comments and unrelated strings no longer make the plugin define utilities.
+
+- Updated dependencies:
+  - @stillwind/config@0.13.0
+
 ## 0.12.0
 
 ### Patch Changes
