@@ -165,7 +165,8 @@ export class SourceQueries {
           (site) =>
             site.native.kind !== "input" &&
             site.native.kind !== "variant" &&
-            site.native.kind !== "media",
+            site.native.kind !== "media" &&
+            site.native.kind !== "ref",
         )
         .flatMap((site) => {
           const preview = this.#index.previews.assemble(site.native);
@@ -650,6 +651,14 @@ export class SourceQueries {
         end: range[1],
         css: "",
         documentation: `\`\`\`js\n${preview.js}\n\`\`\``,
+      };
+    }
+    if (preview.documentation) {
+      return {
+        start: range[0],
+        end: range[1],
+        css: "",
+        documentation: preview.documentation,
       };
     }
     return {

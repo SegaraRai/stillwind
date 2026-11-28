@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use lean_string::{LeanStr, LeanString, ToLeanString};
 
-use stillwind_css::{PREVIEW_SLOT, preview_comment_at_rule};
+use stillwind_css::preview_comment_at_rule;
 use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_diagnostics::LintSettings;
 use stillwind_ir::{
@@ -30,7 +30,7 @@ use super::super::emission::{CallEmitter, CallEmitterInputs};
 use super::super::media::media_query;
 use super::super::style_variants::StyleVariantPlan;
 use super::super::stylesheet::render_authored_variant_preview_path;
-use super::super::symbols::{named_identity, ref_context};
+use super::super::symbols::named_identity;
 use super::input::{
     collect_bases, has_enclosing_variant, identity_wrappers, input_plans, replace_text,
 };
@@ -38,7 +38,7 @@ use super::resources::preview_resource_urls;
 use super::runtime::collect_runtime_names;
 use crate::compiler::rewrite_generated_css;
 use crate::generated::js_string;
-use crate::identifiers::{DeclarationContext, IdentifierContext, PreviewNames};
+use crate::identifiers::{IdentifierContext, PreviewNames};
 use crate::{CandidateContext, CompilerOptions, CssContribution, Identifiers};
 
 /// The source object addressed by a generated preview.
@@ -63,6 +63,9 @@ pub enum EditorSiteKind {
     /// A `style.media()` call. Its preview is the JavaScript string literal that the
     /// call lowers to.
     Media,
+    /// A `style.ref()` declaration, which attaches a generated marker class to an
+    /// element rather than wrapping utility rules.
+    Ref,
 }
 
 /// CSS and dependencies contributed by one original source occurrence.
@@ -256,27 +259,11 @@ impl ModuleEditor {
         &self.module.module_id
     }
 
-    /// Records a `style.ref()` declaration with its preview marker selector.
+    /// Records a `style.ref()` declaration as a marker-attaching ref site.
     fn add_ref(&mut self, definition: &RefDefinition) {
-        let context = self
-            .identifiers
-            .context(self.options.hash_length)
-            .with_preview_names(Rc::clone(&self.names));
-        let info = ref_context(definition, None);
-        let css = context
-            .ref_marker_name(&DeclarationContext {
-                module: info.module,
-                key: info.key,
-                binding: info.binding,
-                label: info.label,
-            })
-            .ok()
-            .map(|marker| {
-                format_args!("&:where({}){{{PREVIEW_SLOT}}}", marker.selector()).to_lean_string()
-            });
         self.sites.push(EditorSite {
             span: definition.call_span,
-            kind: EditorSiteKind::Variant,
+            kind: EditorSiteKind::Ref,
             identity: Some(named_identity(
                 &self.module.module_id,
                 AssetKind::Ref,
@@ -285,8 +272,8 @@ impl ModuleEditor {
             )),
             context: None,
             enclosing_variant: false,
-            valid: css.is_some(),
-            css: css.unwrap_or_default().into(),
+            valid: true,
+            css: LeanStr::new(),
             dependencies: Vec::new(),
             runtime_names: Vec::new(),
             recipe: None,

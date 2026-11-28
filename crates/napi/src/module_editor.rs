@@ -34,6 +34,9 @@ pub enum NativeEditorSiteKind {
     /// Serialized as `media` for a `style.media()` call. Its `css` field carries the
     /// lowered JavaScript string literal.
     Media,
+    /// Serialized as `ref` for a `style.ref()` declaration, which attaches a generated
+    /// marker class to an element.
+    Ref,
 }
 
 impl From<EditorSiteKind> for NativeEditorSiteKind {
@@ -46,6 +49,7 @@ impl From<EditorSiteKind> for NativeEditorSiteKind {
             EditorSiteKind::Stylesheet => Self::Stylesheet,
             EditorSiteKind::Variant => Self::Variant,
             EditorSiteKind::Media => Self::Media,
+            EditorSiteKind::Ref => Self::Ref,
         }
     }
 }

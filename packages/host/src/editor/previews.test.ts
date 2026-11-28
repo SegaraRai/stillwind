@@ -395,10 +395,24 @@ const attached = style(panel, { [stored]: "block", [refStored]: "opacity-100" })
 console.log(mq, button, attached);`;
   const current = await project(source);
   try {
-    const refDecl = await hover(current, source, "style.ref");
-    expect(refDecl).toContain("&:where(.__ref_panel)");
-    expect(refDecl).toContain("/* … */");
-    expect(await hover(current, source, "panel, {")).toBe(refDecl);
+    const refDecl = (
+      await current.query(entry, {
+        kind: "hover",
+        offset: source.indexOf("style.ref") + 1,
+      })
+    )?.hover;
+    expect(refDecl?.css).toBe("");
+    expect(refDecl?.documentation).toBe(
+      "Adds a generated marker class to the element for ref selectors and queries.",
+    );
+    const refUse = (
+      await current.query(entry, {
+        kind: "hover",
+        offset: source.indexOf("panel, {") + 1,
+      })
+    )?.hover;
+    expect(refUse?.css).toBe("");
+    expect(refUse?.documentation).toBe(refDecl?.documentation);
 
     const storedDecl = await hover(current, source, "style.when");
     expect(storedDecl).toContain("&:hover");

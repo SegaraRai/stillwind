@@ -35,6 +35,8 @@ export interface GeneratedPreview {
   css: string;
   /** Lowered JavaScript string literal for a `style.media()` call. */
   js?: string;
+  /** Markdown documentation for non-CSS occurrences such as `style.ref()` markers. */
+  documentation?: string;
   /** Authored runtime key expressions, deduplicated in dependency traversal order. */
   runtimeNames: string[];
 }
@@ -207,7 +209,7 @@ export class GeneratedPreviews {
    */
   preview(site: CapturedEditorSite): GeneratedPreview | undefined {
     const preview = this.assemble(site);
-    return preview && (preview.css || preview.js) ? preview : undefined;
+    return preview && (preview.css || preview.js || preview.documentation) ? preview : undefined;
   }
 
   /**
@@ -223,6 +225,16 @@ export class GeneratedPreviews {
         ? {
             css: "",
             js: site.css,
+            runtimeNames: [],
+          }
+        : undefined;
+    }
+    if (site.kind === "ref") {
+      return site.valid
+        ? {
+            css: "",
+            documentation:
+              "Adds a generated marker class to the element for ref selectors and queries.",
             runtimeNames: [],
           }
         : undefined;
