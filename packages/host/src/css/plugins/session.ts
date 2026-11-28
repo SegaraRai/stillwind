@@ -101,18 +101,19 @@ export function pluginLoader(session: NativeProjectSession): NativeDesignSystemL
 }
 
 /**
- * Finds plugin candidates across source texts before individual modules are compiled.
+ * Defines the plugin candidates of several sources before individual modules are compiled.
  *
  * @param session - Session attached to the project's plugin runtime.
  * @param loader - Initial loader of the same session.
- * @param texts - Original source documents, including templates and embedded scripts.
+ * @param candidates - Candidates and variant prefixes that the scans of the sources found, as
+ * `NativeModuleSummary.candidates` lists them.
  * @returns Completion of candidate resolution and any required CSS reload, without publishing modules.
  * @throws If a plugin or CSS reload fails. Discard this runtime before retrying individual modules.
  */
 export async function prepareSourcePlugins(
   session: NativeProjectSession,
   loader: NativeDesignSystemLoader,
-  texts: readonly string[],
+  candidates: readonly string[],
 ): Promise<void> {
   if (!sessions.has(session)) {
     return;
@@ -124,7 +125,7 @@ export async function prepareSourcePlugins(
       return {
         modules: [
           {
-            dynamicCandidates: [...new Set(texts.flatMap((text) => query.dynamicCandidates(text)))],
+            dynamicCandidates: query.dynamicCandidates([...new Set(candidates)].join(" ")),
           },
         ],
       };

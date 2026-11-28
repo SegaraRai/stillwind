@@ -554,13 +554,15 @@ A plugin defines a utility family on demand when its CSS contains
 form accepts named candidates such as `icon-mdi--close`. The second form accepts
 bracket candidates such as `icon-[mdi--close]`, whose value is nonempty and contains no
 `:`, `[`, `]`, or spaces. When a module uses a candidate of the family that has no
-definition, compilation reports the candidate. The host then passes it to the
-plugin's `resolve()`, adds the returned CSS after the plugin's CSS, reloads the design
-system, and compiles the module again, for at most three rounds. The candidate arrives
-without variants, modifiers, or `!`. A plugin can leave a candidate undefined, and the
-host does not pass that candidate again while the design system stays loaded. A reload
-passes the earlier candidates of the same statement to `resolve()` again, before any
-module compiles, so the plugin can read changed files.
+definition, compilation reports the candidate. A module uses the candidates and variants
+of its style inputs, such as `style()`, `style.css()`, `style.media()`, keyframes, and
+view transitions. Comments and other strings in the module do not count. The host then
+passes each reported candidate to the plugin's `resolve()`, adds the returned CSS after
+the plugin's CSS, reloads the design system, and compiles the module again, for at most
+three rounds. The candidate arrives without variants, modifiers, or `!`. A plugin can
+leave a candidate undefined, and the host does not pass that candidate again while the
+design system stays loaded. A reload passes the earlier candidates of the same statement
+to `resolve()` again, before any module compiles, so the plugin can read changed files.
 
 A family that accepts both forms resolves a bracket candidate like its named spelling:
 `icon-[mdi--close]` is `icon-mdi--close`. Compilation reports the named spelling, and

@@ -76,7 +76,7 @@ pub use compiled_module::{
 pub use compiler::{
     CompileResult, Compiler, CssContribution, EditorRecipe, EditorRecipeValue, EditorSite,
     EditorSiteKind, GeneratedClass, GeneratedSymbol, GeneratedSymbolKind, GuardStep, ModuleEditor,
-    StylesheetLint, SymbolOrigin, lint_stylesheets,
+    StylesheetLint, SymbolOrigin, lint_stylesheets, module_candidates,
 };
 pub use identifiers::{
     AnchorName, AnchorNameRequest, ClassContext, ClassName, ConditionContext, ConditionHelperName,

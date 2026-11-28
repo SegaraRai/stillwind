@@ -14,9 +14,11 @@ use super::{DesignSystemQuery, QueryContext};
 use crate::compiler::{dynamic_candidates, stylesheet_dynamic_candidates};
 
 impl DesignSystemQuery {
-    /// Reports host plugin utility keys and `@variant ` requests found in source text.
+    /// Reports host plugin utility keys and `@variant ` requests for the
+    /// whitespace-separated candidates in `text`. A variant prefix such as
+    /// `data-[open]:` counts as one candidate.
     pub fn dynamic_candidates(&self, text: &str) -> Vec<LeanStr> {
-        dynamic_candidates(text, self.context.design_system.theme())
+        dynamic_candidates(text.split_whitespace(), self.context.design_system.theme())
     }
 
     /// Reports host plugin utility keys and `@variant ` requests that a stylesheet

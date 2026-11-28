@@ -294,7 +294,7 @@ export class AnalysisProject {
           return;
         }
         await this.#compilation.prepare(entries, this.host, this.#css.session!);
-        await prepareSourcePlugins(this.#css.session!, loader, this.#compilation.texts());
+        await prepareSourcePlugins(this.#css.session!, loader, this.#compilation.candidates());
       } catch {
         this.#css.discardPlugins();
         // Scoped analysis reports loading and preparation failures for their original targets.

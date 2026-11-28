@@ -13,8 +13,10 @@
 //!   not the macro.
 //! - Every span in a result belongs to the editable original source, even when the
 //!   input is a converter's shadow module.
-//! - Scanning is demand-driven. Probes are created only for values that local analysis
-//!   cannot resolve, so a module of literal utilities asks the checker nothing.
+//! - Scanning is demand-driven. A probe asks the checker which asset, such as a ref or
+//!   keyframes, an expression denotes, or whether it denotes no asset. Scanning creates
+//!   a probe only when local analysis cannot answer this. If a module passes only
+//!   literals to its style inputs, scanning creates no probes.
 //!
 //! Modules:
 //!

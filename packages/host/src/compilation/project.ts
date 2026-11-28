@@ -178,9 +178,14 @@ export class CompilationProject {
     return [...this.#orderingReads];
   }
 
-  /** Returns the prepared documents' original text so plugins can find candidates together. */
-  texts(): string[] {
-    return [...this.#sources.values()].map((record) => record.source.document.code);
+  /**
+   * Returns the candidates that the local scans of the prepared sources found, so that plugins
+   * can define them together.
+   *
+   * @returns Candidates and variant prefixes, possibly repeated.
+   */
+  candidates(): string[] {
+    return [...this.#sources.values()].flatMap((record) => record.summary.candidates);
   }
 
   /**

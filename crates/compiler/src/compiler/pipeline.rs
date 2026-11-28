@@ -15,7 +15,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use lean_string::{LeanString, ToLeanString};
+use lean_string::{LeanStr, LeanString, ToLeanString};
 
 use stillwind_design_system::DesignSystemSnapshot;
 use stillwind_diagnostics::{
@@ -31,7 +31,7 @@ use stillwind_source::{BytePos, ModuleId, SourceFile, Span};
 use super::conditionals::{lower, report_skipped_conditionals};
 use super::css_call::{CssOutput, css_call_text, minify_css_call_text};
 use super::definitions::{emit_keyframes_definition, emit_view_transition_definition};
-use super::dynamic::dynamic_candidates;
+use super::dynamic::{dynamic_candidates, module_candidates};
 use super::emission::{
     CLASS_KEY, CallEmitter, CallEmitterInputs, KEYFRAMES_KEY, VIEW_TRANSITION_CLASS_KEY,
 };
@@ -128,7 +128,10 @@ impl Compiler {
             .cloned()
             .collect::<BTreeSet<_>>();
         let mut result = CompileResult {
-            dynamic_candidates: dynamic_candidates(source.text(), snapshot.theme()),
+            dynamic_candidates: dynamic_candidates(
+                module_candidates(&parsed.ir).iter().map(LeanStr::as_str),
+                snapshot.theme(),
+            ),
             composition: composition_dependencies(parsed),
             diagnostics: parsed.diagnostics.clone(),
             lint_findings: parsed.lint_findings.clone(),

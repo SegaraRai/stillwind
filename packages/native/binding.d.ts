@@ -239,8 +239,9 @@ export declare class NativeEditorQuery {
    */
   candidateRanks(candidates: Array<string>): Array<number | undefined | null>
   /**
-   * Returns the utility keys of host plugins and the `@variant ` requests that
-   * appear in `text`. `text` can be CSS or source code.
+   * Returns the utility keys of host plugins and the `@variant ` requests for the
+   * whitespace-separated candidates in `text`. A variant prefix such as
+   * `data-[open]:` counts as one candidate.
    */
   dynamicCandidates(text: string): Array<string>
   /**
@@ -1897,6 +1898,11 @@ export interface NativeModuleSummary {
   exports: Array<NativeExport>
   /** Bodies of the comments that contain `swlint-*` directives, in source order. */
   lintComments: Array<NativeLintComment>
+  /**
+   * Candidates and variant prefixes that the module's local IR passes to compilation,
+   * in IR order and possibly repeated. Each variant prefix ends in `:`.
+   */
+  candidates: Array<string>
 }
 
 /** A module whose CSS must precede the CSS of the prepared source. */

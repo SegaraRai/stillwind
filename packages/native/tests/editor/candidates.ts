@@ -138,9 +138,11 @@ export function registerCandidatesEditorContract(specifier: string): void {
       fallback: false,
       inline: false,
     });
-    expect(query.dynamicCandidates('"duration-300 -probe-[3px]/mirror state-[open]:safe"')).toEqual(
-      ["-probe-[3px]/mirror", "@variant state-[open]", "duration-300"],
-    );
+    expect(query.dynamicCandidates("duration-300 -probe-[3px]/mirror state-[open]:safe")).toEqual([
+      "-probe-[3px]/mirror",
+      "@variant state-[open]",
+      "duration-300",
+    ]);
     expect(
       query.stylesheetDynamicCandidates(
         "@utility duration-* {} /* @apply probe-1; */ .a { @apply duration-300; @variant state-[open] { color: red; } }",

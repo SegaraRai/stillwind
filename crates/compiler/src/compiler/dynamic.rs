@@ -2,12 +2,12 @@
 //!
 //! A host resolves such candidates outside the compiler and adds their definitions to
 //! the design system, so the compiler reports which ones a module needs.
-//! [`dynamic_candidates`] scans the whole source text of a module, as Tailwind's
-//! content scanner does: a candidate in a comment or an unrelated string is also
-//! reported. Its definition is unused until a module styles with it, so
-//! over-reporting costs only resolution work. [`stylesheet_dynamic_candidates`]
-//! reads only the candidates that CSS applies, because stylesheets also contain
-//! definition headers and registry metadata that name utilities without using them.
+//! [`module_candidates`] lists the utility text and variant prefixes that the IR of a
+//! module passes to resolution, and [`dynamic_candidates`] turns such candidates into
+//! requests. The listing does not depend on the design system, so a host can collect
+//! it before the definitions exist. [`stylesheet_dynamic_candidates`] reads only the
+//! candidates that CSS applies, because stylesheets also contain definition headers
+//! and registry metadata that name utilities without using them.
 
 use std::collections::BTreeSet;
 
@@ -17,14 +17,23 @@ use stillwind_css::{CssNode, CssNodeKind, parse_structure};
 use stillwind_design_system::{
     DynamicFamilyKind, ThemeIndex, compound_variant_inner, resolve_utility,
 };
+use stillwind_ir::{
+    ClassExpression, CssCall, CssInput, GroupEntry, KeyframesBody, KeyframesDefinition, MediaCall,
+    ModuleIr, RecipeCall, RefCondition, RuleExpression, StoredVariantDefinition, StyleCall,
+    StyleInput, StyleVariant, ViewTransitionDefinition,
+};
+use stillwind_source::Spanned;
 use stillwind_syntax::{
-    Utility, parse_candidate, parse_variant_prefix, source_candidate_tokens,
-    utility_registration_key,
+    Utility, lex_utilities, parse_candidate, parse_variant_prefix, utility_registration_key,
 };
 
 use crate::compiler::apply_candidates;
 
-/// Returns sorted, unique requests for host plugin families found in `text`.
+/// Returns sorted, unique requests for host plugin families among `candidates`.
+///
+/// Each item of `candidates` must be one candidate, such as `hover:icon-mdi--close`,
+/// or one variant prefix that ends in `:`, such as `data-[open]:`. Other items are
+/// skipped.
 ///
 /// Utility names that a `@stillwind-undef-utility` statement of the `default` registry
 /// context matches are not requested. Native families report unresolved utility names
@@ -34,12 +43,253 @@ use crate::compiler::apply_candidates;
 ///
 /// A bracket candidate such as `icon-[mdi--close]` is reported by its named spelling,
 /// `icon-mdi--close`, when its family accepts both forms, and as written otherwise. A
-/// theme without dynamic families returns nothing without scanning.
-pub(crate) fn dynamic_candidates(text: &str, theme: &ThemeIndex) -> Vec<LeanStr> {
+/// theme without dynamic families returns nothing without reading `candidates`.
+pub(crate) fn dynamic_candidates<'a>(
+    candidates: impl IntoIterator<Item = &'a str>,
+    theme: &ThemeIndex,
+) -> Vec<LeanStr> {
     if theme.dynamic_utilities().is_empty() {
         return Vec::new();
     }
-    requests(source_candidate_tokens(text), theme)
+    requests(candidates, theme)
+}
+
+/// Returns the candidates and variant prefixes that compilation of `module` resolves,
+/// in IR order and possibly repeated.
+///
+/// Utility text is split at whitespace, as compilation splits it. Each variant prefix
+/// ends in `:`, so that [`dynamic_candidates`] reads it as variants without a utility.
+/// A candidate keeps the variants that its own text writes, and the prefixes of the
+/// enclosing wrappers are listed separately. Utility text that cannot be tokenized is
+/// skipped, because compilation reports it as a fatal diagnostic.
+pub fn module_candidates(module: &ModuleIr) -> Vec<LeanStr> {
+    // Every field is named, so a new field does not compile until this function lists
+    // its candidates or ignores it.
+    let ModuleIr {
+        imports: _,
+        style_calls,
+        recipe_calls,
+        media_calls,
+        css_calls,
+        forward_calls: _,
+        ordering_uses: _,
+        ref_definitions: _,
+        keyframes_declarations,
+        view_transition_declarations,
+        stored_variants,
+        conditional_labels: _,
+    } = module;
+    let mut candidates = Candidates::default();
+    for call in style_calls {
+        candidates.style_call(call);
+    }
+    for RecipeCall { values, .. } in recipe_calls {
+        for call in values {
+            candidates.style_call(call);
+        }
+    }
+    for MediaCall { arguments, .. } in media_calls {
+        for argument in arguments {
+            candidates.variant_prefix(&argument.value);
+        }
+    }
+    for CssCall { inputs, .. } in css_calls {
+        for CssInput {
+            variants,
+            utilities,
+        } in inputs
+        {
+            for variant in variants {
+                candidates.variant_prefix(&variant.value);
+            }
+            candidates.utilities(utilities);
+        }
+    }
+    for KeyframesDefinition { body, .. } in keyframes_declarations {
+        candidates.keyframes_body(body);
+    }
+    for ViewTransitionDefinition {
+        group,
+        old,
+        new,
+        image_pair,
+        ..
+    } in view_transition_declarations
+    {
+        for utilities in [group, old, new, image_pair].into_iter().flatten() {
+            candidates.utilities(utilities);
+        }
+    }
+    for StoredVariantDefinition { variants, .. } in stored_variants {
+        for variant in variants.iter().flatten() {
+            candidates.variant(variant);
+        }
+    }
+    candidates.0
+}
+
+/// Candidates and variant prefixes that [`module_candidates`] collects, in IR order.
+#[derive(Default)]
+struct Candidates(Vec<LeanStr>);
+
+impl Candidates {
+    /// Appends the whitespace-separated candidates of `text`.
+    fn utilities(&mut self, text: &Spanned<LeanStr>) {
+        if let Ok(tokens) = lex_utilities(text) {
+            self.0
+                .extend(tokens.into_iter().map(|token| token.value.raw));
+        }
+    }
+
+    /// Appends a variant prefix and adds its final `:` when it is missing. Empty text
+    /// has no variants and is not appended.
+    fn variant_prefix(&mut self, prefix: &str) {
+        if prefix.is_empty() {
+            return;
+        }
+        self.0.push(if prefix.ends_with(':') {
+            prefix.into()
+        } else {
+            format_args!("{prefix}:").to_lean_str()
+        });
+    }
+
+    /// Appends the candidates of every input of `call`.
+    fn style_call(&mut self, call: &StyleCall) {
+        for input in &call.inputs {
+            self.style_input(input);
+        }
+    }
+
+    /// Appends the candidates of `input` and its nested inputs.
+    fn style_input(&mut self, input: &StyleInput) {
+        match input {
+            StyleInput::Array(inputs) => {
+                for input in inputs {
+                    self.style_input(input);
+                }
+            }
+            StyleInput::Conditional { branches, .. } => {
+                for input in branches.values().flatten() {
+                    self.style_input(input);
+                }
+            }
+            StyleInput::Class(expression) => {
+                self.class_expression(expression);
+            }
+            // These inputs refer to declarations, whose own modules list their candidates.
+            StyleInput::Composition { .. }
+            | StyleInput::RefAttachment { .. }
+            | StyleInput::DynamicRefAttachment { .. }
+            | StyleInput::ViewTransitionUse { .. }
+            | StyleInput::DynamicViewTransitionUse { .. }
+            | StyleInput::Forward { .. } => {}
+        }
+    }
+
+    /// Appends the candidates of `expression` and its nested expressions.
+    fn class_expression(&mut self, expression: &ClassExpression) {
+        match expression {
+            ClassExpression::Array(elements) => {
+                for element in elements {
+                    self.class_expression(element);
+                }
+            }
+            ClassExpression::Conditional { branches, .. } => {
+                for expression in branches.values().flatten() {
+                    self.class_expression(expression);
+                }
+            }
+            ClassExpression::Rule(rule) => {
+                self.rule_expression(rule);
+            }
+            ClassExpression::Group { entries, .. } => {
+                for entry in entries {
+                    match entry {
+                        GroupEntry::Class(expression) => {
+                            self.class_expression(expression);
+                        }
+                        GroupEntry::CustomProperty(_) => {}
+                    }
+                }
+            }
+            // A `class` value holds external class names, which compilation does not
+            // resolve.
+            ClassExpression::ClassValue { .. } => {}
+        }
+    }
+
+    /// Appends the candidates of `expression` and its nested expressions.
+    fn rule_expression(&mut self, expression: &RuleExpression) {
+        match expression {
+            RuleExpression::Utilities(text) => {
+                self.utilities(text);
+            }
+            RuleExpression::Array(elements) => {
+                for element in elements {
+                    self.rule_expression(element);
+                }
+            }
+            RuleExpression::Conditional { branches, .. } => {
+                for element in branches.values().flatten() {
+                    self.rule_expression(element);
+                }
+            }
+            RuleExpression::Variant { variant, inputs } => {
+                self.variant(variant);
+                for input in inputs {
+                    self.rule_expression(input);
+                }
+            }
+            RuleExpression::Group { inputs, .. } => {
+                for input in inputs {
+                    self.rule_expression(input);
+                }
+            }
+            RuleExpression::KeyframesUse { options, .. }
+            | RuleExpression::DynamicKeyframesUse { options, .. } => {
+                self.utilities(options);
+            }
+            RuleExpression::AnchorScope { .. }
+            | RuleExpression::RefProjection { .. }
+            | RuleExpression::DynamicRefProjection { .. }
+            | RuleExpression::ViewTransitionUse { .. }
+            | RuleExpression::DynamicViewTransitionUse { .. } => {}
+        }
+    }
+
+    /// Appends the variant prefixes of `variant`.
+    fn variant(&mut self, variant: &StyleVariant) {
+        match variant {
+            StyleVariant::Prefix(prefix) => {
+                self.variant_prefix(&prefix.value);
+            }
+            // The query is CSS text, and the refs supply container names.
+            StyleVariant::Container { .. } => {}
+            StyleVariant::Ref { condition, scopes } => {
+                for RefCondition { prefix, .. } in std::iter::once(condition).chain(scopes) {
+                    self.variant_prefix(&prefix.value);
+                }
+            }
+            StyleVariant::Alternatives(alternatives) => {
+                for variant in alternatives.iter().flatten() {
+                    self.variant(variant);
+                }
+            }
+        }
+    }
+
+    /// Appends the candidates of the frames of `body` and of its conditional
+    /// replacements.
+    fn keyframes_body(&mut self, body: &KeyframesBody) {
+        for frame in &body.frames {
+            self.utilities(&frame.utilities);
+        }
+        for branch in &body.branches {
+            self.variant(&branch.variant);
+            self.keyframes_body(&branch.body);
+        }
+    }
 }
 
 /// Returns sorted, unique requests for host plugin families that `css` applies, in the
@@ -181,8 +431,12 @@ fn family_member(candidate: &str, root: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use stillwind_design_system::parse_theme;
-    use stillwind_source::{FileId, SourceFile};
+    use stillwind_diagnostics::CompileError;
+    use stillwind_ir::{ScriptLanguage, ScriptModuleKind};
+    use stillwind_source::{FileId, ModuleId, SourceFile};
 
     use super::*;
 
@@ -195,20 +449,96 @@ mod tests {
         .unwrap()
     }
 
+    /// Parses `code` after a macro import and returns [`module_candidates`] of its IR.
+    fn candidates(code: &str) -> Vec<LeanStr> {
+        let source = SourceFile::new(
+            FileId(1),
+            None,
+            None,
+            format!("import {{ style }} from 'stillwind/react'; {code}"),
+        )
+        .unwrap();
+        let parsed = stillwind_js_oxc::parse(
+            &source,
+            &ModuleId::from("test.tsx"),
+            &[],
+            &BTreeMap::default(),
+            ScriptLanguage::Tsx,
+            ScriptModuleKind::Unambiguous,
+        );
+        assert_eq!(parsed.diagnostics, [] as [CompileError; 0]);
+        module_candidates(&parsed.module)
+    }
+
+    #[test]
+    fn modules_list_the_candidates_and_variant_prefixes_of_every_input() {
+        assert_eq!(
+            candidates(
+                r#"const open = style.when("state-[open]");
+                const fade = style.keyframes({ from: "icon-a", "state-[x]:": { to: "icon-b" } });
+                const vt = style.viewTransition({ old: "icon-c" });
+                export const a = style("p-1 hover:icon-d", { "md:": ["icon-e", cond ? "icon-f" : "icon-g"] }, { [open]: "icon-h" }, fade("icon-i"), { class: "icon-external" });
+                export const r = style.recipe("icon-j", { variants: { size: { small: "icon-k" } } });
+                export const m = style.media("state-[media]");
+                export const sheet = style.css({ "dark:": "icon-l" });"#
+            ),
+            [
+                "p-1",
+                "hover:icon-d",
+                "md:",
+                "icon-e",
+                "icon-f",
+                "icon-g",
+                "state-[open]:",
+                "icon-h",
+                "icon-i",
+                "icon-j",
+                "icon-k",
+                "state-[media]:",
+                "dark:",
+                "icon-l",
+                "icon-a",
+                "state-[x]:",
+                "icon-b",
+                "icon-c",
+                "state-[open]:",
+            ]
+        );
+    }
+
+    #[test]
+    fn modules_do_not_list_text_outside_style_inputs() {
+        assert_eq!(
+            candidates(
+                r#"// icon-comment
+                export const re = /["']/;
+                const label = "icon-string";
+                export const a = style("icon-lucide--anchor");"#
+            ),
+            ["icon-lucide--anchor"]
+        );
+    }
+
     #[test]
     fn families_report_only_the_forms_that_they_accept() {
         let text = "icon-mdi--close icon-[lucide--x]";
         assert_eq!(
-            dynamic_candidates(text, &theme("@stillwind-dynamic icon-*;")),
+            dynamic_candidates(
+                text.split_whitespace(),
+                &theme("@stillwind-dynamic icon-*;")
+            ),
             ["icon-mdi--close"]
         );
         assert_eq!(
-            dynamic_candidates(text, &theme("@stillwind-dynamic icon-[*];")),
+            dynamic_candidates(
+                text.split_whitespace(),
+                &theme("@stillwind-dynamic icon-[*];")
+            ),
             ["icon-[lucide--x]"]
         );
         assert_eq!(
             dynamic_candidates(
-                "icon-[lucide--x] icon-[mdi--home]",
+                ["icon-[lucide--x]", "icon-[mdi--home]"],
                 &theme(r"@stillwind-dynamic icon-[*]; @utility icon-[mdi--home] { color: red; }")
             ),
             ["icon-[lucide--x]"]
@@ -220,14 +550,21 @@ mod tests {
         let theme = theme(
             "@stillwind-dynamic icon-*; @stillwind-dynamic icon-[*]; @utility icon-mdi--home { color: red; }",
         );
-        let text = r#"style("icon-mdi--close hover:icon-[lucide--x] icon-mdi--home", `md:!icon-mdi--close`); // icon-a--b
-            const other = "iconography icon- p-4";"#;
+        let candidates = [
+            "icon-mdi--close",
+            "hover:icon-[lucide--x]",
+            "icon-mdi--home",
+            "md:!icon-mdi--close",
+            "iconography",
+            "icon-",
+            "p-4",
+        ];
         assert_eq!(
-            dynamic_candidates(text, &theme),
-            ["icon-a--b", "icon-lucide--x", "icon-mdi--close"]
+            dynamic_candidates(candidates, &theme),
+            ["icon-lucide--x", "icon-mdi--close"]
         );
         assert_eq!(
-            dynamic_candidates(text, &ThemeIndex::default()),
+            dynamic_candidates(candidates, &ThemeIndex::default()),
             [] as [LeanStr; 0]
         );
     }
@@ -236,20 +573,26 @@ mod tests {
     fn requests_depend_only_on_default_definitions() {
         let text = "icon-mdi--close icon-lucide--x";
         let undefined = theme("@stillwind-dynamic icon-*; @stillwind-undef-utility icon-mdi-*;");
-        assert_eq!(dynamic_candidates(text, &undefined), ["icon-lucide--x"]);
+        assert_eq!(
+            dynamic_candidates(text.split_whitespace(), &undefined),
+            ["icon-lucide--x"]
+        );
         // `default` keeps the definitions that the host adds when only a context
         // undefines the family, so the context does not suppress the request.
         let scoped = theme(
             "@stillwind-dynamic icon-*; @stillwind-registry keyframe { @stillwind-undef-utility icon-*; }",
         );
         assert_eq!(
-            dynamic_candidates(text, &scoped),
+            dynamic_candidates(text.split_whitespace(), &scoped),
             ["icon-lucide--x", "icon-mdi--close"]
         );
         let defined = theme(
             "@stillwind-dynamic icon-*; @stillwind-registry keyframe { @stillwind-undef-utility icon-*; } @utility icon-mdi--close { color: red; }",
         );
-        assert_eq!(dynamic_candidates(text, &defined), ["icon-lucide--x"]);
+        assert_eq!(
+            dynamic_candidates(text.split_whitespace(), &defined),
+            ["icon-lucide--x"]
+        );
     }
 
     #[test]
@@ -258,14 +601,14 @@ mod tests {
             "@stillwind-dynamic icon-*; @stillwind-dynamic icon-[*]; @utility icon-* { --size: --value([length]); }",
         );
         assert_eq!(
-            dynamic_candidates("icon-[2rem] icon-[mdi--close]", &theme),
+            dynamic_candidates(["icon-[2rem]", "icon-[mdi--close]"], &theme),
             ["icon-mdi--close"]
         );
         let bracket = self::theme(
             "@stillwind-dynamic icon-[*]; @utility icon-* { --size: --value([length]); }",
         );
         assert_eq!(
-            dynamic_candidates("icon-[2rem] icon-[mdi--close]", &bracket),
+            dynamic_candidates(["icon-[2rem]", "icon-[mdi--close]"], &bracket),
             ["icon-[mdi--close]"]
         );
     }
@@ -306,7 +649,14 @@ mod tests {
         );
         assert_eq!(
             dynamic_candidates(
-                r#"style("probe-4", "-probe-[length:calc(2px_+_3px)]/[mirror]", { "state-[open]:": "probe-(--width)" }); group-state-[closed]:probe-4 probe-one/[foo_bar]"#,
+                [
+                    "probe-4",
+                    "-probe-[length:calc(2px_+_3px)]/[mirror]",
+                    "state-[open]:",
+                    "probe-(--width)",
+                    "group-state-[closed]:probe-4",
+                    "probe-one/[foo_bar]",
+                ],
                 &theme
             ),
             [

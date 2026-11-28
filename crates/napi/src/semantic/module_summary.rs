@@ -244,6 +244,9 @@ pub struct NativeModuleSummary {
     pub exports: Vec<NativeExport>,
     /// Bodies of the comments that contain `swlint-*` directives, in source order.
     pub lint_comments: Vec<NativeLintComment>,
+    /// Candidates and variant prefixes that the module's local IR passes to compilation,
+    /// in IR order and possibly repeated. Each variant prefix ends in `:`.
+    pub candidates: Vec<String>,
 }
 
 /// Body of one comment that contains a `swlint-*` directive, without its delimiters.
@@ -257,12 +260,13 @@ pub struct NativeLintComment {
 }
 
 impl NativeModuleSummary {
-    /// Wraps a domain summary, adding the counts that cannot be derived from it.
+    /// Wraps a domain summary, adding the counts and candidates of the module's local IR.
     pub(crate) fn new(
         summary: ModuleSummary,
         module_css_imports: u32,
         macro_imports: u32,
         type_probes: Vec<NativeTypeProbe>,
+        candidates: Vec<String>,
     ) -> Self {
         Self {
             checker_spans: Vec::new(),
@@ -308,6 +312,7 @@ impl NativeModuleSummary {
                 })
                 .collect(),
             lint_comments: Vec::new(),
+            candidates,
         }
     }
 }

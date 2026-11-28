@@ -1,7 +1,7 @@
 //! Shared structural parsing of complete and unfinished candidate spellings.
 //!
-//! Separators use Tailwind's spelling rules, before arbitrary values are decoded as
-//! CSS. Prefixes retain unmatched openers, but mismatched closers fail.
+//! Separators use Tailwind's spelling rules, before arbitrary values are decoded as CSS.
+//! Prefixes retain unmatched openers, but mismatched closers fail.
 
 use lean_string::{LeanStr, LeanString};
 
@@ -150,83 +150,6 @@ impl<'a> CandidatePrefix<'a> {
     }
 }
 
-/// Finds possible candidates in arbitrary source text, including comments and strings.
-/// Host punctuation separates candidates; quotes and punctuation inside bracketed
-/// arbitrary values remain in the candidate. Registry lookup belongs to the caller.
-pub fn source_candidate_tokens(text: &str) -> Vec<&str> {
-    let mut state = CandidatePrefix::new(text);
-    let mut result = Vec::new();
-    let mut start = 0;
-    for (index, character) in text.char_indices() {
-        let top_level = state.closing.is_empty() && state.quote.is_none() && !state.escaped;
-        let boundary = top_level
-            && (character.is_whitespace()
-                || matches!(
-                    character,
-                    '"' | '\u{27}' | '`' | ',' | ';' | '{' | '}' | '<' | '>' | '='
-                )
-                || (character == '(' && !text[start..index].ends_with(['-', '/']))
-                || (character == '['
-                    && !source_candidate_bracket(&text[start..index], &text[index..]))
-                || matches!(character, ')' | ']'));
-        if boundary {
-            if start < index {
-                result.push(&text[start..index]);
-            }
-            start = index + character.len_utf8();
-            state.closing.clear();
-            state.parenthesis_depth = 0;
-            state.parenthesis_openings.clear();
-            state.quote = None;
-            state.escaped = false;
-            state.separators.clear();
-        } else if state.advance(index, character).is_none() {
-            state.closing.clear();
-            state.parenthesis_depth = 0;
-            state.parenthesis_openings.clear();
-            state.quote = None;
-            state.escaped = false;
-        }
-    }
-    if start < text.len() {
-        result.push(&text[start..]);
-    }
-    result
-}
-
-/// Whether an opening bracket belongs to an arbitrary value, modifier, property, or
-/// variant. `prefix` precedes the bracket, and `tail` starts with it.
-fn source_candidate_bracket(prefix: &str, tail: &str) -> bool {
-    if prefix.ends_with(['-', '/']) {
-        return true;
-    }
-    if !prefix.is_empty() && !prefix.ends_with(':') && prefix != "!" && !prefix.ends_with(":!") {
-        return false;
-    }
-    if tail[1..].starts_with(['\'', '"', '`', '{']) {
-        return false;
-    }
-    let property = tail[1..].trim_start_matches(|character: char| {
-        character.is_alphanumeric() || matches!(character, '-' | '_')
-    });
-    if property.starts_with(':') {
-        return true;
-    }
-    let mut group = CandidatePrefix::new(tail);
-    for (index, character) in tail.char_indices() {
-        if group.quote.is_none() && !group.escaped && matches!(character, '{' | '}' | '`') {
-            return false;
-        }
-        if group.advance(index, character).is_none() {
-            return false;
-        }
-        if group.closing.is_empty() {
-            return tail[index + character.len_utf8()..].starts_with(':');
-        }
-    }
-    false
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -263,57 +186,6 @@ mod tests {
                 .unwrap()
                 .nesting_overflow(0),
             None
-        );
-    }
-
-    #[test]
-    fn source_scanning_preserves_quoted_brackets_and_variable_modifiers() {
-        let source = r#"style("icon-[f(']')] icon-(--name)/[x] data-[x=')']:icon-a", other)"#;
-        assert_eq!(
-            source_candidate_tokens(source),
-            [
-                "style",
-                "icon-[f(']')]",
-                "icon-(--name)/[x]",
-                "data-[x=')']:icon-a",
-                "other"
-            ]
-        );
-    }
-
-    #[test]
-    fn source_scanning_separates_array_and_index_brackets() {
-        for (source, expected) in [
-            (
-                r#"["icon-a", 'icon-b', `icon-c`]"#,
-                &["icon-a", "icon-b", "icon-c"][..],
-            ),
-            (
-                r#"[style("icon-a"), style("icon-b")]"#,
-                &["style", "icon-a", "style", "icon-b"][..],
-            ),
-            (r#"[["icon-a"], ["icon-b"]]"#, &["icon-a", "icon-b"][..]),
-            (
-                r#"icons[style("icon-a")]"#,
-                &["icons", "style", "icon-a"][..],
-            ),
-        ] {
-            assert_eq!(source_candidate_tokens(source), expected, "{source}");
-        }
-    }
-
-    #[test]
-    fn source_scanning_keeps_candidate_groups_inside_arrays() {
-        let source = r#"[style("icon-[f(']')]"), "icon-(--name)/[x]", "[&[data-x=']']]:icon-a", "[--tone:var(--color)]"]"#;
-        assert_eq!(
-            source_candidate_tokens(source),
-            [
-                "style",
-                "icon-[f(']')]",
-                "icon-(--name)/[x]",
-                "[&[data-x=']']]:icon-a",
-                "[--tone:var(--color)]",
-            ]
         );
     }
 

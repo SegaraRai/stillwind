@@ -233,6 +233,26 @@ export const items = [{ props: style("demo-red") }, { props: style("demo-[blue]"
   expect(css).toContain("color: blue");
 });
 
+test("plugins resolve the dynamic utilities that style inputs use, whatever text surrounds them", async () => {
+  const { plugin, calls } = demoPlugin();
+  const loaded = await load(plugin);
+  const session = new NativeProjectSession(loaded.loader, false);
+  attachPlugins(session, loaded.plugins);
+
+  const css = await compile(
+    session,
+    `import { style } from "stillwind/react";
+// demo-teal
+export const quote = /["']/;
+const label = "demo-navy";
+export const props = style("demo-red demo-[blue]");`,
+  );
+
+  expect(calls).toStrictEqual([["demo-blue", "demo-red"]]);
+  expect(css).toContain("color: red");
+  expect(css).toContain("color: blue");
+});
+
 test("plugin options keep quoted delimiters and omit comments", async () => {
   const received: Record<string, string>[] = [];
   const plugin = definePlugin({

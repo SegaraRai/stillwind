@@ -518,8 +518,9 @@ impl NativeEditorQuery {
             .map_err(|_| Error::from_reason("Too many candidates in one sorting batch"))
     }
 
-    /// Returns the utility keys of host plugins and the `@variant ` requests that
-    /// appear in `text`. `text` can be CSS or source code.
+    /// Returns the utility keys of host plugins and the `@variant ` requests for the
+    /// whitespace-separated candidates in `text`. A variant prefix such as
+    /// `data-[open]:` counts as one candidate.
     #[napi]
     pub fn dynamic_candidates(&self, text: String) -> Vec<String> {
         self.query

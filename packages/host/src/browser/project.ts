@@ -422,7 +422,7 @@ export class BrowserProject {
       try {
         const loader = await this.#designSystem();
         await this.#compilation.prepare(ids, this.#host(), this.#session!);
-        await prepareSourcePlugins(this.#session!, loader, this.#compilation.texts());
+        await prepareSourcePlugins(this.#session!, loader, this.#compilation.candidates());
       } catch {
         this.#loader = undefined;
         this.#session = undefined;

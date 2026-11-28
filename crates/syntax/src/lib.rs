@@ -13,8 +13,8 @@
 //! Modules:
 //!
 //! - [`arbitrary`] decodes and prints arbitrary values as Tailwind does.
-//! - [`candidate`] shares delimiter rules between unfinished prefixes and source
-//!   scanning.
+//! - [`candidate`] shares delimiter rules between complete candidates and unfinished
+//!   prefixes.
 //! - [`lexer`] locates utility tokens and their source spans.
 //! - [`mod@syntax`] parses the utility and variant structure of each candidate without
 //!   resolving registry names.
@@ -37,7 +37,7 @@ mod lexer;
 mod syntax;
 
 pub use arbitrary::{decode_arbitrary_value, print_arbitrary_value};
-pub use candidate::{CandidatePrefix, source_candidate_tokens};
+pub use candidate::CandidatePrefix;
 pub use lexer::{UtilityToken, lex_utilities};
 pub use syntax::{
     Candidate, Utility, Value, Variant, VariantKind, parse_candidate, parse_variant_prefix,

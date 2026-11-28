@@ -63,6 +63,7 @@ mod utilities;
 mod variants;
 
 pub use api::Compiler;
+pub use dynamic::module_candidates;
 pub use editor::{EditorRecipe, EditorRecipeValue, EditorSite, EditorSiteKind, ModuleEditor};
 pub use output::{CompileResult, CssContribution};
 pub use props::{GeneratedClass, GuardStep};

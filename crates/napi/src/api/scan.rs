@@ -5,10 +5,13 @@ use std::collections::BTreeMap;
 use napi::Error;
 use napi_derive::napi;
 
+use stillwind_compiler::module_candidates;
 use stillwind_diagnostics::{
     CompileDiagnostic, CompileError, DiagnosticBatch, LintSettings, Reporter,
 };
-use stillwind_ir::{CheckerRole, ModuleScan, ScriptLanguage, ScriptModuleKind, SourceAnalyzer};
+use stillwind_ir::{
+    CheckerRole, ModuleIr, ModuleScan, ScriptLanguage, ScriptModuleKind, SourceAnalyzer,
+};
 use stillwind_js_oxc::{OxcSourceAnalyzer, parse};
 use stillwind_source::{CoordinateIndex, FileId, ModuleId, SourceFile, SourceRegistry};
 
@@ -94,6 +97,7 @@ pub(crate) fn scan_prepared(
                 end: probe.span.end.0,
             })
             .collect(),
+        candidates(&scan.local_ir),
     );
     let offset = |offset| {
         u32::try_from(offset).map_err(|_| Error::from_reason("lint comment offset exceeds u32"))
@@ -183,7 +187,16 @@ pub fn summarize_source_input(
                 end: span.end.0,
             }))
             .collect(),
+        candidates(&parsed.module),
     ))
+}
+
+/// Returns the candidates of `module` that [`NativeModuleSummary::candidates`] lists.
+fn candidates(module: &ModuleIr) -> Vec<String> {
+    module_candidates(module)
+        .iter()
+        .map(ToString::to_string)
+        .collect()
 }
 
 /// Returns the versioned Stillwind module summary used for cross-module values.
