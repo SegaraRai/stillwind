@@ -330,7 +330,8 @@ const next=style({[panel("")]:"block"});`;
   const current = await project(source);
   try {
     const condition = await hover(current, source, 'hover:")]');
-    expect(condition).toMatch(/&:is\(:where\(\.__ref_panel\):hover \*\) \{\s*& \{\s*\}/);
+    expect(condition).toMatch(/&:is\(:where\(\.__ref_panel\):hover \*\) \{\s*\}/);
+    expect(condition).not.toContain("& {");
     expect(condition).not.toContain("display");
     // The whole ref variant expression shares the preview of its variant text.
     expect(await hover(current, source, 'panel("hover:")]')).toBe(condition);
@@ -350,6 +351,34 @@ const next=style({[panel("")]:"block"});`;
     const labels = (await complete(current, source, '")]:"block"});')).map((item) => item.label);
     expect(labels).toContain("hover:");
     expect(labels).not.toContain("block");
+  } finally {
+    await current.close();
+  }
+});
+
+test("marker docs are omitted under ref conditions and non-ref .at() keeps expression preview", async () => {
+  const source = `import {style} from "stillwind/react";
+const panel = style.ref("panel");
+const box = style("block");
+declare const list: { at(value: unknown): unknown };
+const conditioned = style({ [panel("hover:")]: "card" });
+list.at(box);`;
+  const current = await project(source, {}, "@stillwind-marker card;");
+  try {
+    const conditioned = (
+      await current.query(entry, {
+        kind: "hover",
+        offset: source.indexOf('"card"') + 1,
+      })
+    )?.hover;
+    expect(conditioned).toBeUndefined();
+    const fallback = (
+      await current.query(entry, {
+        kind: "hover",
+        offset: source.lastIndexOf("box") + 1,
+      })
+    )?.hover;
+    expect(fallback?.css).toContain("display: block");
   } finally {
     await current.close();
   }

@@ -405,7 +405,8 @@ function hoverMarkdown(hover: {
     );
     return `view-transition-name is computed at runtime from ${ticks} ${text} ${ticks}.`;
   });
-  return [hover.css ? `\`\`\`css\n${hover.css}\n\`\`\`` : undefined, hover.documentation, ...notes]
+  const css = hover.css.trimEnd();
+  return [css ? `\`\`\`css\n${css}\n\`\`\`` : undefined, hover.documentation, ...notes]
     .filter(Boolean)
     .join("\n\n");
 }

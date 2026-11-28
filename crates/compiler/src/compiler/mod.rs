@@ -78,7 +78,7 @@ pub(crate) use editor::{preview_resource_urls, reserve_preview_names};
 pub(crate) use media::media_argument_query;
 pub(crate) use rule_boundaries::RuleBoundaries;
 pub(crate) use stylesheet::{
-    apply_candidates, expand_authored_variant, parse_variant_sequence, render_mapped,
+    apply_candidates, expand_authored_variant_preview, parse_variant_sequence, render_mapped,
     render_module_stylesheet, render_stylesheet, rewrite_generated_css, variant_sequences,
 };
 pub(crate) use symbols::detached_symbol;

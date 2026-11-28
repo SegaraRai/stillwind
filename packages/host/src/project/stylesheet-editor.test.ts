@@ -9,9 +9,9 @@ test("CSS hovers and completion previews use default value comments and respect 
   const loader = new NativeDesignSystemLoader({
     rootFontSize: 20,
   });
-  const text = `@theme { --spacing:.25rem; --color-brand:red; }
+  const text = `@theme { --spacing:.25rem; --color-brand:oklch(63.7% .237 25.331); }
 @utility space { padding:calc(var(--spacing) * 4); color:var(--color-brand); }
-.a { @apply space; }`;
+.a { @apply space; color:var(--color-brand); gap:var(--spacing); }`;
   loader.provide(0, "theme.css", text);
   const offset = text.lastIndexOf("space") + 2;
   const editor = new StylesheetEditor("theme.css", text, [], loader.editorQuery());
@@ -20,7 +20,19 @@ test("CSS hovers and completion previews use default value comments and respect 
     offset,
   })!.hover!.css;
   expect(hover).toContain("padding: calc(var(--spacing) * 4) /* 1rem = 20px */;");
-  expect(hover).toContain("color: var(--color-brand) /* red = #ff0000 */;");
+  expect(hover).toContain("color: var(--color-brand) /* oklch(63.7% 0.237 25.331) = #fb2c36 */;");
+  expect(
+    editor.query("theme.css", {
+      kind: "hover",
+      offset: text.lastIndexOf("--color-brand") + 2,
+    })!.hover!.css,
+  ).toBe("--color-brand: oklch(63.7% .237 25.331) /* #fb2c36 */;");
+  expect(
+    editor.query("theme.css", {
+      kind: "hover",
+      offset: text.lastIndexOf("--spacing") + 2,
+    })!.hover!.css,
+  ).toBe("--spacing: .25rem /* 5px */;");
   const item = editor
     .query("theme.css", {
       kind: "completion",
@@ -42,7 +54,7 @@ test("CSS hovers and completion previews use default value comments and respect 
     offset,
   })!.hover!.css;
   expect(partial).toContain("/* 1rem = 20px */");
-  expect(partial).not.toContain("#ff0000");
+  expect(partial).not.toContain("#fb2c36");
   const plain = new StylesheetEditor("theme.css", text, [], loader.editorQuery(), {
     preview: {
       themeValues: false,

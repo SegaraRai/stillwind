@@ -372,7 +372,7 @@ export class StylesheetEditor {
     }
 
     const css = hover.css.startsWith("--")
-      ? hover.css
+      ? this.#query.annotatePreview(hover.css, this.#preview)
       : hover.css
         ? this.#query.formatCss(hover.css, this.#preview)
         : "";

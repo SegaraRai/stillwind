@@ -176,6 +176,18 @@ export declare class NativeEditorQuery {
    */
   formatCss(css: string, preview?: NativePreviewOptions | undefined | null): string
   /**
+   * Adds preview comments with resolved values to `css` without reformatting it.
+   * Accepts complete stylesheets as well as standalone declarations such as active
+   * theme definitions.
+   *
+   * An omitted field of `preview` uses its default.
+   *
+   * # Errors
+   *
+   * Returns an error when `colorEquivalents` has an invalid value.
+   */
+  annotatePreview(css: string, preview?: NativePreviewOptions | undefined | null): string
+  /**
    * Returns the labels that can continue the decoded `prefix` in the role `context`.
    * `prefix` is one partial candidate, including the variants before it. An omitted
    * `context` means ordinary utilities.
@@ -1303,6 +1315,11 @@ export interface NativeEditorSite {
   identity?: NativeIdentity
   /** Resolver contract of a literal input. Whole expressions omit it. */
   context?: NativeCandidateContext
+  /**
+   * Whether a literal input is wrapped in any enclosing variant, including ref
+   * conditions, container queries, stored variants, and string variant groups.
+   */
+  enclosingVariant: boolean
   /**
    * Whether emission succeeded. Whole calls and definitions also reject overlapping
    * source diagnostics; diagnostics elsewhere do not invalidate this site.

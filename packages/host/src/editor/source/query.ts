@@ -137,7 +137,10 @@ export class SourceQueries {
           : (this.#preview(literal, request.candidate.slice(literal.prefix.length)) ??
             candidates.preview(request.candidate, literal.context))
         : undefined;
-      const marker = current ? candidates.marker(request.candidate, literal.context) : null;
+      const marker =
+        current && !literal.site?.native.enclosingVariant
+          ? candidates.marker(request.candidate, literal.context)
+          : null;
       if (css || marker) {
         const formatted = css ? this.#query.formatCss(css, this.#annotations) : "";
         result.hover = {
@@ -249,9 +252,10 @@ export class SourceQueries {
         const css = token.literal.key
           ? this.#candidates.variant(candidate, token.literal.context)
           : this.#preview(token.literal, token.text, token.site);
-        const marker = token.literal.key
-          ? null
-          : this.#candidates.marker(candidate, token.literal.context);
+        const marker =
+          token.literal.key || token.site?.native.enclosingVariant
+            ? null
+            : this.#candidates.marker(candidate, token.literal.context);
         if (css || marker) {
           result.hover = {
             start: token.start,
@@ -281,7 +285,7 @@ export class SourceQueries {
       .filter(({ label, marker }) =>
         literal.key
           ? !marker && label.endsWith(":")
-          : marker ||
+          : (marker && !literal.site?.native.enclosingVariant) ||
             label.endsWith(":") ||
             !literal.site ||
             this.#preview(literal, label.slice(literal.prefix.length)),
@@ -631,11 +635,7 @@ export class SourceQueries {
         : ts.isTaggedTemplateExpression(node)
           ? node.tag
           : undefined;
-      if (
-        callee &&
-        (this.#index.asset(source, callee)?.identity.kind === "ref" ||
-          (ts.isPropertyAccessExpression(callee) && ["at", "in"].includes(callee.name.text)))
-      ) {
+      if (callee && this.#refCallee(source, callee)) {
         reference = true;
       }
       expression = node;
@@ -658,5 +658,35 @@ export class SourceQueries {
           css: this.#query.formatCss(preview.css, this.#annotations),
         }
       : undefined;
+  }
+
+  /**
+   * Reports whether `callee` calls a ref asset directly or through `.at()` / `.in()` chains.
+   *
+   * @param source - Prepared source stored in this snapshot's index.
+   * @param callee - Call target or template tag to inspect.
+   * @returns Whether the root receiver resolves to a `ref` asset.
+   */
+  #refCallee(source: PreparedSource, callee: ts.Expression): boolean {
+    while (ts.isParenthesizedExpression(callee)) {
+      callee = callee.expression;
+    }
+    if (this.#index.asset(source, callee)?.identity.kind === "ref") {
+      return true;
+    }
+    if (ts.isPropertyAccessExpression(callee) && ["at", "in"].includes(callee.name.text)) {
+      let receiver: ts.Expression = callee.expression;
+      while (ts.isParenthesizedExpression(receiver)) {
+        receiver = receiver.expression;
+      }
+      if (ts.isCallExpression(receiver)) {
+        return this.#refCallee(source, receiver.expression);
+      }
+      if (ts.isTaggedTemplateExpression(receiver)) {
+        return this.#refCallee(source, receiver.tag);
+      }
+      return this.#index.asset(source, receiver)?.identity.kind === "ref";
+    }
+    return false;
   }
 }

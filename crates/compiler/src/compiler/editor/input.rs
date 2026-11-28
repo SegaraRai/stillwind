@@ -56,6 +56,57 @@ pub(super) fn input_plans(input: &StyleInput) -> Vec<InputPlan> {
     }
 }
 
+/// Reports whether an isolated call plan wraps its input in any enclosing variant,
+/// including ref conditions, container queries, stored variants, and string prefixes.
+pub(super) fn has_enclosing_variant(plan: &EditorPlan) -> bool {
+    let EditorPlan::Call(call) = plan else {
+        return false;
+    };
+    call.inputs.iter().any(input_has_variant)
+}
+
+/// Reports whether `input` contains a variant wrapper along any path.
+fn input_has_variant(input: &StyleInput) -> bool {
+    match input {
+        StyleInput::Class(class) => class_has_variant(class),
+        StyleInput::Array(inputs) => inputs.iter().any(input_has_variant),
+        StyleInput::Conditional { branches, .. } => {
+            branches.values().flatten().any(input_has_variant)
+        }
+        _ => false,
+    }
+}
+
+/// Reports whether `class` contains a variant wrapper along any path.
+fn class_has_variant(class: &ClassExpression) -> bool {
+    match class {
+        ClassExpression::Rule(rule) => rule_has_variant(rule),
+        ClassExpression::Array(classes) => classes.iter().any(class_has_variant),
+        ClassExpression::Conditional { branches, .. } => {
+            branches.values().flatten().any(class_has_variant)
+        }
+        ClassExpression::Group { entries, .. } => entries.iter().any(|entry| match entry {
+            GroupEntry::Class(class) => class_has_variant(class),
+            GroupEntry::CustomProperty(_) => false,
+        }),
+        ClassExpression::ClassValue { .. } => false,
+    }
+}
+
+/// Reports whether `rule` is or contains a [`RuleExpression::Variant`].
+fn rule_has_variant(rule: &RuleExpression) -> bool {
+    match rule {
+        RuleExpression::Variant { .. } => true,
+        RuleExpression::Array(inputs) | RuleExpression::Group { inputs, .. } => {
+            inputs.iter().any(rule_has_variant)
+        }
+        RuleExpression::Conditional { branches, .. } => {
+            branches.values().flatten().any(rule_has_variant)
+        }
+        _ => false,
+    }
+}
+
 /// Adds every finite style composition candidate to `dependencies`, including both
 /// conditional branches. Existing entries remain present; the set deduplicates
 /// identities.

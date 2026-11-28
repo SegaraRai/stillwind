@@ -363,10 +363,8 @@ function exactVariants(query: CandidateQuery, input: string): CandidateMatch[] {
 }
 
 /**
- * Formats the CSS of a variant and marks the empty rule where the utility declarations belong.
+ * Formats the CSS of a variant and marks each empty block where the utility declarations belong.
  * The comment is added after formatting, because `formatCss` removes comments from its input.
- * The comment replaces an empty `&` rule inside a selector, which generated CSS does not contain.
- * The rule stays when only at-rules enclose it, because a utility needs it there.
  *
  * @returns The CSS, or undefined when `preview` is not valid CSS.
  */
@@ -377,24 +375,17 @@ function variantCss(query: CandidateQuery, preview: string): string | undefined 
     return undefined;
   }
   const output: string[] = [];
-  // Indentation of the open rules that have a selector.
-  const selectors: number[] = [];
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index]!;
-    const indent = line.search(/\S/);
-    while (indent >= 0 && selectors.length > 0 && selectors.at(-1)! >= indent) {
-      selectors.pop();
-    }
-    if (line.trim() !== "& {" || lines[index + 1]?.trim() !== "}") {
-      output.push(line);
-      if (line.endsWith("{") && !line.trimStart().startsWith("@")) {
-        selectors.push(indent);
+    output.push(line);
+    if (line.endsWith("{")) {
+      const indent = Math.max(0, line.search(/\S/));
+      if (lines[index + 1]?.trim() === "}") {
+        output.push(`${" ".repeat(indent + 2)}${comment}`);
+      } else if (lines[index + 1]?.trim() === "" && lines[index + 2]?.trim() === "}") {
+        output.push(`${" ".repeat(indent + 2)}${comment}`);
+        index++;
       }
-    } else if (selectors.length > 0) {
-      output.push(`${" ".repeat(indent)}${comment}`);
-      index++;
-    } else {
-      output.push(line, `${" ".repeat(indent + 2)}${comment}`);
     }
   }
   return output.join("\n");

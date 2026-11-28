@@ -389,6 +389,28 @@ impl NativeEditorQuery {
         })
     }
 
+    /// Adds preview comments with resolved values to `css` without reformatting it.
+    /// Accepts complete stylesheets as well as standalone declarations such as active
+    /// theme definitions.
+    ///
+    /// An omitted field of `preview` uses its default.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `colorEquivalents` has an invalid value.
+    #[napi(ts_return_type = "string")]
+    pub fn annotate_preview(
+        &self,
+        css: String,
+        preview: Option<NativePreviewOptions>,
+    ) -> napi::Result<NativeText> {
+        let annotations = match preview {
+            Some(preview) => preview.try_into()?,
+            None => PreviewAnnotations::default(),
+        };
+        Ok(self.query.annotate_preview(&css, annotations).into())
+    }
+
     /// Returns the labels that can continue the decoded `prefix` in the role `context`.
     /// `prefix` is one partial candidate, including the variants before it. An omitted
     /// `context` means ordinary utilities.

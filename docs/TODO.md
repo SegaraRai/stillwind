@@ -211,8 +211,7 @@ Sources: [extraction](../crates/js-oxc/src/stored_variants.rs),
   `(width >= 48rem), print`. It reports `invalid-variant` now.
 - Duplicates: `or(hover,hover)` emits the same rule twice. Only
   `prefer-canonical-utilities` reports it.
-- Editors: completion and hover inside `or(...)` should treat each sequence as a
-  variant prefix. A finding for an expanded candidate covers the whole candidate,
+- Diagnostics: a finding for an expanded candidate covers the whole candidate,
   not the failing sequence.
 
 Sources: [expansion](../crates/compiler/src/compiler/style_variants/alternatives.rs),

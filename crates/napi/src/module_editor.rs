@@ -60,6 +60,9 @@ pub struct NativeEditorSite {
     pub identity: Option<NativeIdentity>,
     /// Resolver contract of a literal input. Whole expressions omit it.
     pub context: Option<NativeCandidateContext>,
+    /// Whether a literal input is wrapped in any enclosing variant, including ref
+    /// conditions, container queries, stored variants, and string variant groups.
+    pub enclosing_variant: bool,
     /// Whether emission succeeded. Whole calls and definitions also reject overlapping
     /// source diagnostics; diagnostics elsewhere do not invalidate this site.
     pub valid: bool,
@@ -126,6 +129,7 @@ impl NativeModuleEditor {
                 kind: site.kind.into(),
                 identity: site.identity.clone().map(Into::into),
                 context: site.context.map(Into::into),
+                enclosing_variant: site.enclosing_variant,
                 valid: site.valid,
                 css: (site.css.clone()).into(),
                 dependencies: site.dependencies.iter().cloned().map(Into::into).collect(),

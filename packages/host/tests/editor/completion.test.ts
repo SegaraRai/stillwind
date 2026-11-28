@@ -153,6 +153,7 @@ const slotted = style.recipe("", { slots: { icon: "flex" }, variants: { size: { 
     const key = await hover('"hover:": "block", "wide');
     expect(source.slice(key!.start, key!.end)).toBe("hover:");
     expect(key!.css).toContain("&:hover");
+    expect(key!.css).not.toContain("& {");
     expect(key!.css).not.toContain("display");
     // A nested key previews the variants of its enclosing keys.
     const nested = await hover('"focus:": "flex"');

@@ -26,9 +26,11 @@ use super::super::css_call::{CssOutput, css_call_text};
 use super::super::definitions::{emit_keyframes_definition, emit_view_transition_definition};
 use super::super::emission::{CallEmitter, CallEmitterInputs};
 use super::super::style_variants::StyleVariantPlan;
-use super::super::stylesheet::render_authored_variant_path;
+use super::super::stylesheet::render_authored_variant_preview_path;
 use super::super::symbols::named_identity;
-use super::input::{collect_bases, identity_wrappers, input_plans, replace_text};
+use super::input::{
+    collect_bases, has_enclosing_variant, identity_wrappers, input_plans, replace_text,
+};
 use super::resources::preview_resource_urls;
 use super::runtime::collect_runtime_names;
 use crate::compiler::rewrite_generated_css;
@@ -49,10 +51,10 @@ pub enum EditorSiteKind {
     /// A `style.css()` call, whose CSS is the string that the call lowers to.
     Stylesheet,
     /// A ref condition or a ref container query used as a variant. Its CSS contains
-    /// the selectors and conditions of the variant around an empty `&` rule, without
-    /// the rules under the variant. The span addresses the condition's variant text, or
-    /// the whole call when a ref is called without arguments, or the container query
-    /// text.
+    /// the selectors and conditions of the variant around an empty rule or block,
+    /// without the rules under the variant. The span addresses the condition's variant
+    /// text, or the whole call when a ref is called without arguments, or the container
+    /// query text.
     Variant,
 }
 
@@ -68,6 +70,9 @@ pub struct EditorSite {
     pub identity: Option<IdentityId>,
     /// Candidate contract for literal inputs. Whole expressions have no context.
     pub context: Option<CandidateContext>,
+    /// Whether an isolated literal input is wrapped in any enclosing variant, such as a
+    /// string variant group, a ref condition, a container query, or a stored variant.
+    pub enclosing_variant: bool,
     /// Whether emission succeeded. Whole calls and definitions also reject overlapping
     /// source diagnostics; diagnostics elsewhere in the module do not invalidate this
     /// site.
@@ -191,6 +196,7 @@ impl ModuleEditor {
                         site.kind,
                         &site.identity,
                         site.context,
+                        site.enclosing_variant,
                         site.valid,
                         &site.css,
                         &site.dependencies
@@ -373,6 +379,7 @@ impl ModuleEditor {
                     kind: EditorSiteKind::Variant,
                     identity: None,
                     context: None,
+                    enclosing_variant: false,
                     valid: css.is_some(),
                     css: css.unwrap_or_default().into(),
                     dependencies: Vec::new(),
@@ -383,8 +390,8 @@ impl ModuleEditor {
     }
 
     /// Renders the selectors and conditions of one ref or container `wrapper` around an
-    /// empty `&` rule, with the batch's display names. Returns `None` when the wrapper
-    /// does not resolve, for example because its variant text cannot test the
+    /// empty rule or block, with the batch's display names. Returns `None` when the
+    /// wrapper does not resolve, for example because its variant text cannot test the
     /// referenced element, or when conditional lowering fails.
     fn render_variant(&self, wrapper: &StyleVariant) -> Option<LeanString> {
         let context = self
@@ -402,7 +409,7 @@ impl ModuleEditor {
         let mut css = LeanString::new();
         for plan in &plans {
             for path in plan.applications() {
-                css.push_str(&render_authored_variant_path("&{}", path, &context).ok()?);
+                css.push_str(&render_authored_variant_preview_path(path, &context).ok()?);
             }
         }
         let lowered = lower(&css, self.options.use_css_if, &context).ok()?;
@@ -482,11 +489,13 @@ impl ModuleEditor {
             .into_values()
             .filter_map(|span| self.module.source.slice(span).ok().map(LeanStr::from))
             .collect();
+        let enclosing_variant = kind == EditorSiteKind::Input && has_enclosing_variant(&plan);
         self.sites.push(EditorSite {
             span,
             kind,
             identity,
             context,
+            enclosing_variant,
             valid,
             css: (css).into(),
             dependencies,

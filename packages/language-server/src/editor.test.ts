@@ -1250,6 +1250,8 @@ test("standard LSP requests support lazy completion, hover, colors, and separate
       position,
     });
     expect(JSON.stringify(hover.contents)).toContain("&:hover");
+    expect((hover.contents as { value: string }).value).not.toMatch(/```\n\n/);
+    expect((hover.contents as { value: string }).value).not.toMatch(/\n\n```/);
     const completions = await client.sendRequest<CompletionItem[]>("textDocument/completion", {
       textDocument: {
         uri,

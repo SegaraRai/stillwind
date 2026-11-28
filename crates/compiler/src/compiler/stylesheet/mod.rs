@@ -31,14 +31,16 @@ mod theme_prefix;
 pub use lint::{StylesheetLint, lint_stylesheets};
 
 pub(crate) use authored_directives::{
-    applied_banners, apply_candidates, expand_authored_variant, parse_variant_sequence,
+    applied_banners, apply_candidates, expand_authored_variant_preview, parse_variant_sequence,
     variant_sequences,
 };
 pub(crate) use render::{render_module_stylesheet, render_stylesheet};
 pub(crate) use template::{render_css_template, render_mapped};
 pub(crate) use theme_prefix::{prefix_theme_variables, rewrite_generated_css};
 
+#[cfg(test)]
+pub(super) use authored_directives::render_authored_variant_path;
 pub(super) use authored_directives::{
-    expand_authored_directives, fold_nested_host_rules, render_authored_variant_path,
+    expand_authored_directives, fold_nested_host_rules, render_authored_variant_preview_path,
     render_authored_variant_steps,
 };

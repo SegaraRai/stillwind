@@ -400,6 +400,56 @@ pub(crate) fn expand_authored_variant(
     Ok(output)
 }
 
+/// Expands `prelude` for a variant preview without a utility body.
+///
+/// Paths that already introduce a selector wrap an empty block, while paths that consist
+/// only of at-rules wrap an empty `& {}` rule where declarations would belong.
+///
+/// # Errors
+///
+/// Returns the host generator's failure for a conditional helper's name.
+pub(crate) fn expand_authored_variant_preview(
+    prelude: &str,
+    theme: &ThemeIndex,
+    identifiers: &IdentifierContext,
+) -> Result<LeanString, CompileDiagnostic> {
+    let mut output = LeanString::new();
+    for sequence in variant_sequences(prelude) {
+        let Some(applications) = parse_variant_sequence(&prelude[sequence]).and_then(|variants| {
+            variants
+                .iter()
+                .map(|variant| resolve_variant(variant, theme).ok())
+                .collect::<Option<Vec<_>>>()
+        }) else {
+            continue;
+        };
+        let mut paths = vec![Vec::new()];
+        for application in applications {
+            let alternatives = match application {
+                VariantApplication::Compound(applications) => applications,
+                application => vec![application],
+            };
+            paths = paths
+                .into_iter()
+                .flat_map(|path| {
+                    alternatives.iter().cloned().map(move |application| {
+                        let mut path = path.clone();
+                        path.push(application);
+                        path
+                    })
+                })
+                .collect();
+        }
+        for applications in &paths {
+            output.push_str(&render_authored_variant_preview_path(
+                applications,
+                identifiers,
+            )?);
+        }
+    }
+    Ok(output)
+}
+
 /// Returns the range of each comma-separated sequence of a `@variant` prelude, without
 /// surrounding whitespace.
 ///
@@ -455,6 +505,43 @@ pub(in crate::compiler) fn render_authored_variant_path(
         .iter()
         .map(|path| render_authored_variant_steps(body, path, identifiers))
         .collect()
+}
+
+/// Wraps an empty preview body in every application of one variant path.
+///
+/// Paths that introduce a selector wrap an empty block; paths made solely of at-rules
+/// wrap `&{}` so the preview shows where element declarations belong.
+///
+/// # Errors
+///
+/// Returns a diagnostic when a conditional helper name cannot be generated.
+pub(in crate::compiler) fn render_authored_variant_preview_path(
+    applications: &[VariantApplication],
+    identifiers: &IdentifierContext,
+) -> Result<LeanString, CompileDiagnostic> {
+    variant_paths(applications)
+        .iter()
+        .map(|path| {
+            let body = if path_has_selector(path) { "" } else { "&{}" };
+            render_authored_variant_steps(body, path, identifiers)
+        })
+        .collect()
+}
+
+/// Reports whether any step in `path` emits a CSS selector rule.
+fn path_has_selector(path: &[VariantStep<'_>]) -> bool {
+    path.iter().any(|step| {
+        matches!(
+            step,
+            VariantStep::SelectorSuffix(_)
+                | VariantStep::SelectorCondition(_)
+                | VariantStep::SelectorTemplate(_)
+                | VariantStep::BareSelector { .. }
+                | VariantStep::SelectorRule { .. }
+                | VariantStep::SelectorMedia { .. }
+                | VariantStep::SelectorMediaRule { .. }
+        )
+    })
 }
 
 /// Wraps a declaration body in one resolved path, retaining scope boundaries.

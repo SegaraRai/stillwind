@@ -368,12 +368,20 @@ impl Annotator<'_> {
         }
         if let Some(policy) = self.annotations.color_equivalents
             && let Some(color) = color_hex(value)
-            && !color.hex.eq_ignore_ascii_case(value)
+            && !is_hex_color(value)
             && (color.in_gamut || policy == ColorEquivalents::Approximate)
         {
             join(description, !color.in_gamut, &color.hex);
         }
     }
+}
+
+/// Reports whether `value` is already written as a CSS hexadecimal color (`#rgb`,
+/// `#rgba`, `#rrggbb`, or `#rrggbbaa`).
+fn is_hex_color(value: &str) -> bool {
+    value.strip_prefix('#').is_some_and(|hex| {
+        matches!(hex.len(), 3 | 4 | 6 | 8) && hex.bytes().all(|byte| byte.is_ascii_hexdigit())
+    })
 }
 
 /// Collects pixel comments for rem and em dimensions in a media or container prelude.
@@ -579,7 +587,30 @@ mod tests {
         assert_eq!(
             query(CompilerOptions::default())
                 .annotate_preview(PREVIEW, PreviewAnnotations::default()),
-            "& {\n  padding: calc(var(--spacing) * 4) /* 1rem = 16px */;\n  margin: calc(var(--spacing) + 1px) /* 5px */;\n  color: var(--color-brand) /* oklch(63.7% 0.237 25.331) = #fb2c36 */;\n  background-color: var(--color-wide) /* oklch(72.3% 0.219 149.579) ≈ #00c758 */;\n  border-color: var(--color-alias) /* oklch(63.7% 0.237 25.331) = #fb2c36 */;\n  caret-color: var(--color-black) /* #000 = #000000 */;\n  line-height: var(--tw-leading, var(--text-sm--line-height) /* calc(1.25 / 0.875) ≈ 1.428571 */);\n  font-family: var(--font-sans) /* ui-sans-serif, system-ui */;\n  outline-color: oklch(72.3% 0.219 149.579) /* ≈ #00c758 */;\n  accent-color: rgb(255 0 0) /* #ff0000 */;\n  inset: 1rem /* 16px */;\n  border-radius: var(--radius-lg) /* 1.5rem = 24px */;\n  gap: calc(var(--spacing) / 3) /* ≈ 0.083333rem ≈ 1.333333px */;\n  margin-top: -.5rem /* -8px */;\n  translate: var(--tw-translate-x) 0;\n\n  &:hover {\n    width: 2rem /* 32px */;\n  }\n}\n\n@media (width >= 40rem /* 640px */) {\n  & {\n    display: flex;\n  }\n}\n"
+            "& {\n  padding: calc(var(--spacing) * 4) /* 1rem = 16px */;\n  margin: calc(var(--spacing) + 1px) /* 5px */;\n  color: var(--color-brand) /* oklch(63.7% 0.237 25.331) = #fb2c36 */;\n  background-color: var(--color-wide) /* oklch(72.3% 0.219 149.579) ≈ #00c758 */;\n  border-color: var(--color-alias) /* oklch(63.7% 0.237 25.331) = #fb2c36 */;\n  caret-color: var(--color-black) /* #000 */;\n  line-height: var(--tw-leading, var(--text-sm--line-height) /* calc(1.25 / 0.875) ≈ 1.428571 */);\n  font-family: var(--font-sans) /* ui-sans-serif, system-ui */;\n  outline-color: oklch(72.3% 0.219 149.579) /* ≈ #00c758 */;\n  accent-color: rgb(255 0 0) /* #ff0000 */;\n  inset: 1rem /* 16px */;\n  border-radius: var(--radius-lg) /* 1.5rem = 24px */;\n  gap: calc(var(--spacing) / 3) /* ≈ 0.083333rem ≈ 1.333333px */;\n  margin-top: -.5rem /* -8px */;\n  translate: var(--tw-translate-x) 0;\n\n  &:hover {\n    width: 2rem /* 32px */;\n  }\n}\n\n@media (width >= 40rem /* 640px */) {\n  & {\n    display: flex;\n  }\n}\n"
+        );
+    }
+
+    #[test]
+    fn standalone_theme_declarations_receive_preview_annotations() {
+        let q = query(CompilerOptions::default());
+        assert_eq!(
+            q.annotate_preview(
+                "--color-brand: oklch(63.7% .237 25.331);",
+                PreviewAnnotations::default()
+            ),
+            "--color-brand: oklch(63.7% .237 25.331) /* #fb2c36 */;"
+        );
+        assert_eq!(
+            q.annotate_preview("--spacing: .25rem;", PreviewAnnotations::default()),
+            "--spacing: .25rem /* 4px */;"
+        );
+        assert_eq!(
+            q.annotate_preview(
+                "--color-alias: var(--color-brand);",
+                PreviewAnnotations::default()
+            ),
+            "--color-alias: var(--color-brand) /* oklch(63.7% 0.237 25.331) = #fb2c36 */;"
         );
     }
 

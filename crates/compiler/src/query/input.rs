@@ -17,8 +17,9 @@ use super::DesignSystemQuery;
 use super::resolution::candidate_identifiers;
 use crate::CssContribution;
 use crate::compiler::{
-    condition_paths, emit_document_style, emit_view_transition_utilities, expand_authored_variant,
-    media_argument_query, resolve_frame, resolve_options, wrap_conditions,
+    condition_paths, emit_document_style, emit_view_transition_utilities,
+    expand_authored_variant_preview, media_argument_query, resolve_frame, resolve_options,
+    wrap_conditions,
 };
 
 /// The syntax and emission contract of an editor input.
@@ -245,9 +246,8 @@ impl DesignSystemQuery {
     fn preview_variants(&self, candidate: &str, context: CandidateContext) -> Option<LeanStr> {
         let theme = self.context.design_system.theme();
         if context == CandidateContext::ElementVariants {
-            let css = expand_authored_variant(
+            let css = expand_authored_variant_preview(
                 candidate.trim_end_matches(':'),
-                "&{}",
                 theme,
                 &candidate_identifiers(true),
             )
