@@ -1,4 +1,5 @@
 import {
+  candidateSegments,
   completionDetail,
   type NativeAddedMarker,
   type NativeCandidateColor,
@@ -186,50 +187,18 @@ export class CandidateQueries {
 }
 
 /**
- * Splits at delimiters outside brackets, parentheses, single or double quotes, and escapes.
- * The operation preserves source spelling and does not validate nesting syntax.
+ * Splits at delimiters outside brackets, parentheses, single or double quotes, and escapes,
+ * with the grouping rules of the native candidate parser.
  *
- * @param text - Candidate text whose backslashes escape the following UTF-16 code unit.
- * @param delimiter - One UTF-16 code unit, such as `:` or `/`, that is not a bracket,
- * parenthesis, quote, or backslash.
- * @returns Segments in their original order, including empty segments. Nothing is trimmed
- * or unescaped, and an empty input returns one empty segment.
+ * @param text - Candidate text whose backslashes escape the following character.
+ * @param delimiter - One character, such as `:` or `/`, that is not a bracket, parenthesis,
+ * quote, or backslash.
+ * @returns Segments in their original order, including empty segments. Nothing is trimmed or
+ * unescaped, and an empty input returns one empty segment. After a closing bracket without a
+ * matching opener, the rest of the text stays in the last segment.
  */
 export function segments(text: string, delimiter: string): string[] {
-  const result: string[] = [];
-  let start = 0;
-  let depth = 0;
-  let quote = "";
-  let escaped = false;
-  for (let index = 0; index < text.length; index++) {
-    const character = text[index];
-    if (escaped) {
-      escaped = false;
-      continue;
-    }
-    if (character === "\\") {
-      escaped = true;
-      continue;
-    }
-    if (quote) {
-      if (character === quote) {
-        quote = "";
-      }
-      continue;
-    }
-    if (character === "'" || character === '"') {
-      quote = character;
-    } else if (character === "[" || character === "(") {
-      depth++;
-    } else if (character === "]" || character === ")") {
-      depth--;
-    } else if (character === delimiter && depth === 0) {
-      result.push(text.slice(start, index));
-      start = index + 1;
-    }
-  }
-  result.push(text.slice(start));
-  return result;
+  return candidateSegments(text, delimiter);
 }
 
 /**

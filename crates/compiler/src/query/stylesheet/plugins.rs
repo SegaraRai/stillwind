@@ -1,4 +1,8 @@
-//! Plugin paths retain their original CSS ranges without loading a design system.
+//! Plugin paths and plugin catalog inputs, read without loading a design system.
+//!
+//! [`stylesheet_plugin_paths`] retains the original CSS ranges of plugin paths.
+//! [`stylesheet_catalog_input`] selects the name that a plugin catalog completes at a
+//! cursor.
 
 use std::ops::Range;
 
@@ -6,6 +10,26 @@ use cssparser::{Parser, Token};
 use lean_string::{LeanStr, ToLeanStr};
 
 use stillwind_css::{CssNodeKind, parse_structure};
+use stillwind_syntax::CandidatePrefix;
+
+use super::context::{Kind, context};
+
+/// Returns the text that a plugin catalog completes at the UTF-8 byte `offset` of
+/// `css`, such as `icon-mdi--cl` for `@apply hover:icon-mdi--cl` with the cursor at
+/// the end.
+///
+/// The text runs from the start of the `@apply` candidate or applied `@variant`
+/// sequence at the cursor to the cursor, without its variants. Returns `None` for an
+/// invalid offset and for a cursor in any other input, including comments and
+/// strings.
+pub fn stylesheet_catalog_input(css: &str, offset: usize) -> Option<LeanStr> {
+    let context = context(css, offset)?;
+    if !matches!(context.kind, Kind::Apply | Kind::Variant) {
+        return None;
+    }
+    let prefix = css.get(context.range.start..offset)?;
+    Some(prefix[CandidatePrefix::variant_end(prefix)..].to_lean_str())
+}
 
 /// A quoted path in a top-level `@plugin` statement, including an unclosed path.
 #[derive(Clone, Debug)]
@@ -109,5 +133,28 @@ mod tests {
         let escaped = stylesheet_plugin_paths(r#"@plugin "./quote\""#, None);
         assert!(!escaped[0].closed);
         assert_eq!(escaped[0].specifier, "./quote\"");
+    }
+
+    #[test]
+    fn catalog_inputs_start_at_the_candidate_and_omit_its_variants() {
+        let input = |css: &str| {
+            let offset = css.find('|').unwrap();
+            let css = css.replace('|', "");
+            stylesheet_catalog_input(&css, offset).map(|input| input.to_string())
+        };
+        assert_eq!(
+            input(".a { @apply p-4 hover:icon-mdi--cl| }").as_deref(),
+            Some("icon-mdi--cl")
+        );
+        assert_eq!(
+            input(".a { @apply content-['a_b;c'] data-[x=':']:icon-a| }").as_deref(),
+            Some("icon-a")
+        );
+        assert_eq!(
+            input(".a { @variant dark:state-op| { color: red; } }").as_deref(),
+            Some("state-op")
+        );
+        assert_eq!(input(".a { content: 'icon-x|'; }"), None);
+        assert_eq!(input("/* @apply icon-x| */"), None);
     }
 }

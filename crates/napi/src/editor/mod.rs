@@ -21,9 +21,10 @@ mod query;
 mod stylesheet;
 mod theme;
 
-pub use candidates::{NativeCandidateContext, decode_arbitrary_value};
+pub use candidates::{NativeCandidateContext, candidate_segments, decode_arbitrary_value};
 pub use lint::NativeEditorLintEdit;
 pub use query::NativeEditorQuery;
 pub use stylesheet::{
-    NativeStylesheetPluginPath, completion_detail, editor_css_source, stylesheet_plugin_paths,
+    NativeStylesheetPluginPath, completion_detail, editor_css_source, stylesheet_catalog_input,
+    stylesheet_plugin_paths,
 };

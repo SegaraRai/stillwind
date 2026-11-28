@@ -136,29 +136,6 @@ export function defaultPluginExport(module: unknown, specifier: string): LoadedP
 }
 
 /**
- * Returns the utility text before the cursor for plugin catalog lookup.
- *
- * @param text - Text before the cursor. The candidate ends at the cursor and starts after the
- * last whitespace, quote, backtick, `;`, `{`, or `}`.
- * @returns The candidate without its variants, such as `icon-mdi--cl` for `hover:icon-mdi--cl`.
- */
-export function catalogInput(text: string): string {
-  const candidate = /[^\s"'`;{}]*$/.exec(text)![0];
-  let depth = 0;
-  for (let index = candidate.length - 1; index >= 0; index--) {
-    const character = candidate[index];
-    if (character === "]" || character === ")") {
-      depth++;
-    } else if ((character === "[" || character === "(") && depth > 0) {
-      depth--;
-    } else if (character === ":" && depth === 0) {
-      return candidate.slice(index + 1);
-    }
-  }
-  return candidate;
-}
-
-/**
  * Identifies one `@plugin` statement independently of its request ID.
  *
  * @param request - Plugin request.

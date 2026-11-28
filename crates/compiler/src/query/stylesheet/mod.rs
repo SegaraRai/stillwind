@@ -15,8 +15,8 @@
 //! - [`directives`] supplies dialect names, syntax, audience, provenance, and usage
 //!   positions.
 //! - [`hover`] implements [`DesignSystemQuery::hover_stylesheet`] and owns its previews.
-//! - [`plugins`] extracts plugin strings and cursor prefixes without loading the CSS
-//!   graph.
+//! - [`plugins`] extracts plugin strings, cursor prefixes, and plugin catalog inputs
+//!   without loading the CSS graph.
 //! - [`recovery`] extracts definitions for editor queries when the original CSS cannot
 //!   compile.
 //! - [`sorting`] owns the sorting targets and plans the source edits that stylesheet
@@ -37,7 +37,7 @@ mod sorting;
 pub use colors::StylesheetColor;
 pub use completion::{StylesheetCompletion, StylesheetCompletionOptions};
 pub use hover::StylesheetHover;
-pub use plugins::{StylesheetPluginPath, stylesheet_plugin_paths};
+pub use plugins::{StylesheetPluginPath, stylesheet_catalog_input, stylesheet_plugin_paths};
 pub use recovery::editor_css_source;
 pub use sorting::{StylesheetEdit, StylesheetSortOptions};
 

@@ -10,6 +10,7 @@ use napi_derive::napi;
 use stillwind_compiler::{CandidateContext, ColorEquivalents, CompletionInput, PreviewAnnotations};
 use stillwind_css::{ColorScheme, color_rgba, format_css};
 use stillwind_design_system::MarkerOrigin;
+use stillwind_syntax::CandidatePrefix;
 
 use super::NativeEditorQuery;
 use super::query::reason;
@@ -236,6 +237,33 @@ impl TryFrom<NativePreviewOptions> for PreviewAnnotations {
 #[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
 pub fn decode_arbitrary_value(value: String) -> String {
     stillwind_syntax::decode_arbitrary_value(&value).to_string()
+}
+
+/// Splits the candidate text `text` at each `delimiter` outside brackets,
+/// parentheses, quotes, and escapes. Segments keep their spelling and include empty
+/// segments. After a closing bracket without a matching opener, the rest of `text`
+/// stays in the last segment.
+///
+/// # Errors
+///
+/// Returns an error when `delimiter` is not one character, or is a bracket,
+/// parenthesis, quote, or backslash.
+#[napi]
+#[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
+pub fn candidate_segments(text: String, delimiter: String) -> napi::Result<Vec<String>> {
+    let mut characters = delimiter.chars();
+    let (Some(character), None) = (characters.next(), characters.next()) else {
+        return Err(napi::Error::from_reason("delimiter must be one character"));
+    };
+    if matches!(character, '[' | ']' | '(' | ')' | '\'' | '"' | '\\') {
+        return Err(napi::Error::from_reason(
+            "delimiter must not be a bracket, parenthesis, quote, or backslash",
+        ));
+    }
+    Ok(CandidatePrefix::segments(&text, character)
+        .into_iter()
+        .map(Into::into)
+        .collect())
 }
 
 #[napi]

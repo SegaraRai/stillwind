@@ -753,6 +753,19 @@ export interface BindingReport {
 }
 
 /**
+ * Splits the candidate text `text` at each `delimiter` outside brackets,
+ * parentheses, quotes, and escapes. Segments keep their spelling and include empty
+ * segments. After a closing bracket without a matching opener, the rest of `text`
+ * stays in the last segment.
+ *
+ * # Errors
+ *
+ * Returns an error when `delimiter` is not one character, or is a bracket,
+ * parenthesis, quote, or backslash.
+ */
+export declare function candidateSegments(text: string, delimiter: string): Array<string>
+
+/**
  * Compiles a resolved module graph in one native invocation.
  *
  * # Errors
@@ -2621,6 +2634,14 @@ export declare function renderStylesheet(moduleCss: string, theme: string, optio
  * Rejects malformed host input and failures to resolve diagnostic locations.
  */
 export declare function scanSource(source: NativePreparedSource): NativeScanResult
+
+/**
+ * Returns the text that a plugin catalog completes at the UTF-8 byte offset `offset`
+ * of the CSS `source`: the `@apply` candidate or applied `@variant` sequence before
+ * the cursor, without its variants. Returns null at other positions, including
+ * comments and strings.
+ */
+export declare function stylesheetCatalogInput(source: string, offset: number): string | null
 
 /**
  * Returns the paths of the top-level `@plugin` statements in `source`. The method does

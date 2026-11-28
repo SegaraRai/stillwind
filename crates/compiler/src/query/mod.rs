@@ -42,7 +42,7 @@ pub use state::{DesignSystemQuery, prepare_canonical_index};
 pub use stylesheet::{
     StylesheetColor, StylesheetCompletion, StylesheetCompletionOptions, StylesheetEdit,
     StylesheetHover, StylesheetPluginPath, StylesheetSortOptions, editor_css_source,
-    stylesheet_plugin_paths,
+    stylesheet_catalog_input, stylesheet_plugin_paths,
 };
 pub use theme::SchemeColor;
 

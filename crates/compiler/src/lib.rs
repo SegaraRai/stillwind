@@ -97,7 +97,8 @@ pub use query::{
     ColorEquivalents, CompletionInput, CompletionItem, DesignSystemQuery, PreviewAnnotations,
     SchemeColor, StylesheetColor, StylesheetCompletion, StylesheetCompletionOptions,
     StylesheetEdit, StylesheetHover, StylesheetPluginPath, StylesheetSortOptions,
-    completion_detail, editor_css_source, prepare_canonical_index, stylesheet_plugin_paths,
+    completion_detail, editor_css_source, prepare_canonical_index, stylesheet_catalog_input,
+    stylesheet_plugin_paths,
 };
 pub use renderer::{
     RenderedStylesheet, StylesheetPlacement, StylesheetRenderError, StylesheetRenderer,

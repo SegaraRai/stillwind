@@ -1,7 +1,11 @@
 import type { BaseConfig, PreviewOptions } from "@stillwind/config";
-import { fingerprint, type BindingReport, type NativeEditorQuery } from "@stillwind/native";
+import {
+  fingerprint,
+  stylesheetCatalogInput,
+  type BindingReport,
+  type NativeEditorQuery,
+} from "@stillwind/native";
 
-import { catalogInput } from "../css/plugins/host.ts";
 import type { PluginRuntime } from "../css/plugins/runtime.ts";
 import { CandidateQueries } from "../editor/candidates.ts";
 import { colorReplacement, cssColor } from "../editor/colors.ts";
@@ -100,8 +104,8 @@ export class StylesheetEditor {
           request.snapshot ===
             this.#completionSnapshot(request.registryDirectives, request.snippets)))
     ) {
-      const input = catalogInput(
-        this.#text.slice(0, request.kind === "completion" ? request.offset : request.input),
+      const input = this.#catalogInput(
+        request.kind === "completion" ? request.offset : request.input,
       );
       if (input && !this.#inputCatalogs.has(input)) {
         this.#inputCatalogs.set(input, await this.#plugins.catalog(input));
@@ -330,8 +334,19 @@ export class StylesheetEditor {
    * for the candidate's input, without duplicates.
    */
   #catalogAt(offset: number): string[] {
-    const input = catalogInput(this.#text.slice(0, offset));
+    const input = this.#catalogInput(offset);
     return [...new Set([...this.#catalog, ...(this.#inputCatalogs.get(input) ?? [])])];
+  }
+
+  /**
+   * Returns the text that a plugin catalog completes at a cursor.
+   *
+   * @param offset - UTF-16 character boundary within the captured text.
+   * @returns The `@apply` candidate or applied `@variant` sequence before the cursor without its
+   * variants, or an empty string at other positions.
+   */
+  #catalogInput(offset: number): string {
+    return stylesheetCatalogInput(this.#text, this.#byteOffset(offset)) ?? "";
   }
 
   /**

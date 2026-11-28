@@ -148,11 +148,53 @@ impl<'a> CandidatePrefix<'a> {
                 (&self.raw[..offset], Some(&self.raw[offset + 1..]))
             })
     }
+
+    /// Splits `raw` at each `delimiter` outside brackets, parentheses, quotes, and
+    /// escapes, with the grouping rules of [`CandidatePrefix::parse`].
+    ///
+    /// `delimiter` must not be a bracket, parenthesis, quote, or backslash. The segments
+    /// keep their spelling, include empty segments, and are not trimmed. An empty `raw`
+    /// returns one empty segment. After a closing bracket without a matching opener, no
+    /// later `delimiter` splits, so the rest of `raw` stays in the last segment.
+    pub fn segments(raw: &'a str, delimiter: char) -> Vec<&'a str> {
+        let mut state = Self::new(raw);
+        let mut result = Vec::new();
+        let mut start = 0;
+        for (offset, character) in raw.char_indices() {
+            if character == delimiter && state.is_complete() {
+                result.push(&raw[start..offset]);
+                start = offset + character.len_utf8();
+            }
+            if state.advance(offset, character).is_none() {
+                break;
+            }
+        }
+        result.push(&raw[start..]);
+        result
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn segments_split_outside_groups_quotes_and_escapes() {
+        for (raw, delimiter, expected) in [
+            ("", ':', &[""][..]),
+            ("hover:", ':', &["hover", ""][..]),
+            (
+                "data-[a:b]:content-['x:y']:p\\:4",
+                ':',
+                &["data-[a:b]", "content-['x:y']", "p\\:4"][..],
+            ),
+            ("bg-[*]-*", '*', &["bg-[*]-", ""][..]),
+            ("a]:b:c", ':', &["a]:b:c"][..]),
+            ("[x:y", ':', &["[x:y"][..]),
+        ] {
+            assert_eq!(CandidatePrefix::segments(raw, delimiter), expected, "{raw}");
+        }
+    }
 
     #[test]
     fn separators_preserve_nested_groups_and_escaped_spelling() {

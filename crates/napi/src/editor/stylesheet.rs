@@ -166,6 +166,16 @@ pub fn completion_detail(source: String) -> Option<NativeText> {
     stillwind_compiler::completion_detail(&source).map(Into::into)
 }
 
+/// Returns the text that a plugin catalog completes at the UTF-8 byte offset `offset`
+/// of the CSS `source`: the `@apply` candidate or applied `@variant` sequence before
+/// the cursor, without its variants. Returns null at other positions, including
+/// comments and strings.
+#[napi(ts_return_type = "string | null")]
+#[allow(clippy::needless_pass_by_value)] // Node-API decodes JavaScript strings as owned Rust values.
+pub fn stylesheet_catalog_input(source: String, offset: u32) -> Option<NativeText> {
+    stillwind_compiler::stylesheet_catalog_input(&source, offset as usize).map(Into::into)
+}
+
 /// Returns the paths of the top-level `@plugin` statements in `source`. The method does
 /// not load CSS or plugins. When `offset` is given, it is a UTF-8 byte offset of the
 /// cursor, and the path that contains it receives a `prefix`.

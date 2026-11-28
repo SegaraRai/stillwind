@@ -63,8 +63,8 @@ pub use api::{
     summarize_source_input,
 };
 pub use editor::{
-    NativeStylesheetPluginPath, completion_detail, decode_arbitrary_value, editor_css_source,
-    stylesheet_plugin_paths,
+    NativeStylesheetPluginPath, candidate_segments, completion_detail, decode_arbitrary_value,
+    editor_css_source, stylesheet_catalog_input, stylesheet_plugin_paths,
 };
 pub use fingerprint::fingerprint;
 pub use minify::{NativeCssMinifyOptions, NativeMinifiedCss, minify_css};
