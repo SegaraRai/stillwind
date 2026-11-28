@@ -351,9 +351,10 @@ fn expand_application<'a>(
 
 /// Expands one `@variant <prelude> { body }` block.
 ///
-/// Each sequence of [`variant_sequences`] expands to its own copy of the body. A
-/// sequence that [`parse_variant_sequence`] rejects or whose variants do not resolve
-/// contributes nothing.
+/// Each sequence of [`variant_sequences`] expands to its own copy of the body. An
+/// `or(...)` variant in a sequence expands into separate sequences before resolution. A
+/// sequence that [`parse_variant_sequence`] rejects, that fails alternative expansion,
+/// or whose expanded variants do not all resolve contributes nothing.
 ///
 /// # Errors
 ///
@@ -366,37 +367,53 @@ pub(crate) fn expand_authored_variant(
 ) -> Result<LeanString, CompileDiagnostic> {
     let mut output = LeanString::new();
     for sequence in variant_sequences(prelude) {
-        let Some(applications) = parse_variant_sequence(&prelude[sequence]).and_then(|variants| {
-            variants
-                .iter()
-                .map(|variant| resolve_variant(variant, theme).ok())
-                .collect::<Option<Vec<_>>>()
-        }) else {
+        let written = &prelude[sequence];
+        if parse_variant_sequence(written).is_none() {
+            continue;
+        }
+        let Ok(expanded) = expand_prefix(&format_args!("{written}:").to_lean_string(), theme)
+        else {
             continue;
         };
-        let mut paths = vec![Vec::new()];
-        for application in applications {
-            let alternatives = match application {
-                VariantApplication::Compound(applications) => applications,
-                application => vec![application],
-            };
-            paths = paths
-                .into_iter()
-                .flat_map(|path| {
-                    alternatives.iter().cloned().map(move |application| {
-                        let mut path = path.clone();
-                        path.push(application);
-                        path
-                    })
+        let Some(resolved_sequences) = expanded
+            .iter()
+            .map(|prefix| {
+                parse_variant_sequence(prefix.trim_end_matches(':')).and_then(|variants| {
+                    variants
+                        .iter()
+                        .map(|variant| resolve_variant(variant, theme).ok())
+                        .collect::<Option<Vec<_>>>()
                 })
-                .collect();
-        }
-        for applications in &paths {
-            output.push_str(&render_authored_variant_path(
-                body,
-                applications,
-                identifiers,
-            )?);
+            })
+            .collect::<Option<Vec<_>>>()
+        else {
+            continue;
+        };
+        for applications in resolved_sequences {
+            let mut paths = vec![Vec::new()];
+            for application in applications {
+                let alternatives = match application {
+                    VariantApplication::Compound(applications) => applications,
+                    application => vec![application],
+                };
+                paths = paths
+                    .into_iter()
+                    .flat_map(|path| {
+                        alternatives.iter().cloned().map(move |application| {
+                            let mut path = path.clone();
+                            path.push(application);
+                            path
+                        })
+                    })
+                    .collect();
+            }
+            for applications in &paths {
+                output.push_str(&render_authored_variant_path(
+                    body,
+                    applications,
+                    identifiers,
+                )?);
+            }
         }
     }
     Ok(output)
@@ -953,5 +970,37 @@ mod tests {
             parse_variant_sequence("").map(|variants| variants.len()),
             None
         );
+    }
+
+    #[test]
+    fn expands_or_alternatives_in_authored_variant_directives() {
+        let source = css_source(
+            FileId(1),
+            r#"
+                @import "stillwind/theme.css" layer(theme);
+                @import "stillwind/utilities.css" layer(utilities); @import "stillwind/builtins.css";
+                .button {
+                  @variant md:or(hover,focus) { color: red; }
+                  @variant or(hover,unknown-variant) { color: blue; }
+                }
+            "#,
+        )
+        .unwrap();
+        let theme = read_theme(&source);
+        let expanded = expand(theme.custom_css(), &theme, &mut Vec::new()).unwrap();
+        let compact = expanded
+            .chars()
+            .filter(|character| !character.is_whitespace())
+            .collect::<LeanString>();
+
+        assert!(
+            compact.contains("@media(width>=48rem){&:hover{@media(hover:hover){color:red;}}}"),
+            "{compact}"
+        );
+        assert!(
+            compact.contains("@media(width>=48rem){&:focus{color:red;}}"),
+            "{compact}"
+        );
+        assert!(!compact.contains("color:blue"), "{compact}");
     }
 }

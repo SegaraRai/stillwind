@@ -1216,8 +1216,9 @@ position, and `conflicting-utilities` reports them. Several `or(...)` variants i
 candidate expand to every combination, and a sequence may contain another `or(...)`.
 
 Variant keys in `style()` and `style.css()` objects, ref condition prefixes such as
-`card("or(hover,focus-within)")`, and view-transition definitions accept `or(...)` in
-the same way. Keyframes frames reject it as they reject other variants.
+`card("or(hover,focus-within)")`, view-transition definitions, and CSS `@variant`
+rules accept `or(...)` in the same way. Keyframes frames reject it as they reject
+other variants.
 
 `invalid-variant` reports an `or(...)` variant that has an empty sequence or
 unbalanced delimiters, or that makes one candidate expand to more than 32 candidates.

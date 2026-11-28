@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use stillwind_css::{CssNode, CssNodeKind, parse_structure, properties_interfere};
 use stillwind_design_system::{UtilityResolutionError, VariantSequenceOrder, resolve_variant};
 
-use crate::compiler::{apply_candidates, parse_variant_sequence, variant_sequences};
+use crate::compiler::{apply_candidates, expand_prefix, parse_variant_sequence, variant_sequences};
 use crate::query::{CandidateContext, DesignSystemQuery};
 
 /// Independent targets for CSS sorting. These settings also control sorting lint.
@@ -259,16 +259,23 @@ impl Planner<'_> {
             return None;
         }
         let theme = self.query.context.design_system.theme();
-        let mut keys = variant_sequences(prelude)
-            .into_iter()
-            .map(|range| {
-                let variants = parse_variant_sequence(&prelude[range])?;
-                variants
+        let mut keys = Vec::new();
+        for range in variant_sequences(prelude) {
+            let written = &prelude[range];
+            parse_variant_sequence(written)?;
+            let prefixes =
+                expand_prefix(&format_args!("{written}:").to_lean_string(), theme).ok()?;
+            for prefix in prefixes {
+                let variants = parse_variant_sequence(prefix.trim_end_matches(':'))?;
+                if !variants
                     .iter()
                     .all(|variant| resolve_variant(variant, theme).is_ok())
-                    .then(|| VariantSequenceOrder::new(&variants, theme))
-            })
-            .collect::<Option<Vec<_>>>()?;
+                {
+                    return None;
+                }
+                keys.push(VariantSequenceOrder::new(&variants, theme));
+            }
+        }
         keys.sort_by(VariantSequenceOrder::compare);
         Some(keys)
     }

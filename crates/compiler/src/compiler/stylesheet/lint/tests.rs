@@ -424,3 +424,18 @@ fn value_and_condition_rules_report_inside_the_candidate() {
         ]
     );
 }
+
+#[test]
+fn variant_directive_expands_or_alternatives_for_lint() {
+    assert_eq!(
+        default_findings(
+            ".a { @variant md:or(hover,focus) { color: red; } }\n\
+             .b { @variant or(hover,unknown-x) { color: blue; } }\n\
+             .c { @variant or(hover,motion-safe) { @variant motion-reduce { color: green; } } }"
+        ),
+        [
+            finding(LintKind::UnknownVariant, "or(hover,unknown-x)"),
+            finding(LintKind::UnsatisfiableVariants, "motion-reduce"),
+        ]
+    );
+}
