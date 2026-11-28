@@ -72,6 +72,7 @@ impl<'a> MacroExtractor<'a> {
         if entries.is_empty() {
             return Some(Vec::new());
         }
+        self.record_conditional_label(key);
         Some(vec![RuleExpression::Conditional {
             test: self.source_span(key.span()),
             branches: ConditionalBranches::Select { entries },

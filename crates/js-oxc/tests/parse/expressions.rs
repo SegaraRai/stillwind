@@ -379,3 +379,70 @@ fn custom_property_lone_surrogates_keep_the_runtime_expression() {
     assert_eq!(property.static_value, None);
     assert_eq!(source.slice(property.value).unwrap(), r#""\uD800""#);
 }
+
+/// Preview labels place parentheses by operator precedence, so punctuation inside
+/// strings, regular expressions, and comments does not change them. A test such as
+/// `(h) || (i)` starts and ends with parentheses that do not enclose it, so a conjunct
+/// cannot be derived from the plain label by adding or removing outer parentheses.
+#[test]
+fn conditional_labels_parenthesize_by_operator_precedence() {
+    let source = SourceFile::new(
+        FileId(1),
+        None,
+        None,
+        r#"import { style } from "stillwind/react";
+style(a || b ? "p-1" : null, /[)(]/.test(c) ? "p-2" : null, (d ?? e) && "p-3", ({ x: "p-4" })[f ?? g], (h) || (i) ? "p-5" : null, (j || k) && (l || m) ? "p-6" : null);"#,
+    )
+    .unwrap();
+    let parsed = parse(
+        &source,
+        &ModuleId::from("test.tsx"),
+        &[],
+        &BTreeMap::default(),
+        ScriptLanguage::Tsx,
+        ScriptModuleKind::Unambiguous,
+    );
+    let labels = parsed
+        .module
+        .conditional_labels
+        .iter()
+        .map(|label| {
+            [
+                label.truthy.as_str(),
+                label.falsy.as_str(),
+                label.truthy_conjunct.as_str(),
+                label.falsy_conjunct.as_str(),
+                label.comparand.as_str(),
+            ]
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        labels,
+        [
+            ["a || b", "!(a || b)", "(a || b)", "!(a || b)", "(a || b)"],
+            [
+                "/[)(]/.test(c)",
+                "!/[)(]/.test(c)",
+                "/[)(]/.test(c)",
+                "!/[)(]/.test(c)",
+                "/[)(]/.test(c)"
+            ],
+            ["d ?? e", "!(d ?? e)", "(d ?? e)", "!(d ?? e)", "(d ?? e)"],
+            ["f ?? g", "!(f ?? g)", "(f ?? g)", "!(f ?? g)", "(f ?? g)"],
+            [
+                "(h) || (i)",
+                "!((h) || (i))",
+                "((h) || (i))",
+                "!((h) || (i))",
+                "((h) || (i))"
+            ],
+            [
+                "(j || k) && (l || m)",
+                "!((j || k) && (l || m))",
+                "(j || k) && (l || m)",
+                "!((j || k) && (l || m))",
+                "((j || k) && (l || m))"
+            ],
+        ]
+    );
+}

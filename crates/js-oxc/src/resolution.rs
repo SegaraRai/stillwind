@@ -136,6 +136,15 @@ impl<'a> MacroExtractor<'a> {
             ),
             _ => return lower(self, receiver),
         };
+        match receiver {
+            Expression::ConditionalExpression(conditional) => {
+                self.record_conditional_label(&conditional.test);
+            }
+            Expression::LogicalExpression(logical) => {
+                self.record_conditional_label(&logical.left);
+            }
+            _ => {}
+        }
         let empty = branches.values().all(Vec::is_empty);
         (!empty).then(|| ClassExpression::Conditional {
             test: self.source_span(test),

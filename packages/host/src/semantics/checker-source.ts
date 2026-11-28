@@ -160,7 +160,8 @@ export class CheckerSource {
    * @param ids - Resolved source identities mapped to their main checker filenames for import
    * rewriting.
    * @throws If a byte boundary is invalid, producer identities conflict, a mapped producer does not
-   * end with a closing parenthesis, edits overlap, or projection decoding fails.
+   * end with a closing parenthesis or does not parse as a call, edits overlap, or projection
+   * decoding fails.
    */
   constructor(
     source: TypeFactSource,
@@ -203,13 +204,9 @@ export class CheckerSource {
         if (!call.endsWith(")")) {
           throw new Error(`Cannot locate producer in ${source.moduleId}`);
         }
-        const separator = [...call.matchAll(/[,(]/g)].some(
-          (match) => skipTrivia(call, match.index + 1) === call.length - 1,
-        )
-          ? ""
-          : ",";
-        const identity = `{readonly __stillwindDeclarationIdentity:${JSON.stringify(key)}}`;
         const syntax = source.kind === "direct" ? source.syntax : source.projection.syntax;
+        const separator = endsArgumentList(call, scriptKinds[syntax.language]) ? "" : ",";
+        const identity = `{readonly __stillwindDeclarationIdentity:${JSON.stringify(key)}}`;
         const javascript = syntax.language === "js" || syntax.language === "jsx";
         const argument = javascript
           ? `/** @type {${identity}} */ (/** @type {unknown} */ (undefined))`
@@ -501,17 +498,31 @@ function base64url(text: string): string {
     .replace(/=+/, "");
 }
 
+/** Script kinds of the checker buffer languages. */
+const scriptKinds = {
+  js: ts.ScriptKind.JS,
+  jsx: ts.ScriptKind.JSX,
+  ts: ts.ScriptKind.TS,
+  tsx: ts.ScriptKind.TSX,
+  dts: ts.ScriptKind.TS,
+} as const;
+
 /**
- * Finds the next token start after whitespace and comments.
+ * Reports whether a new argument can follow the existing arguments of a call without a comma.
  *
- * @param text - Checker call text to scan.
- * @param offset - UTF-16 position at which scanning starts.
- * @returns UTF-16 start of the next token, or text.length at end of input.
+ * @param call - Text of one call expression, ending with its closing parenthesis.
+ * @param kind - Script kind of the checker buffer that contains the call.
+ * @returns Whether the call has no arguments or ends them with a trailing comma, as in `f()` or
+ * `f(a,)`.
+ * @throws If the text does not parse as a single call expression.
  */
-function skipTrivia(text: string, offset: number): number {
-  const scanner = ts.createScanner(ts.ScriptTarget.Latest, true);
-  scanner.setText(text);
-  scanner.resetTokenState(offset);
-  scanner.scan();
-  return scanner.getTokenStart();
+function endsArgumentList(call: string, kind: ts.ScriptKind): boolean {
+  const file = ts.createSourceFile("call.ts", call, ts.ScriptTarget.Latest, false, kind);
+  const statement = file.statements.length === 1 ? file.statements[0] : undefined;
+  const expression =
+    statement && ts.isExpressionStatement(statement) ? statement.expression : undefined;
+  if (!expression || !ts.isCallExpression(expression) || expression.end !== call.length) {
+    throw new Error("Cannot parse producer call");
+  }
+  return expression.arguments.length === 0 || expression.arguments.hasTrailingComma === true;
 }

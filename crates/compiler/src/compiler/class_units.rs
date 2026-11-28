@@ -671,119 +671,45 @@ fn format_guard_path(
 }
 
 /// Formats one [`GuardStep`] as a JavaScript condition expression.
+///
+/// `compound` selects the form that can be an operand of `&&`. The frontend formats
+/// the test from its AST as a [`ConditionalLabel`]. A test without a label is
+/// parenthesized wherever it is combined with an operator.
 fn format_guard_step(
     source: &SourceFile,
     labels: &[ConditionalLabel],
     step: &GuardStep,
     compound: bool,
 ) -> Option<LeanString> {
-    if step.key.is_none()
-        && let Some(label) = labels.iter().find(|label| label.span == step.test)
-    {
-        let text = if step.when_true {
-            label.truthy.as_str()
-        } else {
-            label.falsy.as_str()
-        };
-        if !text.is_empty() {
-            return Some(if compound && needs_and_parens(text) {
-                format_args!("({text})").to_lean_string()
-            } else {
-                text.to_lean_string()
-            });
-        }
-    }
-    let raw = source.slice(step.test).ok()?.trim();
-    if raw.is_empty() {
-        return None;
-    }
+    let label = labels.iter().find(|label| label.span == step.test);
     if let Some(key) = &step.key {
         let key_literal = serde_json::Value::String(key.as_str().into()).to_lean_string();
-        let lhs = if needs_parens(raw) {
-            format_args!("({raw})").to_lean_string()
-        } else {
-            raw.to_lean_string()
+        let lhs = match label {
+            Some(label) => label.comparand.to_lean_string(),
+            None => format_args!("({})", raw_test(source, step)?).to_lean_string(),
         };
         return Some(format_args!("{lhs} === {key_literal}").to_lean_string());
     }
-    if step.when_true {
-        return Some(if compound && needs_and_parens(raw) {
-            format_args!("({raw})").to_lean_string()
-        } else {
-            raw.to_lean_string()
-        });
+    if let Some(label) = label {
+        let text = match (step.when_true, compound) {
+            (true, false) => &label.truthy,
+            (true, true) => &label.truthy_conjunct,
+            (false, false) => &label.falsy,
+            (false, true) => &label.falsy_conjunct,
+        };
+        return Some(text.to_lean_string());
     }
-    if needs_parens(raw) {
-        Some(format_args!("!({raw})").to_lean_string())
-    } else {
-        Some(format_args!("!{raw}").to_lean_string())
-    }
+    let raw = raw_test(source, step)?;
+    Some(match (step.when_true, compound) {
+        (true, false) => raw.to_lean_string(),
+        (true, true) => format_args!("({raw})").to_lean_string(),
+        (false, _) => format_args!("!({raw})").to_lean_string(),
+    })
 }
 
-/// Reports whether `expr` needs parentheses when negated or placed on the left of `===`.
-fn needs_parens(expr: &str) -> bool {
-    let mut depth = 0usize;
-    let mut quote: Option<char> = None;
-    let mut escaped = false;
-    for ch in expr.chars() {
-        if escaped {
-            escaped = false;
-            continue;
-        }
-        if let Some(q) = quote {
-            if ch == '\\' {
-                escaped = true;
-            } else if ch == q {
-                quote = None;
-            }
-            continue;
-        }
-        match ch {
-            '\'' | '"' | '`' => quote = Some(ch),
-            '(' | '[' | '{' => depth += 1,
-            ')' | ']' | '}' => depth = depth.saturating_sub(1),
-            c if depth == 0
-                && (c.is_whitespace()
-                    || matches!(
-                        c,
-                        '?' | ':' | ',' | '=' | '|' | '&' | '<' | '>' | '+' | '-' | '*' | '/' | '%'
-                    )) =>
-            {
-                return true;
-            }
-            _ => {}
-        }
-    }
-    false
-}
-
-/// Reports whether `expr` needs parentheses when joined with `&&`.
-fn needs_and_parens(expr: &str) -> bool {
-    let mut depth = 0usize;
-    let mut quote: Option<char> = None;
-    let mut escaped = false;
-    let mut chars = expr.chars().peekable();
-    while let Some(ch) = chars.next() {
-        if escaped {
-            escaped = false;
-            continue;
-        }
-        if let Some(q) = quote {
-            if ch == '\\' {
-                escaped = true;
-            } else if ch == q {
-                quote = None;
-            }
-            continue;
-        }
-        match ch {
-            '\'' | '"' | '`' => quote = Some(ch),
-            '(' | '[' | '{' => depth += 1,
-            ')' | ']' | '}' => depth = depth.saturating_sub(1),
-            '?' | ',' if depth == 0 => return true,
-            '|' if depth == 0 && chars.peek() == Some(&'|') => return true,
-            _ => {}
-        }
-    }
-    false
+/// Returns the trimmed source text of the test of `step`, or `None` when it is empty
+/// or outside `source`.
+fn raw_test<'a>(source: &'a SourceFile, step: &GuardStep) -> Option<&'a str> {
+    let raw = source.slice(step.test).ok()?.trim();
+    (!raw.is_empty()).then_some(raw)
 }

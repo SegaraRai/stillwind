@@ -16,12 +16,13 @@ use lean_string::{LeanStr, ToLeanStr};
 use oxc::ast::ast::{BinaryOperator, Expression, ModuleExportName, UnaryOperator};
 use oxc::semantic::{Scoping, SymbolId};
 use oxc::span::{GetSpan, Span as OxcSpan};
+use oxc::syntax::precedence::{GetPrecedence, Precedence};
 
 use stillwind_diagnostics::{CompileError, LintFinding};
 use stillwind_ir::{
     ConditionalLabel, CssCall, ForwardCall, FrameworkSpec, KeyframesDefinition, MediaCall,
-    OutputFormat, RecipeCall, RecipeReplacement, RecipeValueRole, RefDefinition,
-    StoredVariantDefinition, StyleCall, ViewTransitionDefinition,
+    ModuleImports, ModuleIr, OrderingUse, OutputFormat, RecipeCall, RecipeReplacement,
+    RecipeValueRole, RefDefinition, StoredVariantDefinition, StyleCall, ViewTransitionDefinition,
 };
 use stillwind_semantic::{
     AssetKind, AssetMetadata, AssetRecord, CheckedValue, DeclarationKey, ExportedValue, IdentityId,
@@ -85,7 +86,7 @@ pub(crate) struct MacroExtractor<'a> {
     /// `style.css()` calls in source order.
     pub(crate) css_calls: Vec<CssCall>,
     /// Pre-formatted truthy and falsy display text for conditional test expressions.
-    pub(crate) conditional_labels: Vec<stillwind_ir::ConditionalLabel>,
+    pub(crate) conditional_labels: Vec<ConditionalLabel>,
     /// Allows boolean literals as empty contributions while parsing recipe values.
     pub(crate) in_recipe: bool,
     /// Diagnostics raised during extraction, in visit order.
@@ -370,24 +371,32 @@ impl<'a> MacroExtractor<'a> {
             let end = node_span.end as usize;
             self.source.text().get(start..end).unwrap_or("").trim()
         };
-        let truthy = format_condition(expression, false, &slice);
-        let falsy = format_condition(expression, true, &slice);
+        let (truthy, truthy_precedence) = format_condition(expression, false, &slice);
+        let (falsy, falsy_precedence) = format_condition(expression, true, &slice);
         if !truthy.is_empty() && !falsy.is_empty() {
+            let comparand = expression.without_parentheses();
             self.conditional_labels.push(ConditionalLabel {
                 span,
+                truthy_conjunct: parenthesize(&truthy, truthy_precedence, Precedence::LogicalAnd),
+                falsy_conjunct: parenthesize(&falsy, falsy_precedence, Precedence::LogicalAnd),
+                comparand: parenthesize(
+                    slice(comparand.span()),
+                    precedence(comparand),
+                    Precedence::Equals,
+                ),
                 truthy: truthy.into(),
                 falsy: falsy.into(),
             });
         }
     }
 
-    /// Moves the extracted module collections into a [`stillwind_ir::ModuleIr`].
+    /// Moves the extracted module collections into a [`ModuleIr`].
     pub(crate) fn take_module_ir(
         &mut self,
-        imports: stillwind_ir::ModuleImports,
-        ordering_uses: Vec<stillwind_ir::OrderingUse>,
-    ) -> stillwind_ir::ModuleIr {
-        stillwind_ir::ModuleIr {
+        imports: ModuleImports,
+        ordering_uses: Vec<OrderingUse>,
+    ) -> ModuleIr {
+        ModuleIr {
             imports,
             style_calls: std::mem::take(&mut self.style_calls),
             recipe_calls: std::mem::take(&mut self.recipe_calls),
@@ -420,11 +429,13 @@ impl<'a> MacroExtractor<'a> {
 
 /// Strips outer parentheses and leading `!` operators, toggling `negated`, then formats
 /// the expression with top-level comparison inversion when `negated` is true.
+///
+/// Returns the text and the precedence of its top-level operator.
 fn format_condition<'a>(
     mut expr: &'a Expression<'a>,
     mut negated: bool,
     slice: &impl Fn(OxcSpan) -> &'a str,
-) -> String {
+) -> (String, Precedence) {
     loop {
         match expr {
             Expression::ParenthesizedExpression(paren) => {
@@ -440,22 +451,65 @@ fn format_condition<'a>(
         }
     }
     if !negated {
-        return slice(expr.span()).to_string();
+        return (slice(expr.span()).to_string(), precedence(expr));
     }
     if let Expression::BinaryExpression(binary) = expr
         && let Some(inverted) = invert_comparison(binary.operator)
     {
-        return format!(
-            "{} {inverted} {}",
-            slice(binary.left.span()),
-            slice(binary.right.span())
+        return (
+            format!(
+                "{} {inverted} {}",
+                slice(binary.left.span()),
+                slice(binary.right.span())
+            ),
+            binary.precedence(),
         );
     }
     let text = slice(expr.span());
-    if needs_not_parens(expr) {
+    let text = if needs_not_parens(expr) {
         format!("!({text})")
     } else {
         format!("!{text}")
+    };
+    (text, Precedence::Prefix)
+}
+
+/// Returns the precedence of the top-level operator of `expr`. Expressions without an
+/// operator, such as identifiers, literals, and parenthesized expressions, return
+/// [`Precedence::Member`].
+fn precedence(expr: &Expression<'_>) -> Precedence {
+    match expr {
+        Expression::SequenceExpression(_)
+        | Expression::AssignmentExpression(_)
+        | Expression::YieldExpression(_)
+        | Expression::ConditionalExpression(_)
+        | Expression::LogicalExpression(_)
+        | Expression::BinaryExpression(_)
+        | Expression::UnaryExpression(_)
+        | Expression::UpdateExpression(_)
+        | Expression::AwaitExpression(_)
+        | Expression::NewExpression(_)
+        | Expression::CallExpression(_) => expr.precedence(),
+        // An arrow function cannot be the left operand of a binary operator.
+        Expression::ArrowFunctionExpression(_) => Precedence::Assign,
+        // TypeScript parses `as` and `satisfies` with the precedence of relational
+        // operators.
+        Expression::TSAsExpression(_) | Expression::TSSatisfiesExpression(_) => Precedence::Compare,
+        Expression::TSTypeAssertion(_) => Precedence::Prefix,
+        _ => Precedence::Member,
+    }
+}
+
+/// Returns `text` as an operand of `&&` or `===`, whose precedence is `operator`.
+/// `own` is the precedence of the top-level operator of `text`. The text is
+/// parenthesized when `own` is lower. Equal precedence needs no parentheses, because
+/// `&&` is associative and a comparand is the left operand of the left-associative
+/// `===`.
+fn parenthesize(text: &str, own: Precedence, operator: Precedence) -> LeanStr {
+    if own < operator {
+        format_args!("({text})").to_lean_str()
+    } else {
+        text.to_lean_str()
     }
 }
 

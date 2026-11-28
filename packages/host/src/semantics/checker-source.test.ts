@@ -158,3 +158,60 @@ __VLS_unwrap('authored');`;
   );
   expect(shadow.text).toContain("__VLS_unwrap as __stillwindCheckerHelper2");
 });
+
+test("producer identity arguments follow the existing arguments of the call", () => {
+  const cases = [
+    ["style.ref()", "style.ref(undefined as unknown as"],
+    ["style.ref(a,)", "style.ref(a,undefined as unknown as"],
+    ["style.ref(a // ,\n)", "style.ref(a // ,\n,undefined as unknown as"],
+    ["style.ref(/[,(]/)", "style.ref(/[,(]/,undefined as unknown as"],
+  ] as const;
+  for (const [call, expected] of cases) {
+    const original = `const value=${call};`;
+    const callStart = original.indexOf("style.");
+    const callEnd = original.lastIndexOf(")") + 1;
+    const source: TypeFactSource = {
+      kind: "direct",
+      moduleId: "a.ts",
+      resolverId: "a.ts",
+      checkerFileName: "a.ts",
+      projectionFileName: "a.ts",
+      document: {
+        code: original,
+        uri: "untitled:a.ts",
+        format: "script",
+      },
+      syntax: {
+        language: "ts",
+        moduleKind: "module",
+      },
+      probes: [],
+    };
+    const shadow = new CheckerSource(
+      source,
+      {
+        source: original,
+        language: "ts",
+      },
+      0,
+      [
+        {
+          identity: {
+            kind: "ref",
+            moduleId: "a.ts",
+            path: ["value"],
+            ordinal: 0,
+            bindingName: "value",
+          },
+          metadata: {
+            label: null,
+          },
+          callStart,
+          callEnd,
+        },
+      ],
+      new Map(),
+    );
+    expect(shadow.text, call).toContain(expected);
+  }
+});

@@ -66,6 +66,14 @@ pub struct ConditionalLabel {
     pub truthy: LeanStr,
     /// Top-level negated display text (for example `a === b` inverted to `a !== b`).
     pub falsy: LeanStr,
+    /// `truthy` as an operand of `&&`, parenthesized when its operator binds more
+    /// loosely than `&&` or cannot be mixed with it, as in `(a || b)`.
+    pub truthy_conjunct: LeanStr,
+    /// `falsy` as an operand of `&&`, parenthesized under the rule of `truthy_conjunct`.
+    pub falsy_conjunct: LeanStr,
+    /// The test as the left operand of `=== key` for a table lookup, parenthesized
+    /// when its operator binds more loosely than `===`, as in `(a ?? b)`.
+    pub comparand: LeanStr,
 }
 
 impl ModuleIr {
